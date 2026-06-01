@@ -1,0 +1,18 @@
+[package]
+name = "nod-tui"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+crossterm = "0.29"
+nod-client-core = { path = "../nod-client-core" }
+ratatui = "0.30"
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "sync", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+chrono = { version = "0.4", features = ["serde"] }

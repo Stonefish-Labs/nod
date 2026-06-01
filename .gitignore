@@ -1,0 +1,70 @@
+.DS_Store
+.codex/
+
+# Rust
+target/
+**/target/
+
+# Swift / Xcode
+.build/
+**/.build/
+build/
+**/build/
+DerivedData/
+**/DerivedData/
+*.xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+*.xcresult/
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
+*.ipa
+xcuserdata/
+**/xcuserdata/
+.swiftpm/
+**/.swiftpm/
+
+# Node / frontend
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Tauri generated files
+src-tauri/gen/
+**/src-tauri/gen/
+
+# Local runtime state
+.boop/
+.nod/
+.env
+**/.env
+.env.*
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Secrets
+secrets/*
+**/secrets/*
+!**/secrets/.gitkeep
+!**/secrets/.gitignore
+AuthKey_*.p8
+**/AuthKey_*.p8
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+*.certSigningRequest
+
+# Generated test TLS fixtures
+server/nod-apns-relay/tests/fixtures/mtls/*.crt
+server/nod-apns-relay/tests/fixtures/mtls/*.key
+server/nod-apns-relay/tests/fixtures/mtls/*.p8
+server/nod-apns-relay/tests/fixtures/mtls/*.csr
+server/nod-apns-relay/tests/fixtures/mtls/*.srl
+server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.crt
+server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.key
+server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.csr
+server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.srl

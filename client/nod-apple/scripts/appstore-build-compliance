@@ -1,0 +1,176 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "base64"
+require "json"
+require "net/http"
+require "openssl"
+require "time"
+require "uri"
+
+ROOT = File.expand_path("..", __dir__)
+
+def load_env
+  env = {}
+  paths = [
+    File.join(ROOT, ".env"),
+    File.join(ROOT, "secrets", "secrets.env")
+  ]
+
+  paths.each do |path|
+    next unless File.file?(path)
+
+    File.read(path).each_line do |line|
+      line = line.strip
+      next unless line =~ /\A([A-Za-z_][A-Za-z0-9_]*)=(.*)\z/
+
+      value = Regexp.last_match(2).strip
+      value = value[1...-1] if value.start_with?("\"", "'") && value.end_with?(value[0])
+      env[Regexp.last_match(1)] = value
+    end
+  end
+
+  env
+end
+
+def repo_relative_path(path)
+  return path if path.nil? || path.empty? || path.start_with?("/")
+
+  File.join(ROOT, path)
+end
+
+def env_value(env, *keys)
+  keys.each do |key|
+    return ENV[key] if ENV[key] && !ENV[key].empty?
+    return env[key] if env[key] && !env[key].empty?
+  end
+  nil
+end
+
+def base64url(value)
+  Base64.urlsafe_encode64(value).delete("=")
+end
+
+def jwt_token(key_id, issuer_id, key_path)
+  now = Time.now.to_i
+  header = { alg: "ES256", kid: key_id, typ: "JWT" }
+  claims = { iss: issuer_id, iat: now, exp: now + 900, aud: "appstoreconnect-v1" }
+  signing_input = [base64url(header.to_json), base64url(claims.to_json)].join(".")
+  key = OpenSSL::PKey.read(File.read(key_path))
+  der_signature = key.sign(OpenSSL::Digest::SHA256.new, signing_input)
+  sequence = OpenSSL::ASN1.decode(der_signature)
+  raw_signature = sequence.value.map { |integer| integer.value.to_s(2).rjust(32, "\0")[-32, 32] }.join
+  [signing_input, base64url(raw_signature)].join(".")
+end
+
+def request(method, path, token, body: nil)
+  uri = URI("https://api.appstoreconnect.apple.com#{path}")
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  http.open_timeout = 15
+  http.read_timeout = 60
+
+  request_class = {
+    get: Net::HTTP::Get,
+    patch: Net::HTTP::Patch
+  }.fetch(method)
+  req = request_class.new(uri)
+  req["Authorization"] = "Bearer #{token}"
+  req["Accept"] = "application/json"
+  if body
+    req["Content-Type"] = "application/json"
+    req.body = JSON.generate(body)
+  end
+
+  response = http.request(req)
+  return nil if response.code == "204"
+
+  parsed = response.body && !response.body.empty? ? JSON.parse(response.body) : nil
+  unless response.is_a?(Net::HTTPSuccess)
+    warn JSON.pretty_generate(parsed || { status: response.code, body: response.body })
+    exit 1
+  end
+  parsed
+end
+
+def query(items)
+  URI.encode_www_form(items)
+end
+
+env = load_env
+bundle_id = ENV["NOD_IOS_BUNDLE_ID"] || "com.batteryshark.Nod"
+issuer_id = env_value(env, "APP_STORE_CONNECT_API_ISSUER_ID", "ASC_API_ISSUER_ID")
+key_path = repo_relative_path(env_value(env, "APP_STORE_CONNECT_API_KEY_PATH", "ASC_API_KEY_PATH"))
+key_id = env_value(env, "APP_STORE_CONNECT_API_KEY_ID", "ASC_API_KEY_ID")
+
+abort "Missing APP_STORE_CONNECT_API_ISSUER_ID" unless issuer_id
+abort "Missing APP_STORE_CONNECT_API_KEY_PATH" unless key_path
+abort "App Store Connect API key file does not exist: #{key_path}" unless File.file?(key_path)
+
+key_id ||= File.basename(key_path)[/\AAuthKey_([A-Z0-9]+)\.p8\z/, 1]
+abort "Missing APP_STORE_CONNECT_API_KEY_ID and could not infer it from key filename" unless key_id
+
+target_builds = ARGV
+token = jwt_token(key_id, issuer_id, key_path)
+
+apps = request(
+  :get,
+  "/v1/apps?#{query("filter[bundleId]" => bundle_id, "fields[apps]" => "name,bundleId")}",
+  token
+)
+app = apps.fetch("data").first
+abort "No App Store Connect app found for #{bundle_id}" unless app
+
+builds = request(
+  :get,
+  "/v1/builds?#{query(
+    "filter[app]" => app.fetch("id"),
+    "sort" => "-uploadedDate",
+    "limit" => "10",
+    "fields[builds]" => "version,uploadedDate,processingState,expired,usesNonExemptEncryption,preReleaseVersion",
+    "include" => "preReleaseVersion",
+    "fields[preReleaseVersions]" => "version,platform"
+  )}",
+  token
+)
+
+pre_release_versions = {}
+(builds["included"] || []).each do |item|
+  pre_release_versions[item.fetch("id")] = item.dig("attributes", "version")
+end
+
+patched = []
+puts "Recent builds for #{bundle_id}:"
+builds.fetch("data").each do |build|
+  attrs = build.fetch("attributes")
+  build_number = attrs.fetch("version")
+  marketing_version = pre_release_versions[build.dig("relationships", "preReleaseVersion", "data", "id")] || "?"
+  state = attrs["processingState"]
+  current = attrs["usesNonExemptEncryption"]
+  puts "- #{marketing_version} (#{build_number}): processing=#{state} usesNonExemptEncryption=#{current.inspect}"
+
+  next unless target_builds.empty? || target_builds.include?(build_number)
+  next if current == false
+
+  request(
+    :patch,
+    "/v1/builds/#{build.fetch("id")}",
+    token,
+    body: {
+      data: {
+        type: "builds",
+        id: build.fetch("id"),
+        attributes: {
+          usesNonExemptEncryption: false
+        }
+      }
+    }
+  )
+  patched << build_number
+end
+
+if patched.empty?
+  puts "No builds needed an encryption-compliance patch."
+else
+  puts "Patched builds: #{patched.join(", ")}"
+end

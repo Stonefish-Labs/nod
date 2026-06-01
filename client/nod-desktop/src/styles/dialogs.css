@@ -1,0 +1,105 @@
+.enrollment {
+  align-items: center;
+  background:
+    linear-gradient(rgba(16, 24, 23, 0.68), rgba(16, 24, 23, 0.62)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='620' viewBox='0 0 900 620'%3E%3Crect width='900' height='620' fill='%2321312f'/%3E%3Cpath d='M0 426c98-58 210-72 337-42 142 34 268 16 377-54 63-40 125-58 186-54v344H0z' fill='%234d8d7a'/%3E%3Cpath d='M0 478c119-33 217-27 293 20 98 60 218 72 360 36 90-23 172-22 247 2v84H0z' fill='%23d7f86f' fill-opacity='.78'/%3E%3Ccircle cx='716' cy='136' r='66' fill='%23f6cf65'/%3E%3C/svg%3E");
+  background-size: cover;
+  display: flex;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.enrollmentPanel {
+  color: #17201b;
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.enrollmentPanel h1 {
+  color: #fff8e8;
+  font-size: 56px;
+  margin: 0 0 10px;
+}
+
+.formError {
+  background: #ffe7df;
+  border-radius: 6px;
+  color: #8a240f;
+  margin: 0;
+  padding: 10px;
+}
+
+.scrim {
+  align-items: center;
+  background: rgba(10, 14, 13, 0.42);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+}
+
+.dialog {
+  background: #fffbf3;
+  border-radius: 8px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.22);
+  display: grid;
+  gap: 16px;
+  max-height: 88vh;
+  overflow: auto;
+  padding: 20px;
+  width: min(720px, calc(100vw - 32px));
+}
+
+.dialog header,
+.dialog footer,
+.deviceRow {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.dialog header h2,
+.settingsSection h3 {
+  margin: 0;
+}
+
+.dialog header button,
+.deviceRow button {
+  background: #eee5d5;
+  color: #17201b;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+.settingsSection {
+  display: grid;
+  gap: 10px;
+}
+
+.checkRow {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  font-weight: 500;
+}
+
+.checkRow input {
+  min-height: auto;
+}
+
+.deviceRow {
+  border: 1px solid #e1d8c9;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.deviceRow span {
+  flex: 1;
+}
+
+.deviceRow small {
+  color: #69766e;
+}

@@ -1,0 +1,209 @@
+.topbar {
+  align-items: center;
+  border-bottom: 1px solid #ddd7cc;
+  display: flex;
+  justify-content: space-between;
+  min-height: 62px;
+  padding: 0 22px;
+}
+
+.topbar p {
+  font-weight: 750;
+  margin: 0 0 2px;
+}
+
+.topbar span {
+  color: #64746c;
+  font-size: 13px;
+}
+
+.alert {
+  background: #ffe7df;
+  color: #8a240f;
+  max-width: 52vw;
+  padding: 8px 10px;
+}
+
+.eventList {
+  border-right: 1px solid #ddd7cc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  padding: 14px;
+}
+
+.eventCard {
+  background: #fffaf1;
+  border: 1px solid #e2d8c8;
+  color: #1a2521;
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  justify-content: stretch;
+  min-height: 96px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.eventCard.active {
+  border-color: #4d8d7a;
+  box-shadow: inset 3px 0 0 #4d8d7a;
+}
+
+.eventCard strong,
+.eventCard span:not(.status),
+.eventCard time {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventCard span:not(.status),
+.eventCard time {
+  color: #66736e;
+  font-size: 13px;
+}
+
+.status {
+  border-radius: 999px;
+  grid-row: 1 / 4;
+  height: 10px;
+  margin-top: 4px;
+  width: 10px;
+}
+
+.status.pending,
+.pill.pending {
+  background: #d7f86f;
+  color: #1d2517;
+}
+
+.status.resolved,
+.pill.resolved {
+  background: #83d1c4;
+}
+
+.status.expired,
+.pill.expired {
+  background: #d8c7ad;
+}
+
+.status.cancelled,
+.pill.cancelled {
+  background: #f1a69b;
+}
+
+.detail {
+  background: #fbf8f0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.detail.empty {
+  align-items: center;
+  color: #728078;
+  display: flex;
+  justify-content: center;
+}
+
+.detail header {
+  margin-bottom: 18px;
+}
+
+.pill {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding: 4px 9px;
+  text-transform: capitalize;
+}
+
+.detail h2 {
+  font-size: 26px;
+  letter-spacing: 0;
+  margin: 0 0 8px;
+}
+
+.detail p {
+  color: #64746c;
+  margin: 0;
+}
+
+.eventImage {
+  border-radius: 6px;
+  max-height: 260px;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+pre {
+  background: #f0eadf;
+  border-radius: 6px;
+  overflow: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+dl {
+  display: grid;
+  gap: 10px;
+}
+
+dl div {
+  border-bottom: 1px solid #e3dbcd;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 160px minmax(0, 1fr);
+  padding: 10px 0;
+}
+
+dt {
+  color: #6f7a73;
+}
+
+dd {
+  margin: 0;
+}
+
+.links,
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.links button,
+.actions button,
+.enrollment button,
+.dialog footer button {
+  background: #16221e;
+  color: #f9f4ea;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.actionRow {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.actionRow input {
+  min-height: 38px;
+}
+
+.actionRow button:only-child {
+  grid-column: 2;
+}
+
+.danger,
+.dangerIcon {
+  background: #b8422e !important;
+  color: #fff9f0 !important;
+}

@@ -1,0 +1,10 @@
+target/
+clients/apple/.build/
+.boop/
+.nod/
+.git/
+.env
+secrets/*
+DerivedData/
+*.xcuserdata/
+*.xcuserstate

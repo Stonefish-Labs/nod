@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NOD_SECRETS_ENV="${NOD_SECRETS_ENV:-$ROOT/secrets/secrets.env}"
+export NOD_SECRETS_ENV
+
+generate_admin_token() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 48 | tr -d '\n'
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import secrets; print(secrets.token_urlsafe(48), end="")'
+  else
+    od -An -N48 -tx1 /dev/urandom | tr -d ' \n'
+  fi
+}
+
+ensure_admin_token() {
+  local token
+
+  mkdir -p "$(dirname "$NOD_SECRETS_ENV")"
+  touch "$NOD_SECRETS_ENV"
+  chmod 600 "$NOD_SECRETS_ENV" 2>/dev/null || true
+
+  if grep -Eq '^[[:space:]]*NOD_ADMIN_TOKEN=[^[:space:]]+' "$NOD_SECRETS_ENV"; then
+    return
+  fi
+
+  token="$(generate_admin_token)"
+  if [[ -s "$NOD_SECRETS_ENV" ]] && [[ "$(tail -c 1 "$NOD_SECRETS_ENV")" != "" ]]; then
+    printf '\n' >>"$NOD_SECRETS_ENV"
+  fi
+  printf 'NOD_ADMIN_TOKEN=%s\n' "$token" >>"$NOD_SECRETS_ENV"
+  printf 'Generated NOD_ADMIN_TOKEN in %s\n' "$NOD_SECRETS_ENV" >&2
+}
+
+ensure_admin_token
+
+compose_files=(-f "$ROOT/docker-compose.yml")
+if [[ "${1:-}" == "--dev" ]]; then
+  compose_files+=(-f "$ROOT/docker-compose.dev.yml")
+  shift
+fi
+
+if [[ $# -eq 0 ]]; then
+  set -- up -d
+fi
+
+cd "$ROOT"
+exec docker compose "${compose_files[@]}" "$@"

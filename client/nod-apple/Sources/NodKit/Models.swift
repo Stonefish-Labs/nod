@@ -1,0 +1,655 @@
+import Foundation
+
+public enum NodDevicePlatform: String, Codable, Sendable {
+  case ios
+  case macos
+  case watchos
+  case windows
+  case linux
+  case unknown
+}
+
+public struct NodChannel: Codable, Identifiable, Hashable, Sendable {
+  public var id: String
+  public var name: String
+  public var icon: String
+  public var color: String
+  public var defaultPriority: Int
+  public var privacy: String
+  public var subscribed: Bool
+  public var createdAt: Date
+
+  enum CodingKeys: String, CodingKey {
+    case id, name, icon, color, privacy, subscribed
+    case defaultPriority = "default_priority"
+    case createdAt = "created_at"
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    name = try container.decode(String.self, forKey: .name)
+    icon = try container.decode(String.self, forKey: .icon)
+    color = try container.decode(String.self, forKey: .color)
+    defaultPriority = try container.decode(Int.self, forKey: .defaultPriority)
+    privacy = try container.decode(String.self, forKey: .privacy)
+    subscribed = try container.decodeIfPresent(Bool.self, forKey: .subscribed) ?? true
+    createdAt = try container.decode(Date.self, forKey: .createdAt)
+  }
+}
+
+public struct NodServerProfile: Codable, Identifiable, Hashable, Sendable {
+  public var id: String
+  public var name: String
+  public var baseURLString: String
+  public var deviceName: String
+  public var deviceId: String?
+  public var userId: String?
+  public var userName: String?
+
+  public init(
+    id: String,
+    name: String,
+    baseURLString: String,
+    deviceName: String,
+    deviceId: String? = nil,
+    userId: String? = nil,
+    userName: String? = nil
+  ) {
+    self.id = id
+    self.name = name
+    self.baseURLString = baseURLString
+    self.deviceName = deviceName
+    self.deviceId = deviceId
+    self.userId = userId
+    self.userName = userName
+  }
+}
+
+public struct NodUser: Codable, Identifiable, Hashable, Sendable {
+  public let id: String
+  public let name: String
+  public let createdAt: Date
+  public let updatedAt: Date
+
+  enum CodingKeys: String, CodingKey {
+    case id, name
+    case createdAt = "created_at"
+    case updatedAt = "updated_at"
+  }
+}
+
+public struct NodUserDevice: Codable, Identifiable, Hashable, Sendable {
+  public let id: String
+  public let userId: String
+  public var name: String
+  public let platform: NodDevicePlatform
+  public let nativeAppId: String?
+  public let pushProvider: String?
+  public let hasPushToken: Bool
+  public let hasSigningKey: Bool
+  public let notificationSound: String
+  public let attestation: NodDeviceAttestationSummary?
+  public let lastSeenAt: Date
+  public let createdAt: Date
+  public let isCurrent: Bool
+
+  enum CodingKeys: String, CodingKey {
+    case id, name, platform
+    case userId = "user_id"
+    case nativeAppId = "native_app_id"
+    case pushProvider = "push_provider"
+    case hasPushToken = "has_push_token"
+    case hasSigningKey = "has_signing_key"
+    case notificationSound = "notification_sound"
+    case attestation
+    case lastSeenAt = "last_seen_at"
+    case createdAt = "created_at"
+    case isCurrent = "is_current"
+  }
+}
+
+public enum NodDeviceAttestationStatus: String, Codable, Sendable {
+  case verified
+  case failed
+}
+
+public struct NodDeviceAttestationSummary: Codable, Hashable, Sendable {
+  public let provider: String
+  public let status: NodDeviceAttestationStatus
+  public let keyId: String?
+  public let teamId: String?
+  public let bundleId: String?
+  public let environment: String?
+  public let verifiedAt: Date?
+  public let failureReason: String?
+
+  enum CodingKeys: String, CodingKey {
+    case provider, status, environment
+    case keyId = "key_id"
+    case teamId = "team_id"
+    case bundleId = "bundle_id"
+    case verifiedAt = "verified_at"
+    case failureReason = "failure_reason"
+  }
+}
+
+public struct NodNotificationSoundOption: Identifiable, Hashable, Sendable {
+  public let id: String
+  public let label: String
+
+  public init(id: String, label: String) {
+    self.id = id
+    self.label = label
+  }
+}
+
+public enum NodNotificationDeliveryMode: String, Codable, Sendable {
+  case push
+  case websocket
+}
+
+public struct NodNotificationDelivery: Codable, Hashable, Sendable {
+  public let mode: NodNotificationDeliveryMode
+
+  public init(mode: NodNotificationDeliveryMode) {
+    self.mode = mode
+  }
+}
+
+public struct NodField: Codable, Hashable, Sendable {
+  public let label: String
+  public let value: String
+  public let style: String?
+}
+
+public struct NodLink: Codable, Hashable, Sendable {
+  public let label: String
+  public let url: String
+}
+
+public enum NodActionKind: String, Codable, Sendable {
+  case approve
+  case approveWithText = "approve_with_text"
+  case reject
+  case rejectWithText = "reject_with_text"
+  case dismiss
+  case open
+  case custom
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let value = try container.decode(String.self)
+    self = NodActionKind(rawValue: value) ?? .custom
+  }
+}
+
+public struct NodAction: Codable, Identifiable, Hashable, Sendable {
+  public let id: String
+  public let label: String
+  public let kind: NodActionKind
+  public let style: String
+  public let requiresText: Bool
+  public let textPlaceholder: String?
+  public let destructive: Bool
+  public let foreground: Bool
+
+  public init(
+    id: String,
+    label: String,
+    kind: NodActionKind,
+    style: String = "default",
+    requiresText: Bool = false,
+    textPlaceholder: String? = nil,
+    destructive: Bool = false,
+    foreground: Bool = false
+  ) {
+    self.id = id
+    self.label = label
+    self.kind = kind
+    self.style = style
+    self.requiresText = requiresText
+    self.textPlaceholder = textPlaceholder
+    self.destructive = destructive
+    self.foreground = foreground
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case id, label, kind, style, destructive, foreground
+    case requiresText = "requires_text"
+    case textPlaceholder = "text_placeholder"
+  }
+}
+
+public enum NodEventStatus: String, Codable, Sendable {
+  case pending
+  case resolved
+  case expired
+  case cancelled
+}
+
+public struct NodEventResult: Codable, Hashable, Sendable {
+  public let eventId: String
+  public let actionId: String
+  public let actionKind: NodActionKind
+  public let actionLabel: String
+  public let text: String?
+  public let actorUserId: String?
+  public let actorDeviceId: String?
+  public let signature: NodDecisionSignatureRecord?
+  public let resolvedAt: Date
+
+  enum CodingKeys: String, CodingKey {
+    case text, signature
+    case eventId = "event_id"
+    case actionId = "action_id"
+    case actionKind = "action_kind"
+    case actionLabel = "action_label"
+    case actorUserId = "actor_user_id"
+    case actorDeviceId = "actor_device_id"
+    case resolvedAt = "resolved_at"
+  }
+}
+
+public struct NodDecisionSignatureRecord: Codable, Hashable, Sendable {
+  public let keyId: String
+  public let algorithm: String
+  public let nonce: String
+  public let signedAt: String
+  public let requestDigest: String
+  public let signingPayload: String
+  public let signature: String
+  public let verified: Bool
+
+  enum CodingKeys: String, CodingKey {
+    case algorithm, nonce, signature, verified
+    case keyId = "key_id"
+    case signedAt = "signed_at"
+    case requestDigest = "request_digest"
+    case signingPayload = "signing_payload"
+  }
+}
+
+public struct NodEventUserResult: Codable, Hashable, Sendable {
+  public let userId: String
+  public let result: NodEventResult
+
+  enum CodingKeys: String, CodingKey {
+    case result
+    case userId = "user_id"
+  }
+}
+
+public enum NodActionResolution: String, Codable, Sendable {
+  case shared
+  case perUser = "per_user"
+}
+
+public struct NodEvent: Codable, Identifiable, Hashable, Sendable {
+  public let id: String
+  public let channelId: String
+  public let recipients: [String]
+  public let actionResolution: NodActionResolution
+  public let title: String
+  public let summary: String
+  public let bodyMarkdown: String
+  public let fields: [NodField]
+  public let links: [NodLink]
+  public let imageUrl: String?
+  public let priority: Int
+  public let privacy: String
+  public let dedupeKey: String?
+  public let expiresAt: Date?
+  public let status: NodEventStatus
+  public let createdAt: Date
+  public let updatedAt: Date
+  public let resolvedAt: Date?
+  public let result: NodEventResult?
+  public let userResults: [NodEventUserResult]
+  public let callbackUrl: String?
+  public let actions: [NodAction]
+  public let requestDigest: String?
+
+  enum CodingKeys: String, CodingKey {
+    case id, title, summary, fields, links, priority, privacy, status, result, actions
+    case channelId = "channel_id"
+    case recipients
+    case actionResolution = "action_resolution"
+    case bodyMarkdown = "body_markdown"
+    case imageUrl = "image_url"
+    case dedupeKey = "dedupe_key"
+    case expiresAt = "expires_at"
+    case createdAt = "created_at"
+    case updatedAt = "updated_at"
+    case resolvedAt = "resolved_at"
+    case userResults = "user_results"
+    case callbackUrl = "callback_url"
+  }
+
+  enum RequestCodingKeys: String, CodingKey {
+    case sourceId = "source_id"
+    case decisionResolution = "decision_resolution"
+    case options
+    case decision
+    case decisions
+    case requestDigest = "request_digest"
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    let request = try decoder.container(keyedBy: RequestCodingKeys.self)
+    channelId =
+      try container.decodeIfPresent(String.self, forKey: .channelId)
+      ?? request.decode(String.self, forKey: .sourceId)
+    recipients = try container.decodeIfPresent([String].self, forKey: .recipients) ?? []
+    actionResolution =
+      try container.decodeIfPresent(NodActionResolution.self, forKey: .actionResolution)
+      ?? request.decodeIfPresent(NodActionResolution.self, forKey: .decisionResolution)
+      ?? .shared
+    title = try container.decode(String.self, forKey: .title)
+    summary = try container.decode(String.self, forKey: .summary)
+    bodyMarkdown = try container.decode(String.self, forKey: .bodyMarkdown)
+    fields = try container.decodeIfPresent([NodField].self, forKey: .fields) ?? []
+    links = try container.decodeIfPresent([NodLink].self, forKey: .links) ?? []
+    imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+    priority = try container.decode(Int.self, forKey: .priority)
+    privacy = try container.decode(String.self, forKey: .privacy)
+    dedupeKey = try container.decodeIfPresent(String.self, forKey: .dedupeKey)
+    expiresAt = try container.decodeIfPresent(Date.self, forKey: .expiresAt)
+    status = try container.decode(NodEventStatus.self, forKey: .status)
+    createdAt = try container.decode(Date.self, forKey: .createdAt)
+    updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+    resolvedAt = try container.decodeIfPresent(Date.self, forKey: .resolvedAt)
+    result =
+      try container.decodeIfPresent(NodEventResult.self, forKey: .result)
+      ?? request.decodeIfPresent(NodEventResult.self, forKey: .decision)
+    userResults =
+      try container.decodeIfPresent([NodEventUserResult].self, forKey: .userResults)
+      ?? request.decodeIfPresent([NodEventUserResult].self, forKey: .decisions)
+      ?? []
+    callbackUrl = try container.decodeIfPresent(String.self, forKey: .callbackUrl)
+    actions =
+      try container.decodeIfPresent([NodAction].self, forKey: .actions)
+      ?? request.decodeIfPresent([NodAction].self, forKey: .options)
+      ?? []
+    requestDigest = try request.decodeIfPresent(String.self, forKey: .requestDigest)
+  }
+}
+
+public struct NodDeviceSigningKey: Codable, Hashable, Sendable {
+  public let keyId: String
+  public let algorithm: String
+  public let publicKey: String
+
+  public init(keyId: String, algorithm: String, publicKey: String) {
+    self.keyId = keyId
+    self.algorithm = algorithm
+    self.publicKey = publicKey
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case algorithm
+    case keyId = "key_id"
+    case publicKey = "public_key"
+  }
+}
+
+public struct NodEnrollmentRequest: Encodable, Sendable {
+  public let code: String
+  public let deviceName: String
+  public let platform: NodDevicePlatform
+  public let nativeAppId: String?
+  public let pushProvider: String?
+  public let pushToken: String?
+  public let signingKey: NodDeviceSigningKey
+  public let attestation: NodDeviceAttestation?
+
+  public init(
+    code: String,
+    deviceName: String,
+    platform: NodDevicePlatform,
+    nativeAppId: String? = nil,
+    pushProvider: String? = nil,
+    pushToken: String? = nil,
+    signingKey: NodDeviceSigningKey,
+    attestation: NodDeviceAttestation? = nil
+  ) {
+    self.code = code
+    self.deviceName = deviceName
+    self.platform = platform
+    self.nativeAppId = nativeAppId
+    self.pushProvider = pushProvider
+    self.pushToken = pushToken
+    self.signingKey = signingKey
+    self.attestation = attestation
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case code, platform, attestation
+    case deviceName = "device_name"
+    case nativeAppId = "native_app_id"
+    case pushProvider = "push_provider"
+    case pushToken = "push_token"
+    case signingKey = "signing_key"
+  }
+}
+
+public struct NodDeviceAttestation: Codable, Hashable, Sendable {
+  public let provider: String
+  public let keyId: String
+  public let attestationObject: String
+
+  public init(provider: String, keyId: String, attestationObject: String) {
+    self.provider = provider
+    self.keyId = keyId
+    self.attestationObject = attestationObject
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case provider
+    case keyId = "key_id"
+    case attestationObject = "attestation_object"
+  }
+}
+
+public struct NodAppAttestationRequest: Sendable {
+  public let code: String
+  public let deviceName: String
+  public let platform: NodDevicePlatform
+  public let pushProvider: String?
+  public let pushToken: String?
+  public let signingKey: NodDeviceSigningKey
+  public let account: String
+
+  public init(
+    code: String,
+    deviceName: String,
+    platform: NodDevicePlatform,
+    pushProvider: String?,
+    pushToken: String?,
+    signingKey: NodDeviceSigningKey,
+    account: String
+  ) {
+    self.code = code
+    self.deviceName = deviceName
+    self.platform = platform
+    self.pushProvider = pushProvider
+    self.pushToken = pushToken
+    self.signingKey = signingKey
+    self.account = account
+  }
+}
+
+public struct NodDecisionSignature: Codable, Hashable, Sendable {
+  public let keyId: String
+  public let algorithm: String
+  public let nonce: String
+  public let signedAt: String
+  public let requestDigest: String
+  public let signature: String
+
+  enum CodingKeys: String, CodingKey {
+    case algorithm, nonce, signature
+    case keyId = "key_id"
+    case signedAt = "signed_at"
+    case requestDigest = "request_digest"
+  }
+}
+
+public struct NodDecisionSigningRequest: Sendable {
+  public let event: NodEvent
+  public let action: NodAction
+  public let text: String?
+  public let userId: String?
+  public let deviceId: String?
+  public let account: String
+
+  public init(
+    event: NodEvent,
+    action: NodAction,
+    text: String? = nil,
+    userId: String?,
+    deviceId: String?,
+    account: String
+  ) {
+    self.event = event
+    self.action = action
+    self.text = text
+    self.userId = userId
+    self.deviceId = deviceId
+    self.account = account
+  }
+}
+
+public struct NodSyncEnvelope: Decodable, Sendable {
+  public let kind: String
+  public let at: Date
+  public let event: NodEvent?
+  public let channel: NodChannel?
+  public let notificationDelivery: NodNotificationDelivery?
+
+  enum CodingKeys: String, CodingKey {
+    case kind, at, payload
+  }
+
+  enum PayloadKeys: String, CodingKey {
+    case event, channel
+    case notificationDelivery = "notification_delivery"
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    kind = try container.decode(String.self, forKey: .kind)
+    at = try container.decode(Date.self, forKey: .at)
+    if let payload = try? container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload) {
+      event = try? payload.decode(NodEvent.self, forKey: .event)
+      channel = try? payload.decode(NodChannel.self, forKey: .channel)
+      notificationDelivery = try? payload.decode(
+        NodNotificationDelivery.self, forKey: .notificationDelivery)
+    } else {
+      event = nil
+      channel = nil
+      notificationDelivery = nil
+    }
+  }
+}
+
+public struct NodEventQuery: Hashable, Sendable {
+  public var channelId: String?
+  public var includeCleared: Bool
+  public var limit: Int?
+
+  public static let activeOnly = NodEventQuery()
+
+  public init(channelId: String? = nil, includeCleared: Bool = false, limit: Int? = nil) {
+    self.channelId = channelId
+    self.includeCleared = includeCleared
+    self.limit = limit
+  }
+}
+
+public struct EnrollDeviceResponse: Codable, Sendable {
+  public let deviceId: String
+  public let userId: String
+  public let userName: String
+  public let token: String
+  public let notificationDelivery: NodNotificationDelivery
+  public let channels: [NodChannel]
+  public let devices: [NodUserDevice]
+
+  enum CodingKeys: String, CodingKey {
+    case token, channels, devices
+    case deviceId = "device_id"
+    case userId = "user_id"
+    case userName = "user_name"
+    case notificationDelivery = "notification_delivery"
+  }
+}
+
+public struct CurrentUserResponse: Codable, Sendable {
+  public let user: NodUser
+  public let currentDevice: NodUserDevice
+  public let notificationDelivery: NodNotificationDelivery
+
+  enum CodingKeys: String, CodingKey {
+    case user
+    case currentDevice = "current_device"
+    case notificationDelivery = "notification_delivery"
+  }
+}
+
+public struct UserDevicesResponse: Codable, Sendable {
+  public let devices: [NodUserDevice]
+}
+
+public struct UserDeviceResponse: Codable, Sendable {
+  public let device: NodUserDevice
+}
+
+public struct ChannelsResponse: Codable, Sendable {
+  public let channels: [NodChannel]
+}
+
+public struct EventsResponse: Decodable, Sendable {
+  public let events: [NodEvent]
+
+  enum CodingKeys: String, CodingKey {
+    case events
+    case requests
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    events =
+      try container.decodeIfPresent([NodEvent].self, forKey: .events)
+      ?? container.decode([NodEvent].self, forKey: .requests)
+  }
+}
+
+public struct EventResponse: Decodable, Sendable {
+  public let event: NodEvent
+
+  enum CodingKeys: String, CodingKey {
+    case event
+    case request
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    event =
+      try container.decodeIfPresent(NodEvent.self, forKey: .event)
+      ?? container.decode(NodEvent.self, forKey: .request)
+  }
+}
+
+public struct EventResultResponse: Codable, Sendable {
+  public let eventId: String
+  public let status: NodEventStatus
+  public let result: NodEventResult?
+
+  enum CodingKeys: String, CodingKey {
+    case status, result
+    case eventId = "event_id"
+  }
+}

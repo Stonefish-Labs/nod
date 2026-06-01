@@ -1,0 +1,89 @@
+.sidebar {
+  background: #111918;
+  color: #e9f3ee;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+}
+
+.brand {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 24px 1fr auto;
+  min-height: 36px;
+}
+
+.brand span {
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.brand strong,
+.channels strong {
+  background: #d7f86f;
+  border-radius: 999px;
+  color: #111918;
+  min-width: 26px;
+  padding: 3px 7px;
+  text-align: center;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.navGroup h2 {
+  color: #9eb3aa;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 2px;
+  text-transform: uppercase;
+}
+
+.navGroup button,
+.sidebarActions button {
+  background: transparent;
+  color: inherit;
+  justify-content: flex-start;
+  min-height: 38px;
+  padding: 8px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.navGroup button.active,
+.navGroup button:hover,
+.sidebarActions button:hover {
+  background: #24302d;
+}
+
+.navGroup button span:not(.swatch) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channels button {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+}
+
+.swatch {
+  border-radius: 50%;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.sidebarActions {
+  border-top: 1px solid #2f3b38;
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
+}

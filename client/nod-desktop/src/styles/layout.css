@@ -1,0 +1,19 @@
+.shell {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.workbench {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.columns {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(280px, 38%) minmax(0, 1fr);
+  min-height: 0;
+}

@@ -1,0 +1,19 @@
+# Non-secret runtime settings. Inject tokens and relay client credentials with
+# environment variables or *_FILE secret mounts; see secrets.example.env.
+bind = "127.0.0.1:8767"
+database_url = "sqlite://.nod/nod.sqlite"
+data_dir = ".nod"
+retention_days = 90
+
+[notifications.apns_relay]
+url = ""
+native_app_id = ""
+client_cert_path = ""
+client_key_path = ""
+ca_cert_path = ""
+
+[device_attestation.apple_app_attest]
+mode = "report_only"
+team_id = "Y734633UDM"
+bundle_ids = ["com.batteryshark.Nod", "com.batteryshark.NodMac"]
+environment = "development"

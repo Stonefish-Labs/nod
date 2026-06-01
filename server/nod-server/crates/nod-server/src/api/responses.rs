@@ -1,0 +1,123 @@
+use serde::Serialize;
+
+use crate::{
+    models::{
+        AdminDevice, AdminIssuerToken, AdminUser, CreateIssuerTokenResponse,
+        CreatedDecisionRequest, DecisionRequest, EnrollmentCodeResponse, Source, User, UserDevice,
+    },
+    views::{RequestDecisionView, RequestView},
+};
+
+#[derive(Debug, Serialize)]
+pub(super) struct HealthResponse {
+    ok: bool,
+    service: &'static str,
+}
+
+impl HealthResponse {
+    pub(super) fn nod() -> Self {
+        Self {
+            ok: true,
+            service: "nod",
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct OkResponse {
+    ok: bool,
+}
+
+impl OkResponse {
+    pub(super) fn ok() -> Self {
+        Self { ok: true }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct SourcesResponse {
+    pub(super) sources: Vec<Source>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct SourceResponse {
+    pub(super) source: Source,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct AdminUsersResponse {
+    pub(super) users: Vec<AdminUser>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct UserResponse {
+    pub(super) user: User,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct UserDevicesResponse {
+    pub(super) devices: Vec<UserDevice>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct UserDeviceResponse {
+    pub(super) device: UserDevice,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct AdminDevicesResponse {
+    pub(super) devices: Vec<AdminDevice>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct AdminIssuerTokensResponse {
+    pub(super) tokens: Vec<AdminIssuerToken>,
+}
+
+pub(super) type EnrollmentResponse = EnrollmentCodeResponse;
+pub(super) type IssuerTokenResponse = CreateIssuerTokenResponse;
+
+#[derive(Debug, Serialize)]
+pub(super) struct CreateRequestResponse {
+    request_id: String,
+    deduped: bool,
+    request: RequestView,
+}
+
+impl CreateRequestResponse {
+    pub(super) fn from_created_request(response: &CreatedDecisionRequest) -> Self {
+        Self {
+            request_id: response.request_id.clone(),
+            deduped: response.deduped,
+            request: RequestView::from_request(&response.request),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct RequestsResponse {
+    requests: Vec<RequestView>,
+}
+
+impl RequestsResponse {
+    pub(super) fn from_requests(requests: &[DecisionRequest]) -> Self {
+        Self {
+            requests: requests.iter().map(RequestView::from_request).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct RequestResponse {
+    request: RequestView,
+}
+
+impl RequestResponse {
+    pub(super) fn from_request(request: &DecisionRequest) -> Self {
+        Self {
+            request: RequestView::from_request(request),
+        }
+    }
+}
+
+pub(super) type RequestDecisionResponse = RequestDecisionView;

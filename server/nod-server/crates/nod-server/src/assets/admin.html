@@ -1,0 +1,1743 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nod Admin</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --surface-2: #eef2f6;
+      --border: #d7dee8;
+      --text: #17202a;
+      --muted: #667085;
+      --accent: #2563eb;
+      --danger: #b42318;
+      --ok: #067647;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, .94);
+      backdrop-filter: blur(12px);
+    }
+
+    h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: 0; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 15px; }
+    h3 { font-size: 13px; color: var(--muted); }
+    main { max-width: 1320px; margin: 0 auto; padding: 18px; }
+
+    .hidden { display: none !important; }
+    .stack { display: grid; gap: 14px; }
+    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .split { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      background: #fbfcfe;
+      min-height: 64px;
+    }
+
+    .metric strong { display: block; font-size: 22px; line-height: 1.1; }
+    .metric span { color: var(--muted); font-size: 12px; }
+
+    form.inline-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.5fr 1fr 110px 110px 120px auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    form.compact {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    form.token-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1.1fr 1.5fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    form.test-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      align-items: end;
+    }
+
+    .wide { grid-column: span 2; }
+    .full { grid-column: 1 / -1; }
+    textarea.tall { min-height: 90px; }
+
+    label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+    fieldset {
+      margin: 0;
+      min-height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 5px 8px;
+      background: #fff;
+    }
+    legend {
+      padding: 0 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    input, select, textarea {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 7px 9px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea { min-height: 34px; resize: vertical; }
+    input[type="color"] { padding: 3px; }
+    button {
+      min-height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 7px 10px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.danger { color: var(--danger); }
+    button.link { min-height: 0; padding: 0; border: 0; background: transparent; color: var(--accent); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; background: #fff; }
+    th, td { padding: 8px 9px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; font-weight: 650; background: var(--surface-2); }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      display: inline-block;
+      max-width: 360px;
+      overflow-wrap: anywhere;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 5px;
+      background: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+    }
+
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .danger-text { color: var(--danger); }
+    .field-note {
+      min-height: 16px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .field-note.error { color: var(--danger); }
+    .secret {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+      padding: 8px;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      background: #fbfcfe;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-button {
+      min-height: 32px;
+      border-color: transparent;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .tab-button.active {
+      border-color: var(--border);
+      border-bottom-color: var(--surface);
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .tab-panel.hidden { display: none !important; }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .settings-item {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      background: #fbfcfe;
+      min-height: 62px;
+    }
+
+    .settings-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .settings-item strong {
+      display: block;
+      margin-top: 3px;
+      overflow-wrap: anywhere;
+      font-weight: 650;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(15, 23, 42, .42);
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      max-height: min(720px, calc(100vh - 36px));
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, .22);
+    }
+
+    .modal-body {
+      min-height: 260px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .subscription-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .subscription-row:last-child { border-bottom: 0; }
+    .subscription-row label {
+      display: inline-flex;
+      grid-template-columns: none;
+      align-items: center;
+      gap: 7px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .subscription-row input,
+    .recipient-list input,
+    .checks input { width: auto; min-height: auto; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+    }
+
+    .recipient-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .recipient-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      max-height: 172px;
+      overflow: auto;
+      margin-top: 7px;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: #fbfcfe;
+    }
+
+    .recipient-list label {
+      display: inline-flex;
+      grid-template-columns: none;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .recipient-list label.disabled { color: var(--muted); }
+    .recipient-list span { overflow-wrap: anywhere; }
+
+    .actions-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .checks label {
+      display: inline-flex;
+      grid-template-columns: none;
+      align-items: center;
+      gap: 5px;
+      color: var(--text);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .checks input { width: auto; min-height: auto; }
+    #loginView {
+      max-width: 380px;
+      margin: 12vh auto 0;
+    }
+
+    @media (max-width: 920px) {
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .settings-grid { grid-template-columns: 1fr; }
+      .recipient-list { grid-template-columns: 1fr; }
+      form.inline-grid, form.compact, form.token-grid, form.test-grid { grid-template-columns: 1fr; }
+      .wide, .full { grid-column: auto; }
+      header { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Nod Admin</h1>
+      <div id="status" class="muted">Checking session</div>
+    </div>
+    <div class="row">
+      <button id="refreshButton">Refresh</button>
+      <button id="logoutButton">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="loginView" class="panel stack">
+      <h2>Admin Login</h2>
+      <form id="loginForm" class="stack">
+        <label>Admin token
+          <input id="adminToken" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="primary" type="submit">Log in</button>
+      </form>
+    </section>
+
+    <div id="adminView" class="hidden stack">
+      <nav id="adminTabs" class="tabs" aria-label="Admin sections">
+        <button class="tab-button" type="button" data-tab="overview">Overview</button>
+        <button class="tab-button" type="button" data-tab="users-devices">Users & Devices</button>
+        <button class="tab-button" type="button" data-tab="sources">Sources</button>
+        <button class="tab-button" type="button" data-tab="test-request">Test Request</button>
+        <button class="tab-button" type="button" data-tab="issuer-tokens">Issuer Tokens</button>
+        <button class="tab-button" type="button" data-tab="settings">Settings</button>
+      </nav>
+
+      <div class="tab-panel stack" data-tab-panel="overview">
+        <section class="summary" id="summary"></section>
+      </div>
+
+      <div class="tab-panel stack" data-tab-panel="users-devices">
+        <section class="panel stack">
+          <div class="split">
+            <h2>Users</h2>
+            <button id="resetUserForm" type="button">New user</button>
+          </div>
+          <form id="userForm" class="compact">
+            <label>Slug
+              <input id="userId" autocomplete="off" spellcheck="false" readonly required>
+              <span id="userSlugHelp" class="field-note">Generated from name</span>
+            </label>
+            <label>Name
+              <input id="userName" autocomplete="off" required>
+            </label>
+            <button id="userSubmit" class="primary" type="submit">Save</button>
+          </form>
+          <div id="enrollmentSecret"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Id</th>
+                  <th>Name</th>
+                  <th>Devices</th>
+                  <th>Subscriptions</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel stack">
+          <div class="split">
+            <h2>Devices</h2>
+            <button id="refreshDevicesButton" type="button">Refresh devices</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>User</th>
+                  <th>Platform</th>
+                  <th>Push</th>
+                  <th>Attestation</th>
+                  <th>Sound</th>
+                  <th>Last seen</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="devicesBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel stack" data-tab-panel="sources">
+        <section class="panel stack">
+          <div class="split">
+            <h2>Sources</h2>
+            <button id="resetSourceForm" type="button">New source</button>
+          </div>
+          <form id="sourceForm" class="inline-grid">
+            <label>Slug
+              <input id="sourceId" autocomplete="off" spellcheck="false" readonly required>
+              <span id="sourceSlugHelp" class="field-note">Generated from name</span>
+            </label>
+            <label>Name
+              <input id="sourceName" autocomplete="off" required>
+            </label>
+            <label>Icon
+              <input id="sourceIcon" autocomplete="off" spellcheck="false" value="bell">
+            </label>
+            <label>Color
+              <input id="sourceColor" type="color" value="#3B82F6">
+            </label>
+            <label>Priority
+              <input id="sourcePriority" type="number" min="0" max="10" value="5">
+            </label>
+            <label>Privacy
+              <select id="sourcePrivacy">
+                <option value="private">private</option>
+                <option value="public">public</option>
+              </select>
+            </label>
+            <button id="sourceSubmit" class="primary" type="submit">Save</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Id</th>
+                  <th>Name</th>
+                  <th>Icon</th>
+                  <th>Color</th>
+                  <th>Priority</th>
+                  <th>Privacy</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sourcesBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel stack" data-tab-panel="test-request">
+        <section class="panel stack">
+          <div class="split">
+            <h2>Test Request</h2>
+          </div>
+          <form id="testRequestForm" class="test-grid">
+            <label>Source
+              <select id="testSource" required></select>
+            </label>
+            <label>Options
+              <select id="testOptionPreset">
+                <option value="notification">Notification only</option>
+                <option value="approval">Approve / reject</option>
+                <option value="approval_text">Approve and reject with text</option>
+                <option value="reject_reason">Reject with reason</option>
+              </select>
+            </label>
+            <fieldset class="full">
+              <legend>Recipients</legend>
+              <div class="checks">
+                <label><input id="testRecipientsAll" name="testRecipientMode" type="radio" value="all" checked> All subscribed users</label>
+                <label><input id="testRecipientsSpecific" name="testRecipientMode" type="radio" value="specific"> Specific users</label>
+              </div>
+              <div class="recipient-tools">
+                <div id="testRecipientSummary" class="field-note"></div>
+                <div class="row">
+                  <button id="selectTestRecipients" type="button">Select subscribed</button>
+                  <button id="clearTestRecipients" type="button">Clear</button>
+                </div>
+              </div>
+              <div id="testRecipientsList" class="recipient-list"></div>
+            </fieldset>
+            <label>Priority
+              <input id="testPriority" type="number" min="0" max="10" placeholder="source default">
+            </label>
+            <label>Privacy
+              <select id="testPrivacy">
+                <option value="">source default</option>
+                <option value="private">private</option>
+                <option value="public">public</option>
+              </select>
+            </label>
+            <label class="wide">Title
+              <input id="testTitle" autocomplete="off" required>
+            </label>
+            <label class="wide">Summary
+              <input id="testSummary" autocomplete="off">
+            </label>
+            <label class="full">Body markdown
+              <textarea id="testBody" class="tall" spellcheck="false"></textarea>
+            </label>
+            <label>Expires
+              <select id="testExpires">
+                <option value="">never</option>
+                <option value="300">5 minutes</option>
+                <option value="900">15 minutes</option>
+                <option value="3600">1 hour</option>
+                <option value="86400">1 day</option>
+              </select>
+            </label>
+            <label>Dedupe key
+              <input id="testDedupeKey" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="wide">Image URL
+              <input id="testImageUrl" type="url" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="wide">Callback URL
+              <input id="testCallbackUrl" type="url" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="wide">Fields
+              <textarea id="testFields" spellcheck="false" placeholder="Environment: staging&#10;Build: 42"></textarea>
+            </label>
+            <label class="wide">Links
+              <textarea id="testLinks" spellcheck="false" placeholder="https://example.com&#10;Runbook: https://example.com"></textarea>
+            </label>
+            <button id="testRequestSubmit" class="primary" type="submit">Send test</button>
+          </form>
+          <div id="testRequestResult"></div>
+        </section>
+      </div>
+
+      <div class="tab-panel stack" data-tab-panel="issuer-tokens">
+        <section class="panel stack">
+          <div class="split">
+            <h2>Issuer Tokens</h2>
+          </div>
+          <form id="tokenForm" class="token-grid">
+            <label>Name
+              <input id="tokenName" autocomplete="off" required>
+            </label>
+            <label>Source
+              <select id="tokenSource" required></select>
+            </label>
+            <fieldset>
+              <legend>Permissions</legend>
+              <div class="checks">
+                <label><input id="tokenCanWrite" type="checkbox" checked> Write requests</label>
+                <label><input id="tokenCanRead" type="checkbox" checked> Read decisions</label>
+                <label><input id="tokenCanCancel" type="checkbox"> Cancel own requests</label>
+              </div>
+            </fieldset>
+            <label>Extra scopes
+              <input id="tokenExtraScopes" autocomplete="off" spellcheck="false" placeholder="optional">
+            </label>
+            <button class="primary" type="submit">Create token</button>
+          </form>
+          <div id="tokenSecret"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Scopes</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tokensBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel stack" data-tab-panel="settings">
+        <section class="panel stack">
+          <div class="split">
+            <h2>Settings</h2>
+          </div>
+          <div id="settingsBody" class="settings-grid"></div>
+        </section>
+      </div>
+    </div>
+
+    <div id="subscriptionModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="subscriptionModalTitle">
+        <div class="split">
+          <div>
+            <h2 id="subscriptionModalTitle">Subscriptions</h2>
+            <div id="subscriptionModalSummary" class="muted"></div>
+          </div>
+          <button id="closeSubscriptionModal" type="button">Close</button>
+        </div>
+        <div class="row">
+          <label class="wide">Search
+            <input id="subscriptionSearch" autocomplete="off" spellcheck="false">
+          </label>
+          <label>Filter
+            <select id="subscriptionFilter">
+              <option value="all">all</option>
+              <option value="subscribed">subscribed</option>
+              <option value="unsubscribed">unsubscribed</option>
+            </select>
+          </label>
+        </div>
+        <div id="subscriptionList" class="modal-body"></div>
+        <div class="modal-actions">
+          <div class="row">
+            <button id="subscribeVisible" type="button">Subscribe visible</button>
+            <button id="unsubscribeVisible" type="button">Unsubscribe visible</button>
+            <button id="subscribeAll" type="button">Subscribe all</button>
+            <button id="unsubscribeAll" type="button">Unsubscribe all</button>
+          </div>
+          <div class="row">
+            <span id="subscriptionDirtyState" class="muted"></span>
+            <button id="cancelSubscriptionChanges" type="button">Cancel</button>
+            <button id="saveSubscriptionChanges" class="primary" type="button">Save</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const basePath = location.pathname.replace(/\/admin\/?$/, "");
+    const adminBase = `${basePath}/admin`;
+    const apiBase = `${basePath}/api/v1/admin`;
+    const tabIds = ["overview", "users-devices", "sources", "test-request", "issuer-tokens", "settings"];
+    const state = {
+      users: [],
+      sources: [],
+      devices: [],
+      tokens: [],
+      settings: null,
+      summary: null,
+      editingUserId: null,
+      editingSourceId: null,
+      activeTab: "overview",
+      subscriptionModal: {
+        userId: null,
+        userName: "",
+        sources: [],
+        original: {},
+        visibleIds: []
+      }
+    };
+    const $ = (id) => document.getElementById(id);
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function setStatus(message, tone = "muted") {
+      $("status").className = tone;
+      $("status").textContent = message;
+    }
+
+    function showLogin() {
+      $("loginView").classList.remove("hidden");
+      $("adminView").classList.add("hidden");
+      $("logoutButton").classList.add("hidden");
+      $("refreshButton").classList.add("hidden");
+      setStatus("Login required");
+    }
+
+    function showAdmin() {
+      $("loginView").classList.add("hidden");
+      $("adminView").classList.remove("hidden");
+      $("logoutButton").classList.remove("hidden");
+      $("refreshButton").classList.remove("hidden");
+    }
+
+    function tabFromHash() {
+      const tab = location.hash.replace(/^#/, "");
+      return tabIds.includes(tab) ? tab : "overview";
+    }
+
+    function setActiveTab(tab, updateHash = true) {
+      state.activeTab = tabIds.includes(tab) ? tab : "overview";
+      document.querySelectorAll("[data-tab]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.tab === state.activeTab);
+      });
+      document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.tabPanel !== state.activeTab);
+      });
+      if (updateHash && location.hash !== `#${state.activeTab}`) {
+        history.pushState(null, "", `#${state.activeTab}`);
+      }
+    }
+
+    async function api(path, options = {}) {
+      const headers = options.body ? { "content-type": "application/json" } : {};
+      const response = await fetch(`${apiBase}${path}`, {
+        credentials: "same-origin",
+        ...options,
+        headers: { ...headers, ...(options.headers || {}) }
+      });
+      const text = await response.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (_err) {
+          data = { message: text };
+        }
+      }
+      if (response.status === 401 || response.status === 403) {
+        showLogin();
+        throw new Error(data.message || "Authentication required");
+      }
+      if (!response.ok) {
+        throw new Error(data.message || response.statusText);
+      }
+      return data;
+    }
+
+    async function loadAll() {
+      setStatus("Loading");
+      const [summary, users, sources, devices, tokens, settings] = await Promise.all([
+        api("/summary"),
+        api("/users"),
+        api("/sources"),
+        api("/devices"),
+        api("/issuer-tokens"),
+        api("/settings")
+      ]);
+      state.summary = summary;
+      state.users = users.users || [];
+      state.sources = sources.sources || [];
+      state.devices = devices.devices || [];
+      state.tokens = tokens.tokens || [];
+      state.settings = settings;
+      showAdmin();
+      render();
+      setStatus("Ready", "ok");
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    }
+
+    function metric(label, value) {
+      return `<div class="metric"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`;
+    }
+
+    function settingsItem(label, value) {
+      return `<div class="settings-item"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+    }
+
+    function yesNo(value) {
+      return value ? "yes" : "no";
+    }
+
+    function notificationDeliveryLabel(value) {
+      return ({
+        push: "Remote push",
+        websocket: "WebSocket/local notifications"
+      })[value] || value || "";
+    }
+
+    function remotePushRouteLabel(value) {
+      return ({
+        apns_relay: "APNs relay"
+      })[value] || value || "";
+    }
+
+    function deviceAttestationLabel(attestation) {
+      if (!attestation) {
+        return `<span class="muted">none</span>`;
+      }
+      const statusClass = attestation.status === "verified" ? "ok" : "warn";
+      const bundle = attestation.bundle_id ? ` ${esc(attestation.bundle_id)}` : "";
+      const reason = attestation.failure_reason ? `<br><span class="muted">${esc(attestation.failure_reason)}</span>` : "";
+      return `<span class="${statusClass}">${esc(attestation.status)}${bundle}</span>${reason}`;
+    }
+
+    function renderSummary() {
+      const summary = state.summary || {};
+      $("summary").innerHTML = [
+        metric("Users", summary.users ?? 0),
+        metric("Sources", summary.sources ?? 0),
+        metric("Devices", summary.devices ?? 0),
+        metric("Active issuer tokens", summary.active_issuer_tokens ?? 0),
+        metric("Pending requests", summary.pending_requests ?? 0)
+      ].join("");
+    }
+
+    function renderUsers() {
+      $("usersBody").innerHTML = state.users.map((user) => `
+        <tr>
+          <td><code>${esc(user.id)}</code></td>
+          <td>${esc(user.name)}</td>
+          <td>${esc(user.device_count)}</td>
+          <td>${esc(user.subscribed_source_count ?? 0)} / ${esc(state.sources.length)}</td>
+          <td>${esc(formatDate(user.created_at))}</td>
+          <td>
+            <div class="actions-cell">
+              <button class="link" data-edit-user="${esc(user.id)}">Edit</button>
+              <button data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}">Manage subscriptions</button>
+              <button data-enroll-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Enrollment code</button>
+              ${user.id === "owner" ? "" : `<button class="danger" data-delete-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Delete</button>`}
+            </div>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="muted">No users</td></tr>`;
+    }
+
+    function renderSources() {
+      $("sourcesBody").innerHTML = state.sources.map((source) => `
+        <tr>
+          <td><code>${esc(source.id)}</code></td>
+          <td>${esc(source.name)}</td>
+          <td>${esc(source.icon)}</td>
+          <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${esc(source.color)};border:1px solid var(--border);vertical-align:-1px;"></span> ${esc(source.color)}</td>
+          <td>${esc(source.default_priority)}</td>
+          <td>${esc(source.privacy)}</td>
+          <td>
+            <div class="actions-cell">
+              <button class="link" data-edit-source="${esc(source.id)}">Edit</button>
+              <button class="danger" data-delete-source="${esc(source.id)}" data-source-name="${esc(source.name)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="7" class="muted">No sources</td></tr>`;
+    }
+
+    function renderDevices() {
+      $("devicesBody").innerHTML = state.devices.map((device) => `
+          <tr>
+            <td>${esc(device.name)}<br><code>${esc(device.id)}</code></td>
+            <td>${esc(device.user_name)}<br><code>${esc(device.user_id)}</code></td>
+            <td>${esc(device.platform)}</td>
+            <td class="${device.has_push_token ? "ok" : "muted"}">${device.has_push_token ? `${esc(device.push_provider || "configured")}<br><code>${esc(device.native_app_id || "missing app id")}</code>` : "none"}</td>
+            <td>${deviceAttestationLabel(device.attestation)}</td>
+            <td>${esc(device.notification_sound || "default")}</td>
+            <td>${esc(formatDate(device.last_seen_at))}</td>
+            <td><button class="danger" data-revoke-device="${esc(device.id)}">Revoke</button></td>
+          </tr>
+      `).join("") || `<tr><td colspan="8" class="muted">No registered devices</td></tr>`;
+    }
+
+    function renderTokens() {
+      $("tokensBody").innerHTML = state.tokens.map((token) => {
+        const active = !token.revoked_at;
+        return `
+          <tr>
+            <td>${esc(token.name)}<br><code>${esc(token.id)}</code></td>
+            <td>${(token.scopes || []).map((scope) => `<code>${esc(scope)}</code>`).join(" ")}</td>
+            <td>${esc(formatDate(token.created_at))}</td>
+            <td class="${active ? "ok" : "muted"}">${active ? "active" : `revoked ${formatDate(token.revoked_at)}`}</td>
+            <td>${active ? `<button class="danger" data-revoke-token="${esc(token.id)}">Revoke</button>` : ""}</td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="5" class="muted">No issuer tokens</td></tr>`;
+    }
+
+    function renderTokenSourceOptions() {
+      const select = $("tokenSource");
+      const previous = select.value;
+      select.innerHTML = state.sources.map((source) => `
+        <option value="${esc(source.id)}">${esc(source.name)} (${esc(source.id)})</option>
+      `).join("");
+      if (previous && state.sources.some((source) => source.id === previous)) {
+        select.value = previous;
+      }
+      const hasSources = state.sources.length > 0;
+      select.disabled = !hasSources;
+      $("tokenForm").querySelector("button[type='submit']").disabled = !hasSources;
+    }
+
+    function renderTestSourceOptions() {
+      const select = $("testSource");
+      const previous = select.value;
+      select.innerHTML = state.sources.map((source) => `
+        <option value="${esc(source.id)}">${esc(source.name)} (${esc(source.id)})</option>
+      `).join("");
+      if (previous && state.sources.some((source) => source.id === previous)) {
+        select.value = previous;
+      }
+      const hasSources = state.sources.length > 0;
+      select.disabled = !hasSources;
+      $("testRequestSubmit").disabled = !hasSources;
+    }
+
+    function testRecipientMode() {
+      return document.querySelector("input[name='testRecipientMode']:checked")?.value || "all";
+    }
+
+    function userSubscribedToSource(user, sourceId) {
+      return (user.subscribed_source_ids || []).includes(sourceId);
+    }
+
+    function selectedTestRecipientIds() {
+      return Array.from(document.querySelectorAll("[data-test-recipient]:checked"))
+        .map((input) => input.dataset.testRecipient);
+    }
+
+    function renderTestRecipients() {
+      const sourceId = $("testSource").value;
+      const specific = testRecipientMode() === "specific";
+      const previous = new Set(selectedTestRecipientIds());
+      const subscribedUsers = state.users.filter((user) => userSubscribedToSource(user, sourceId));
+      const subscribedIds = new Set(subscribedUsers.map((user) => user.id));
+      const selectedIds = state.users
+        .filter((user) => previous.has(user.id) && subscribedIds.has(user.id))
+        .map((user) => user.id);
+
+      $("testRecipientSummary").textContent = specific
+        ? `${selectedIds.length} selected / ${subscribedUsers.length} subscribed`
+        : `${subscribedUsers.length} subscribed`;
+      $("selectTestRecipients").disabled = !specific || subscribedUsers.length === 0;
+      $("clearTestRecipients").disabled = !specific || selectedIds.length === 0;
+
+      $("testRecipientsList").innerHTML = state.users.map((user) => {
+        const subscribed = subscribedIds.has(user.id);
+        const checked = selectedIds.includes(user.id);
+        const disabled = !specific || !subscribed;
+        const note = subscribed ? "" : ` <span class="muted">not subscribed</span>`;
+        return `
+          <label class="${subscribed ? "" : "disabled"}">
+            <input type="checkbox" data-test-recipient="${esc(user.id)}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>
+            <span>${esc(user.name)} <code>${esc(user.id)}</code>${note}</span>
+          </label>
+        `;
+      }).join("") || `<div class="muted">No users</div>`;
+    }
+
+    function renderSettings() {
+      const settings = state.settings || {};
+      const appAttest = (settings.device_attestation || {}).apple_app_attest || {};
+      const apnsRelay = settings.apns_relay || {};
+      $("settingsBody").innerHTML = [
+        settingsItem("Notification delivery", notificationDeliveryLabel(settings.notification_delivery_mode)),
+        settingsItem("Remote push route", remotePushRouteLabel(settings.remote_push_route) || "not configured"),
+        settingsItem("Retention days", settings.retention_days ?? ""),
+        settingsItem("Apple App Attest mode", appAttest.mode || "report_only"),
+        settingsItem("Apple App Attest environment", appAttest.environment || "development"),
+        settingsItem("Apple App Attest team id configured", yesNo(appAttest.team_id_configured)),
+        settingsItem("Apple App Attest bundle ids", (appAttest.bundle_ids || []).join(", ") || "not configured"),
+        settingsItem("APNs relay enabled", yesNo(apnsRelay.client_enabled)),
+        settingsItem("APNs relay URL", apnsRelay.url || "not configured"),
+        settingsItem("APNs relay native app id", apnsRelay.native_app_id || "not configured"),
+        settingsItem("APNs relay client certificate configured", yesNo(apnsRelay.client_cert_configured)),
+        settingsItem("APNs relay client key configured", yesNo(apnsRelay.client_key_configured)),
+        settingsItem("APNs relay CA certificate configured", yesNo(apnsRelay.ca_cert_configured))
+      ].join("");
+    }
+
+    function render() {
+      setActiveTab(state.activeTab || tabFromHash(), false);
+      renderSummary();
+      renderUsers();
+      renderSources();
+      renderDevices();
+      renderTokens();
+      renderTokenSourceOptions();
+      renderTestSourceOptions();
+      renderTestRecipients();
+      renderSettings();
+      renderSubscriptionModal();
+      updateUserSlug();
+      updateSourceSlug();
+    }
+
+    function resetUserForm() {
+      state.editingUserId = null;
+      $("userId").value = "";
+      $("userName").value = "";
+      updateUserSlug();
+      $("userName").focus();
+    }
+
+    function resetSourceForm() {
+      state.editingSourceId = null;
+      $("sourceId").value = "";
+      $("sourceName").value = "";
+      $("sourceIcon").value = "bell";
+      $("sourceColor").value = "#3B82F6";
+      $("sourcePriority").value = "5";
+      $("sourcePrivacy").value = "private";
+      updateSourceSlug();
+      $("sourceName").focus();
+    }
+
+    function showSecret(targetId, label, value) {
+      $(targetId).innerHTML = `
+        <div class="secret">
+          <div><h3>${esc(label)}</h3><code>${esc(value)}</code></div>
+          <button type="button" data-copy-secret="${esc(value)}">Copy</button>
+        </div>
+      `;
+    }
+
+    function subscriptionDiffs() {
+      const modal = state.subscriptionModal;
+      return modal.sources
+        .filter((source) => Boolean(source.subscribed) !== Boolean(modal.original[source.id]))
+        .map((source) => ({ source_id: source.id, subscribed: Boolean(source.subscribed) }));
+    }
+
+    function filteredSubscriptionSources() {
+      const modal = state.subscriptionModal;
+      const query = $("subscriptionSearch").value.trim().toLowerCase();
+      const filter = $("subscriptionFilter").value;
+      return modal.sources.filter((source) => {
+        const subscribed = Boolean(source.subscribed);
+        if (filter === "subscribed" && !subscribed) return false;
+        if (filter === "unsubscribed" && subscribed) return false;
+        if (!query) return true;
+        return [source.name, source.id, source.icon]
+          .some((value) => String(value || "").toLowerCase().includes(query));
+      });
+    }
+
+    function renderSubscriptionModal() {
+      const modal = state.subscriptionModal;
+      if (!modal.userId) {
+        $("subscriptionModalBackdrop").classList.add("hidden");
+        return;
+      }
+
+      $("subscriptionModalBackdrop").classList.remove("hidden");
+      $("subscriptionModalTitle").textContent = `Subscriptions for ${modal.userName || modal.userId}`;
+      const subscribedCount = modal.sources.filter((source) => source.subscribed).length;
+      const diffs = subscriptionDiffs();
+      $("subscriptionModalSummary").textContent = `${subscribedCount} of ${modal.sources.length} sources subscribed`;
+      $("subscriptionDirtyState").textContent = diffs.length ? `${diffs.length} pending change${diffs.length === 1 ? "" : "s"}` : "No changes";
+      $("saveSubscriptionChanges").disabled = diffs.length === 0;
+
+      const visible = filteredSubscriptionSources();
+      modal.visibleIds = visible.map((source) => source.id);
+      $("subscriptionList").innerHTML = visible.map((source) => `
+        <div class="subscription-row">
+          <label>
+            <input type="checkbox" data-user-subscription-source="${esc(source.id)}" ${source.subscribed ? "checked" : ""}>
+            <span>${esc(source.name)} <code>${esc(source.id)}</code></span>
+          </label>
+          <span class="muted">${esc(source.privacy)} / priority ${esc(source.default_priority)}</span>
+        </div>
+      `).join("") || `<div class="subscription-row"><span class="muted">No matching sources</span></div>`;
+    }
+
+    async function openSubscriptionModal(userId, userName) {
+      state.subscriptionModal = {
+        userId,
+        userName: userName || userId,
+        sources: [],
+        original: {},
+        visibleIds: []
+      };
+      $("subscriptionSearch").value = "";
+      $("subscriptionFilter").value = "all";
+      $("subscriptionList").innerHTML = `<div class="subscription-row"><span class="muted">Loading sources</span></div>`;
+      renderSubscriptionModal();
+      const data = await api(`/users/${encodeURIComponent(userId)}/subscriptions`);
+      const sources = data.sources || [];
+      const original = {};
+      sources.forEach((source) => {
+        original[source.id] = Boolean(source.subscribed);
+      });
+      state.subscriptionModal.sources = sources;
+      state.subscriptionModal.original = original;
+      renderSubscriptionModal();
+    }
+
+    function closeSubscriptionModal() {
+      state.subscriptionModal = {
+        userId: null,
+        userName: "",
+        sources: [],
+        original: {},
+        visibleIds: []
+      };
+      renderSubscriptionModal();
+    }
+
+    function setSubscriptionState(sourceIds, subscribed) {
+      const ids = new Set(sourceIds);
+      state.subscriptionModal.sources = state.subscriptionModal.sources.map((source) => (
+        ids.has(source.id) ? { ...source, subscribed } : source
+      ));
+      renderSubscriptionModal();
+    }
+
+    function parseScopes(value) {
+      return value.split(/[\s,]+/).map((scope) => scope.trim()).filter(Boolean);
+    }
+
+    function slugify(value) {
+      return value
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .replace(/-{2,}/g, "-")
+        .slice(0, 80);
+    }
+
+    function sourceSlugExists(slug) {
+      return state.sources.some((source) => source.id === slug && source.id !== state.editingSourceId);
+    }
+
+    function userSlugExists(slug) {
+      return state.users.some((user) => user.id === slug && user.id !== state.editingUserId);
+    }
+
+    function updateUserSlug() {
+      const help = $("userSlugHelp");
+      const submit = $("userSubmit");
+      const slug = state.editingUserId || slugify($("userName").value);
+      $("userId").value = slug;
+      help.classList.remove("error");
+
+      if (state.editingUserId) {
+        help.textContent = "Existing user slug";
+        submit.disabled = false;
+        return;
+      }
+
+      if (!slug) {
+        help.textContent = "Generated from name";
+        submit.disabled = true;
+        return;
+      }
+
+      if (userSlugExists(slug)) {
+        help.textContent = "A user with this slug already exists";
+        help.classList.add("error");
+        submit.disabled = true;
+        return;
+      }
+
+      help.textContent = "Generated from name";
+      submit.disabled = false;
+    }
+
+    function updateSourceSlug() {
+      const help = $("sourceSlugHelp");
+      const submit = $("sourceSubmit");
+      const slug = state.editingSourceId || slugify($("sourceName").value);
+      $("sourceId").value = slug;
+      help.classList.remove("error");
+
+      if (state.editingSourceId) {
+        help.textContent = "Existing source slug";
+        submit.disabled = false;
+        return;
+      }
+
+      if (!slug) {
+        help.textContent = "Generated from name";
+        submit.disabled = true;
+        return;
+      }
+
+      if (sourceSlugExists(slug)) {
+        help.textContent = "A source with this slug already exists";
+        help.classList.add("error");
+        submit.disabled = true;
+        return;
+      }
+
+      help.textContent = "Generated from name";
+      submit.disabled = false;
+    }
+
+    function tokenScopesFromForm() {
+      const sourceId = $("tokenSource").value;
+      if (!sourceId) {
+        throw new Error("Choose a source for this token");
+      }
+      const scopes = [];
+      if ($("tokenCanWrite").checked) scopes.push(`requests:write:${sourceId}`);
+      if ($("tokenCanRead").checked) scopes.push(`requests:read:${sourceId}`);
+      if ($("tokenCanCancel").checked) scopes.push(`requests:cancel:${sourceId}`);
+      scopes.push(...parseScopes($("tokenExtraScopes").value));
+      if (scopes.length === 0) {
+        throw new Error("Choose at least one permission");
+      }
+      return scopes;
+    }
+
+    function parseKeyValueLines(value, label) {
+      return value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+          const separator = line.indexOf(":");
+          if (separator <= 0) {
+            throw new Error(`${label} line ${index + 1} must use "Label: value"`);
+          }
+          return {
+            label: line.slice(0, separator).trim(),
+            value: line.slice(separator + 1).trim()
+          };
+        });
+    }
+
+    function parseLinkLines(value) {
+      return value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+          if (looksLikeUrl(line)) {
+            const url = normalizeUrl(line);
+            return {
+              label: labelFromUrl(url),
+              url
+            };
+          }
+          const separator = line.indexOf(":");
+          if (separator <= 0) {
+            throw new Error(`Links line ${index + 1} must use "Label: https://..."`);
+          }
+          const url = normalizeUrl(line.slice(separator + 1).trim());
+          return {
+            label: line.slice(0, separator).trim(),
+            url
+          };
+        });
+    }
+
+    function looksLikeUrl(value) {
+      return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith("//") || /^www\./i.test(value);
+    }
+
+    function normalizeUrl(value) {
+      const trimmed = value.trim();
+      const url = trimmed.startsWith("//")
+        ? `https:${trimmed}`
+        : /^www\./i.test(trimmed)
+          ? `https://${trimmed}`
+          : trimmed;
+      const parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("Links must use http or https URLs");
+      }
+      return parsed.toString();
+    }
+
+    function labelFromUrl(value) {
+      try {
+        const url = new URL(value);
+        const path = url.pathname === "/" ? "" : url.pathname.replace(/\/$/, "");
+        return `${url.hostname}${path}` || value;
+      } catch (_err) {
+        return value;
+      }
+    }
+
+    function testOptionsFromPreset() {
+      const approve = { id: "approve", label: "Approve", kind: "approve" };
+      const reject = { id: "reject", label: "Reject", kind: "reject", destructive: true };
+      const approveNotes = {
+        id: "approve_notes",
+        label: "Approve with notes",
+        kind: "approve_with_text",
+        text_placeholder: "Notes"
+      };
+      const rejectReason = {
+        id: "reject_reason",
+        label: "Reject with reason",
+        kind: "reject_with_text",
+        text_placeholder: "Reason",
+        destructive: true
+      };
+
+      switch ($("testOptionPreset").value) {
+        case "approval":
+          return [approve, reject];
+        case "approval_text":
+          return [approve, approveNotes, reject, rejectReason];
+        case "reject_reason":
+          return [rejectReason];
+        default:
+          return [];
+      }
+    }
+
+    function buildTestRequestPayload() {
+      const sourceId = $("testSource").value;
+      if (!sourceId) {
+        throw new Error("Choose a source for this test request");
+      }
+      const payload = {
+        source_id: sourceId,
+        title: $("testTitle").value.trim(),
+        summary: $("testSummary").value.trim(),
+        body_markdown: $("testBody").value.trim(),
+        fields: parseKeyValueLines($("testFields").value, "Fields"),
+        links: parseLinkLines($("testLinks").value),
+        options: testOptionsFromPreset()
+      };
+      if (!payload.title) {
+        throw new Error("Title is required");
+      }
+      if (testRecipientMode() === "specific") {
+        const recipients = selectedTestRecipientIds();
+        if (recipients.length === 0) {
+          throw new Error("Choose at least one recipient");
+        }
+        payload.recipients = recipients;
+      }
+      if ($("testPriority").value !== "") {
+        payload.priority = Number($("testPriority").value);
+      }
+      if ($("testPrivacy").value) {
+        payload.privacy = $("testPrivacy").value;
+      }
+      if ($("testDedupeKey").value.trim()) {
+        payload.dedupe_key = $("testDedupeKey").value.trim();
+      }
+      if ($("testExpires").value) {
+        payload.expires_at = new Date(Date.now() + Number($("testExpires").value) * 1000).toISOString();
+      }
+      if ($("testImageUrl").value.trim()) {
+        payload.image_url = $("testImageUrl").value.trim();
+      }
+      if ($("testCallbackUrl").value.trim()) {
+        payload.callback_url = $("testCallbackUrl").value.trim();
+      }
+      return payload;
+    }
+
+    function showTestRequestResult(data) {
+      const requestId = data.request_id || (data.request && data.request.id) || "";
+      const label = data.deduped ? "Deduped existing test request" : "Created test request";
+      $("testRequestResult").innerHTML = `
+        <div class="secret">
+          <div><h3>${esc(label)}</h3><code>${esc(requestId)}</code></div>
+          <button type="button" data-copy-secret="${esc(requestId)}">Copy request id</button>
+        </div>
+      `;
+    }
+
+    $("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setStatus("Logging in");
+      try {
+        const response = await fetch(`${adminBase}/session`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: $("adminToken").value })
+        });
+        if (!response.ok) throw new Error("Login failed");
+        $("adminToken").value = "";
+        await loadAll();
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    $("logoutButton").addEventListener("click", async () => {
+      await fetch(`${adminBase}/session`, { method: "DELETE", credentials: "same-origin" });
+      showLogin();
+    });
+
+    $("refreshButton").addEventListener("click", () => {
+      loadAll().catch((err) => setStatus(err.message, "danger-text"));
+    });
+
+    $("refreshDevicesButton").addEventListener("click", () => {
+      loadAll()
+        .then(() => setStatus("Devices refreshed", "ok"))
+        .catch((err) => setStatus(err.message, "danger-text"));
+    });
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+    });
+
+    window.addEventListener("hashchange", () => setActiveTab(tabFromHash(), false));
+    window.addEventListener("popstate", () => setActiveTab(tabFromHash(), false));
+
+    $("resetUserForm").addEventListener("click", resetUserForm);
+    $("userName").addEventListener("input", updateUserSlug);
+    $("resetSourceForm").addEventListener("click", resetSourceForm);
+    $("sourceName").addEventListener("input", updateSourceSlug);
+    $("testSource").addEventListener("change", renderTestRecipients);
+    document.querySelectorAll("input[name='testRecipientMode']").forEach((input) => {
+      input.addEventListener("change", renderTestRecipients);
+    });
+    $("testRecipientsList").addEventListener("change", (event) => {
+      if (event.target.matches("[data-test-recipient]")) {
+        renderTestRecipients();
+      }
+    });
+    $("selectTestRecipients").addEventListener("click", () => {
+      document.querySelectorAll("[data-test-recipient]:not(:disabled)").forEach((input) => {
+        input.checked = true;
+      });
+      renderTestRecipients();
+    });
+    $("clearTestRecipients").addEventListener("click", () => {
+      document.querySelectorAll("[data-test-recipient]").forEach((input) => {
+        input.checked = false;
+      });
+      renderTestRecipients();
+    });
+
+    $("subscriptionSearch").addEventListener("input", renderSubscriptionModal);
+    $("subscriptionFilter").addEventListener("change", renderSubscriptionModal);
+    $("closeSubscriptionModal").addEventListener("click", closeSubscriptionModal);
+    $("cancelSubscriptionChanges").addEventListener("click", closeSubscriptionModal);
+    $("subscribeVisible").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.visibleIds, true));
+    $("unsubscribeVisible").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.visibleIds, false));
+    $("subscribeAll").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.sources.map((source) => source.id), true));
+    $("unsubscribeAll").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.sources.map((source) => source.id), false));
+
+    $("saveSubscriptionChanges").addEventListener("click", async () => {
+      const modal = state.subscriptionModal;
+      const updates = subscriptionDiffs();
+      if (!modal.userId || updates.length === 0) return;
+      try {
+        setStatus("Saving subscriptions");
+        await api(`/users/${encodeURIComponent(modal.userId)}/subscriptions`, {
+          method: "PUT",
+          body: JSON.stringify({ updates })
+        });
+        closeSubscriptionModal();
+        await loadAll();
+        setStatus("Subscriptions saved", "ok");
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    $("userForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const userId = state.editingUserId || slugify($("userName").value);
+      if (!userId) {
+        setStatus("User name must produce a slug", "danger-text");
+        return;
+      }
+      if (!state.editingUserId && userSlugExists(userId)) {
+        setStatus("A user with this slug already exists", "danger-text");
+        updateUserSlug();
+        return;
+      }
+      try {
+        const payload = { id: userId, name: $("userName").value.trim() };
+        if (state.editingUserId) {
+          await api(`/users/${encodeURIComponent(userId)}`, {
+            method: "PUT",
+            body: JSON.stringify({ name: payload.name })
+          });
+        } else {
+          await api("/users", { method: "POST", body: JSON.stringify(payload) });
+        }
+        resetUserForm();
+        await loadAll();
+        setStatus("User saved", "ok");
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    $("sourceForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const sourceId = state.editingSourceId || slugify($("sourceName").value);
+      if (!sourceId) {
+        setStatus("Source name must produce a slug", "danger-text");
+        return;
+      }
+      if (!state.editingSourceId && sourceSlugExists(sourceId)) {
+        setStatus("A source with this slug already exists", "danger-text");
+        updateSourceSlug();
+        return;
+      }
+      const payload = {
+        id: sourceId,
+        name: $("sourceName").value.trim(),
+        icon: $("sourceIcon").value.trim() || "bell",
+        color: $("sourceColor").value,
+        default_priority: Number($("sourcePriority").value || 5),
+        privacy: $("sourcePrivacy").value
+      };
+      try {
+        await api("/sources", { method: "POST", body: JSON.stringify(payload) });
+        resetSourceForm();
+        await loadAll();
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    $("testRequestForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        const data = await api("/test-requests", {
+          method: "POST",
+          body: JSON.stringify(buildTestRequestPayload())
+        });
+        await loadAll();
+        showTestRequestResult(data);
+        setStatus(data.deduped ? "Test matched existing pending request" : "Test request sent", "ok");
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    $("tokenForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        const data = await api("/issuer-tokens", {
+          method: "POST",
+          body: JSON.stringify({
+            name: $("tokenName").value.trim(),
+            scopes: tokenScopesFromForm()
+          })
+        });
+        showSecret("tokenSecret", "Issuer token", data.token);
+        $("tokenName").value = "";
+        $("tokenCanWrite").checked = true;
+        $("tokenCanRead").checked = true;
+        $("tokenCanCancel").checked = false;
+        $("tokenExtraScopes").value = "";
+        await loadAll();
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    document.addEventListener("click", async (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      if (button.dataset.copySecret) {
+        await navigator.clipboard.writeText(button.dataset.copySecret);
+        setStatus("Copied", "ok");
+        return;
+      }
+
+      if (button.dataset.editUser) {
+        const user = state.users.find((item) => item.id === button.dataset.editUser);
+        if (!user) return;
+        state.editingUserId = user.id;
+        $("userId").value = user.id;
+        $("userName").value = user.name;
+        updateUserSlug();
+        $("userName").focus();
+        return;
+      }
+
+      if (button.dataset.manageSubscriptions) {
+        try {
+          await openSubscriptionModal(button.dataset.manageSubscriptions, button.dataset.userName);
+        } catch (err) {
+          closeSubscriptionModal();
+          setStatus(err.message, "danger-text");
+        }
+        return;
+      }
+
+      if (button.dataset.enrollUser) {
+        const userId = button.dataset.enrollUser;
+        try {
+          const data = await api(`/users/${encodeURIComponent(userId)}/enrollment-codes`, {
+            method: "POST",
+            body: JSON.stringify({ expires_in_seconds: 600 })
+          });
+          const name = button.dataset.userName || userId;
+          showSecret("enrollmentSecret", `Enrollment code for ${name}, expires ${formatDate(data.expires_at)}`, data.code);
+          setStatus("Enrollment code created", "ok");
+        } catch (err) {
+          setStatus(err.message, "danger-text");
+        }
+        return;
+      }
+
+      if (button.dataset.deleteUser) {
+        const userId = button.dataset.deleteUser;
+        const userName = button.dataset.userName || userId;
+        if (!confirm(`Delete user "${userName}"? Users with devices cannot be deleted.`)) return;
+        try {
+          await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+          if (state.editingUserId === userId) {
+            resetUserForm();
+          }
+          await loadAll();
+          setStatus("User deleted", "ok");
+        } catch (err) {
+          setStatus(err.message, "danger-text");
+        }
+        return;
+      }
+
+      if (button.dataset.editSource) {
+        const source = state.sources.find((item) => item.id === button.dataset.editSource);
+        if (!source) return;
+        state.editingSourceId = source.id;
+        $("sourceId").value = source.id;
+        $("sourceName").value = source.name;
+        $("sourceIcon").value = source.icon;
+        $("sourceColor").value = source.color;
+        $("sourcePriority").value = source.default_priority;
+        $("sourcePrivacy").value = source.privacy;
+        updateSourceSlug();
+        $("sourceName").focus();
+        return;
+      }
+
+      if (button.dataset.deleteSource) {
+        const sourceId = button.dataset.deleteSource;
+        const sourceName = button.dataset.sourceName || sourceId;
+        if (!confirm(`Delete source "${sourceName}" and all of its request history?`)) return;
+        try {
+          await api(`/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" });
+          if (state.editingSourceId === sourceId) {
+            resetSourceForm();
+          }
+          $("testRequestResult").innerHTML = "";
+          await loadAll();
+          setStatus("Source deleted", "ok");
+        } catch (err) {
+          setStatus(err.message, "danger-text");
+        }
+        return;
+      }
+
+      if (button.dataset.revokeDevice) {
+        if (!confirm("Revoke this device?")) return;
+        try {
+          await api(`/devices/${encodeURIComponent(button.dataset.revokeDevice)}`, { method: "DELETE" });
+          await loadAll();
+        } catch (err) {
+          setStatus(err.message, "danger-text");
+        }
+        return;
+      }
+
+      if (button.dataset.revokeToken) {
+        if (!confirm("Revoke this issuer token?")) return;
+        try {
+          await api(`/issuer-tokens/${encodeURIComponent(button.dataset.revokeToken)}`, { method: "DELETE" });
+          await loadAll();
+        } catch (err) {
+          setStatus(err.message, "danger-text");
+        }
+      }
+    });
+
+    document.addEventListener("change", async (event) => {
+      const input = event.target;
+      if (input.matches("[data-user-subscription-source]")) {
+        const sourceId = input.dataset.userSubscriptionSource;
+        state.subscriptionModal.sources = state.subscriptionModal.sources.map((source) => (
+          source.id === sourceId ? { ...source, subscribed: input.checked } : source
+        ));
+        renderSubscriptionModal();
+      }
+    });
+
+    state.activeTab = tabFromHash();
+    setActiveTab(state.activeTab, false);
+    showLogin();
+    loadAll().catch(() => {});
+  </script>
+</body>
+</html>

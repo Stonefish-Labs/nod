@@ -1,0 +1,247 @@
+import Darwin
+import Foundation
+
+extension NodStore {
+  public func connectSync() {
+    syncReconnectTask?.cancel()
+    syncReconnectTask = nil
+    do {
+      guard let api = api() else {
+        return
+      }
+      sync.disconnect()
+      isSyncConnected = false
+      sync.connect(url: try api.websocketURL())
+      Task { await syncDevicePreferences() }
+    } catch {
+      lastError = error.localizedDescription
+    }
+  }
+
+  public func disconnectSync() {
+    syncReconnectTask?.cancel()
+    syncReconnectTask = nil
+    sync.disconnect()
+    isSyncConnected = false
+  }
+
+  public func resumeFromForeground() async {
+    guard isRegistered else {
+      return
+    }
+    await refresh()
+    connectSync()
+  }
+
+  func handle(envelope: NodSyncEnvelope) async {
+    markServerContactSucceeded()
+    isSyncConnected = true
+    if let notificationDelivery = envelope.notificationDelivery {
+      apply(notificationDelivery: notificationDelivery)
+    }
+    if let channel = envelope.channel {
+      if let index = channels.firstIndex(where: { $0.id == channel.id }) {
+        channels[index] = channel
+      } else {
+        channels.append(channel)
+      }
+    }
+    if let event = envelope.event {
+      await applySyncedEvent(event, envelopeKind: envelope.kind)
+    }
+    if envelope.kind == "cleared" || envelope.kind == "subscription_updated" {
+      await refresh()
+    }
+    if envelope.kind.hasPrefix("device_") {
+      await refreshAccount()
+    }
+  }
+
+  func handleSyncError(_ error: Error) {
+    isSyncConnected = false
+    if Self.isExpectedSyncDisconnect(error) {
+      reportConnectionError(error)
+      scheduleSyncReconnect()
+      return
+    }
+    if Self.isTransientConnectionError(error) {
+      reportConnectionError(error)
+      scheduleSyncReconnect()
+      return
+    }
+    lastError = error.localizedDescription
+  }
+
+  func reportConnectionError(_ error: Error, serverId: String? = nil) {
+    guard Self.isTransientConnectionError(error) else {
+      lastError = error.localizedDescription
+      return
+    }
+    markServerConnectionIssue(error.localizedDescription, serverId: serverId ?? selectedServer?.id)
+  }
+
+  func handleAuthenticatedRequestError(_ error: Error) {
+    if case NodAPIError.badStatus(let status, _) = error, status == 401 || status == 403 {
+      if let serverId = selectedServer?.id {
+        removeServersLocally([serverId])
+      }
+      lastError = "This device registration was revoked."
+      return
+    }
+    reportConnectionError(error)
+  }
+
+  func markServerContactSucceeded(serverId: String? = nil) {
+    guard let serverId = serverId ?? selectedServer?.id else {
+      return
+    }
+    clearServerConnectionIssues(for: [serverId])
+  }
+
+  private func applySyncedEvent(_ event: NodEvent, envelopeKind: String) async {
+    if event.status == .pending {
+      pendingCountsByChannel[event.channelId, default: 0] += envelopeKind == "created" ? 1 : 0
+      knownPendingEventIds.insert(event.id)
+    } else {
+      pendingCountsByChannel[event.channelId] = max(
+        0,
+        (pendingCountsByChannel[event.channelId] ?? 1) - 1
+      )
+      knownPendingEventIds.remove(event.id)
+    }
+    if selectedChannelId == nil || selectedChannelId == event.channelId {
+      upsert(event)
+    }
+    if envelopeKind == "created", shouldPresentLocalNotificationFromSync() {
+      await presentLocalNotification(for: event)
+    }
+  }
+
+  private func markServerConnectionIssue(_ message: String, serverId: String?) {
+    guard let serverId else {
+      return
+    }
+    var issues = serverConnectionIssuesById
+    issues[serverId] = message
+    serverConnectionIssuesById = issues
+  }
+
+  func clearServerConnectionIssues<S: Sequence>(for serverIds: S)
+  where S.Element == String {
+    let serverIdsToClear = Set(serverIds)
+    guard serverConnectionIssuesById.keys.contains(where: { serverIdsToClear.contains($0) }) else {
+      return
+    }
+    var issues = serverConnectionIssuesById
+    for serverId in serverIdsToClear {
+      issues[serverId] = nil
+    }
+    serverConnectionIssuesById = issues
+  }
+
+  private func scheduleSyncReconnect() {
+    guard isRegistered else {
+      return
+    }
+    syncReconnectTask?.cancel()
+    syncReconnectTask = Task { [weak self] in
+      // A short delay avoids a tight reconnect loop while still recovering quickly
+      // from Wi-Fi changes, sleep/wake, and server restarts.
+      try? await Task.sleep(nanoseconds: 2_000_000_000)
+      guard !Task.isCancelled else {
+        return
+      }
+      await MainActor.run {
+        self?.syncReconnectTask = nil
+        self?.connectSync()
+      }
+    }
+  }
+
+  private static func isExpectedSyncDisconnect(_ error: Error) -> Bool {
+    let nsError = error as NSError
+    // Normal WebSocket closes often arrive as low-level URL or POSIX failures;
+    // treat those as reconnectable connection state instead of modal errors.
+    if nsError.domain == NSURLErrorDomain {
+      let code = URLError.Code(rawValue: nsError.code)
+      if code == .cancelled || code == .networkConnectionLost {
+        return true
+      }
+    }
+    if nsError.domain == NSPOSIXErrorDomain {
+      let expectedCodes = [
+        Int(ECONNABORTED),
+        Int(ECONNRESET),
+        Int(ENOTCONN),
+        Int(EPIPE),
+      ]
+      if expectedCodes.contains(nsError.code) {
+        return true
+      }
+    }
+    if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+      return isExpectedSyncDisconnect(underlying)
+    }
+    return nsError.localizedDescription
+      .localizedCaseInsensitiveContains("software caused connection abort")
+  }
+
+  private static func isTransientConnectionError(_ error: Error) -> Bool {
+    if case NodAPIError.badStatus(let status, _) = error {
+      return status == -1 || (500..<600).contains(status)
+    }
+
+    let nsError = error as NSError
+    if nsError.domain == NSURLErrorDomain {
+      let code = URLError.Code(rawValue: nsError.code)
+      let transientCodes: Set<URLError.Code> = [
+        .cancelled,
+        .timedOut,
+        .badServerResponse,
+        .cannotFindHost,
+        .cannotConnectToHost,
+        .networkConnectionLost,
+        .dnsLookupFailed,
+        .notConnectedToInternet,
+        .resourceUnavailable,
+      ]
+      if transientCodes.contains(code) {
+        return true
+      }
+    }
+
+    if nsError.domain == NSPOSIXErrorDomain {
+      let transientCodes = [
+        Int(ECONNABORTED),
+        Int(ECONNRESET),
+        Int(ECONNREFUSED),
+        Int(ENOTCONN),
+        Int(ENETDOWN),
+        Int(ENETUNREACH),
+        Int(EHOSTDOWN),
+        Int(EHOSTUNREACH),
+        Int(ETIMEDOUT),
+        Int(EPIPE),
+      ]
+      if transientCodes.contains(nsError.code) {
+        return true
+      }
+    }
+
+    if nsError.domain.localizedCaseInsensitiveContains("CFNetwork") {
+      return true
+    }
+
+    if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+      return isTransientConnectionError(underlying)
+    }
+
+    let description = nsError.localizedDescription
+    return description.localizedCaseInsensitiveContains("timed out")
+      || description.localizedCaseInsensitiveContains("could not connect")
+      || description.localizedCaseInsensitiveContains("cannot find host")
+      || description.localizedCaseInsensitiveContains("network connection was lost")
+      || description.localizedCaseInsensitiveContains("not connected to the internet")
+      || description.localizedCaseInsensitiveContains("software caused connection abort")
+  }
+}

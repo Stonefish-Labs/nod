@@ -1,0 +1,73 @@
+use anyhow::Result;
+use async_trait::async_trait;
+use nod_client_core::{
+    models::{ClientState, Event, UserDevice},
+    ChannelParams, NodClientRuntime, NotificationPreferenceParams, RenameDeviceParams,
+    RevokeDeviceParams, SelectEventParams, SelectServerParams, SetSubscriptionParams,
+    SubmitActionParams,
+};
+
+use super::RuntimePort;
+
+#[async_trait]
+impl RuntimePort for NodClientRuntime {
+    async fn enroll(&mut self, params: nod_client_core::EnrollParams) -> Result<ClientState> {
+        self.enroll(params).await
+    }
+
+    async fn refresh(&mut self) -> Result<ClientState> {
+        self.refresh().await
+    }
+
+    async fn connect_sync(&mut self) -> Result<()> {
+        self.connect_sync().await
+    }
+
+    async fn select_server(&mut self, params: SelectServerParams) -> Result<ClientState> {
+        self.select_server(params.server_id).await
+    }
+
+    async fn forget_server(&mut self, params: SelectServerParams) -> Result<ClientState> {
+        self.forget_server(&params.server_id).await
+    }
+
+    async fn select_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
+        self.select_channel(params).await
+    }
+
+    async fn select_event(&mut self, params: SelectEventParams) -> Result<ClientState> {
+        self.select_event(params).await
+    }
+
+    async fn submit_action(&mut self, params: SubmitActionParams) -> Result<Event> {
+        self.submit_action(params).await
+    }
+
+    async fn clear_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
+        self.clear_channel(params).await
+    }
+
+    async fn set_subscription(&mut self, params: SetSubscriptionParams) -> Result<ClientState> {
+        self.set_subscription(params).await
+    }
+
+    async fn set_notification_preference(
+        &mut self,
+        params: NotificationPreferenceParams,
+    ) -> Result<ClientState> {
+        self.set_notification_preference(&params.notification_sound)
+            .await
+    }
+
+    async fn list_devices(&mut self) -> Result<Vec<UserDevice>> {
+        self.list_devices().await
+    }
+
+    async fn rename_device(&mut self, params: RenameDeviceParams) -> Result<UserDevice> {
+        self.rename_device(params).await
+    }
+
+    async fn revoke_device(&mut self, params: RevokeDeviceParams) -> Result<ClientState> {
+        self.revoke_device(params).await
+    }
+}

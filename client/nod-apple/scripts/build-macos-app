@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+CONFIGURATION="${CONFIGURATION:-Release}"
+BUILD_DIR="${NOD_MAC_BUILD_DIR:-${ROOT_DIR}/build/DerivedData/Build}"
+PRODUCTS_DIR="${BUILD_DIR}/Products"
+CONFIGURATION_BUILD_DIR="${PRODUCTS_DIR}/${CONFIGURATION}"
+APP_PATH="${CONFIGURATION_BUILD_DIR}/Nod.app"
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
+
+echo "Building Nod macOS app bundle (${CONFIGURATION})"
+echo "Output: ${APP_PATH}"
+echo
+
+xcodebuild \
+  -project "${ROOT_DIR}/Nod.xcodeproj" \
+  -target NodMac \
+  -configuration "${CONFIGURATION}" \
+  CODE_SIGNING_ALLOWED="${CODE_SIGNING_ALLOWED:-NO}" \
+  CONFIGURATION_BUILD_DIR="${CONFIGURATION_BUILD_DIR}" \
+  OBJROOT="${BUILD_DIR}/Intermediates.noindex" \
+  SYMROOT="${PRODUCTS_DIR}" \
+  build
+
+if [[ ! -x "${APP_PATH}/Contents/MacOS/Nod" ]]; then
+  echo "error: expected app executable was not produced: ${APP_PATH}/Contents/MacOS/Nod" >&2
+  exit 1
+fi
+
+echo
+echo "Built app bundle:"
+echo "  ${APP_PATH}"
+echo
+echo "Open it with:"
+echo "  open \"${APP_PATH}\""
+echo
+echo "If the UI still looks stale, quit any running Nod process before reopening this app."

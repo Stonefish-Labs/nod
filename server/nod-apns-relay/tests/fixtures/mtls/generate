@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+days="${NOD_TEST_CERT_DAYS:-3650}"
+
+create_ca() {
+  local name="$1"
+  local subject="$2"
+
+  openssl genrsa -out "$name.key" 2048
+  openssl req -x509 -new -nodes \
+    -key "$name.key" \
+    -sha256 \
+    -days "$days" \
+    -subj "/CN=$subject" \
+    -out "$name.crt"
+}
+
+create_signed_cert() {
+  local name="$1"
+  local subject="$2"
+  local ca_name="$3"
+  local ext_file="$4"
+
+  openssl genrsa -out "$name.key" 2048
+  openssl req -new \
+    -key "$name.key" \
+    -subj "/CN=$subject" \
+    -out "$name.csr"
+  openssl x509 -req \
+    -in "$name.csr" \
+    -CA "$ca_name.crt" \
+    -CAkey "$ca_name.key" \
+    -CAcreateserial \
+    -out "$name.crt" \
+    -days "$days" \
+    -sha256 \
+    -extfile "$ext_file"
+}
+
+cat > server.ext <<'EOF'
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:localhost,IP:127.0.0.1
+EOF
+
+cat > client.ext <<'EOF'
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = clientAuth
+EOF
+
+create_ca server-ca "Nod test server CA"
+create_ca client-ca "Nod test client CA"
+create_ca untrusted-client-ca "Nod test untrusted client CA"
+create_signed_cert server localhost server-ca server.ext
+create_signed_cert client "nod-client-test" client-ca client.ext
+create_signed_cert untrusted-client "nod-untrusted-client-test" untrusted-client-ca client.ext
+
+openssl genpkey \
+  -algorithm EC \
+  -pkeyopt ec_paramgen_curve:P-256 \
+  -out apns-auth-key.p8
+
+rm -f *.csr *.srl *.ext
+chmod 600 ./*.key ./apns-auth-key.p8

@@ -1,0 +1,7 @@
+/target/
+/.boop/
+/.nod/
+/.env
+/secrets/*
+!/secrets/.gitkeep
+.DS_Store

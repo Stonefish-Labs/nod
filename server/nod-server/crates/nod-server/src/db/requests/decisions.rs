@@ -1,0 +1,265 @@
+use chrono::Utc;
+use sqlx::SqlitePool;
+
+use super::{
+    maintenance::expire_request,
+    read::{get_request, request_for_user, request_visible_to_user},
+};
+use crate::{
+    db::{now_string, validation::implicit_dismiss_option},
+    error::ApiError,
+    models::{
+        Decision, DecisionRequest, DecisionResolution, DecisionSignatureRecord, Device,
+        RequestOption, RequestStatus, SubmitDecisionRequest,
+    },
+    signing,
+};
+
+pub struct DecisionSubmission<'a> {
+    pub request_id: &'a str,
+    pub option_id: &'a str,
+    pub actor_device: Option<&'a Device>,
+    pub actor_user_id: Option<&'a str>,
+    pub decision: SubmitDecisionRequest,
+}
+
+pub async fn record_decision(
+    pool: &SqlitePool,
+    submission: DecisionSubmission<'_>,
+) -> Result<DecisionRequest, ApiError> {
+    let request_id = submission.request_id;
+    let option_id = submission.option_id;
+    let actor_device = submission.actor_device;
+    let actor_user_id = submission.actor_user_id;
+    let submitted_decision = submission.decision;
+    let request = get_request(pool, request_id).await?;
+    if let Some(user_id) = actor_user_id {
+        if !request_visible_to_user(pool, request_id, user_id).await? {
+            return Err(ApiError::Forbidden);
+        }
+    }
+    if let Some(expires_at) = request.expires_at {
+        if expires_at <= Utc::now() {
+            expire_request(pool, request_id).await?;
+            return Err(ApiError::Conflict("request has expired".to_string()));
+        }
+    }
+    let option = request
+        .options
+        .iter()
+        .find(|option| option.id == option_id)
+        .cloned()
+        .or_else(|| implicit_dismiss_option(&request, option_id))
+        .ok_or(ApiError::NotFound)?;
+    if option.requires_text
+        && submitted_decision
+            .text
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
+    {
+        return Err(ApiError::BadRequest(
+            "this option requires text".to_string(),
+        ));
+    }
+    if !matches!(request.status, RequestStatus::Pending) {
+        return Err(ApiError::Conflict(
+            "request is no longer pending".to_string(),
+        ));
+    }
+
+    let resolved_at = Utc::now();
+    let text = submitted_decision
+        .text
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(ToOwned::to_owned);
+    let signature = verified_decision_signature(
+        pool,
+        &request,
+        &option,
+        actor_device,
+        text.as_deref(),
+        submitted_decision.signature.as_ref(),
+    )
+    .await?;
+    let decision = Decision {
+        request_id: request_id.to_string(),
+        option_id: option.id.clone(),
+        option_kind: option.kind.clone(),
+        option_label: option.label.clone(),
+        text,
+        actor_user_id: actor_user_id.map(ToOwned::to_owned),
+        actor_device_id: actor_device.map(|device| device.id.clone()),
+        signature,
+        resolved_at,
+    };
+    if request.decision_resolution == DecisionResolution::PerUser {
+        let Some(user_id) = actor_user_id else {
+            return Err(ApiError::BadRequest(
+                "per-user options require a user actor".to_string(),
+            ));
+        };
+
+        // Each recipient resolves their own projection; the shared request closes after the last decision.
+        let decision_json = serde_json::to_string(&decision)?;
+        let resolved_at_text = resolved_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let inserted = sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO request_user_decisions (request_id, user_id, decision_json, resolved_at)
+            VALUES (?, ?, ?, ?)
+            "#,
+        )
+        .bind(request_id)
+        .bind(user_id)
+        .bind(decision_json)
+        .bind(&resolved_at_text)
+        .execute(pool)
+        .await?;
+        if inserted.rows_affected() == 0 {
+            return Err(ApiError::Conflict(
+                "request was already handled by this user".to_string(),
+            ));
+        }
+
+        let recipient_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM request_recipients WHERE request_id = ?")
+                .bind(request_id)
+                .fetch_one(pool)
+                .await?;
+        let decision_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM request_user_decisions WHERE request_id = ?")
+                .bind(request_id)
+                .fetch_one(pool)
+                .await?;
+        if recipient_count > 0 && decision_count >= recipient_count {
+            sqlx::query(
+                r#"
+                UPDATE requests
+                SET status = 'resolved',
+                    resolved_at = ?,
+                    updated_at = ?
+                WHERE id = ? AND status = 'pending'
+                "#,
+            )
+            .bind(&resolved_at_text)
+            .bind(&resolved_at_text)
+            .bind(request_id)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query("UPDATE requests SET updated_at = ? WHERE id = ?")
+                .bind(&resolved_at_text)
+                .bind(request_id)
+                .execute(pool)
+                .await?;
+        }
+
+        return request_for_user(pool, request_id, user_id).await;
+    }
+
+    let decision_json = serde_json::to_string(&decision)?;
+    let resolved_at_text = resolved_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let updated = sqlx::query(
+        r#"
+        UPDATE requests
+        SET status = 'resolved',
+            decision_json = ?,
+            resolved_at = ?,
+            updated_at = ?
+        WHERE id = ? AND status = 'pending'
+        "#,
+    )
+    .bind(decision_json)
+    .bind(&resolved_at_text)
+    .bind(&resolved_at_text)
+    .bind(request_id)
+    .execute(pool)
+    .await?;
+
+    if updated.rows_affected() == 0 {
+        return Err(ApiError::Conflict(
+            "request was already handled".to_string(),
+        ));
+    }
+
+    if let Some(user_id) = actor_user_id {
+        request_for_user(pool, request_id, user_id).await
+    } else {
+        get_request(pool, request_id).await
+    }
+}
+
+async fn verified_decision_signature(
+    pool: &SqlitePool,
+    request: &DecisionRequest,
+    option: &RequestOption,
+    actor_device: Option<&Device>,
+    text: Option<&str>,
+    provided: Option<&crate::models::SubmitDecisionSignature>,
+) -> Result<Option<DecisionSignatureRecord>, ApiError> {
+    let Some(actor_device) = actor_device else {
+        if provided.is_some() {
+            return Err(ApiError::BadRequest(
+                "decision signatures require a device actor".to_string(),
+            ));
+        }
+        return Ok(None);
+    };
+
+    let device_has_key = actor_device
+        .signing_public_key
+        .as_deref()
+        .is_some_and(|key| !key.trim().is_empty());
+    let Some(provided) = provided else {
+        if device_has_key {
+            return Err(ApiError::BadRequest(
+                "signed decision payload is required for this device".to_string(),
+            ));
+        }
+        return Ok(None);
+    };
+
+    let (request_digest, signing_payload) =
+        signing::verify_decision_signature(request, option, actor_device, text, provided)?;
+    // Record the nonce after verification so invalid attempts cannot burn a valid nonce.
+    insert_decision_nonce(pool, &actor_device.id, &provided.key_id, &provided.nonce).await?;
+    Ok(Some(DecisionSignatureRecord {
+        key_id: provided.key_id.clone(),
+        algorithm: provided.algorithm.clone(),
+        nonce: provided.nonce.clone(),
+        signed_at: provided.signed_at.clone(),
+        request_digest,
+        signing_payload,
+        signature: provided.signature.clone(),
+        verified: true,
+    }))
+}
+
+async fn insert_decision_nonce(
+    pool: &SqlitePool,
+    device_id: &str,
+    key_id: &str,
+    nonce: &str,
+) -> Result<(), ApiError> {
+    let inserted = sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO decision_nonces (device_id, key_id, nonce, used_at)
+        VALUES (?, ?, ?, ?)
+        "#,
+    )
+    .bind(device_id)
+    .bind(key_id)
+    .bind(nonce)
+    .bind(now_string())
+    .execute(pool)
+    .await?;
+    if inserted.rows_affected() == 0 {
+        return Err(ApiError::Conflict(
+            "decision signature nonce has already been used".to_string(),
+        ));
+    }
+    Ok(())
+}

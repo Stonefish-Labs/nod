@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+days="${NOD_TEST_CERT_DAYS:-3650}"
+
+cat > client.ext <<'EOF'
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = clientAuth
+EOF
+
+openssl genrsa -out server-ca.key 2048
+openssl req -x509 -new -nodes \
+  -key server-ca.key \
+  -sha256 \
+  -days "$days" \
+  -subj "/CN=Nod test relay server CA" \
+  -out server-ca.crt
+
+openssl genrsa -out client.key 2048
+openssl req -new \
+  -key client.key \
+  -subj "/CN=nod-relay-client-test" \
+  -out client.csr
+openssl x509 -req \
+  -in client.csr \
+  -CA server-ca.crt \
+  -CAkey server-ca.key \
+  -CAcreateserial \
+  -out client.crt \
+  -days "$days" \
+  -sha256 \
+  -extfile client.ext
+
+rm -f *.csr *.srl *.ext
+chmod 600 ./*.key

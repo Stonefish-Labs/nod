@@ -1,0 +1,12 @@
+.DS_Store
+
+# Rust
+target/
+**/target/
+
+# Windows / .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/

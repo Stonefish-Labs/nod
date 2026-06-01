@@ -1,0 +1,23 @@
+services:
+  nod:
+    image: nod-server:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8767:8767"
+    env_file:
+      - ${NOD_SECRETS_ENV:-./secrets/secrets.env}
+    environment:
+      NOD_BIND: "0.0.0.0:8767"
+      NOD_DATABASE_URL: "sqlite:///data/nod.sqlite"
+      NOD_DATA_DIR: "/data"
+      NOD_RETENTION_DAYS: "90"
+    volumes:
+      - nod-data:/data
+      - ./secrets:/secrets:ro
+
+volumes:
+  nod-data:
