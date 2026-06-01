@@ -14,10 +14,6 @@ The goal is to make "route this through a decision-maker before doing it" a
 first-class protocol rather than a pile of one-off push notifications, chat
 messages, and scripts.
 
-<p align="center">
-  <img src="client/nod-tui/assets/tui-example.png" width="760" alt="Nod terminal client showing a pending README screenshot approval request">
-</p>
-
 ## Why Not Just Use Chat?
 
 Messaging services are built for conversation. Nod is built for decisions.
