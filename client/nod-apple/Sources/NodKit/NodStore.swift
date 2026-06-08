@@ -87,12 +87,12 @@ public final class NodStore: ObservableObject {
     self.platform = platform
     self.presentLocalNotifications = presentLocalNotifications
     self.appAttest = appAttest
-    resetLegacyClientStateIfNeeded()
 
     let savedDeviceName = defaults.string(forKey: "nod.deviceName") ?? defaultDeviceName
     self.baseURLString = ""
     self.deviceName = savedDeviceName
     self.notificationSound = defaults.string(forKey: "nod.notificationSound") ?? "default"
+    resetLegacyClientStateIfNeeded()
 
     self.servers = Self.loadServers(from: defaults)
     let savedSelection = defaults.string(forKey: "nod.selectedServerId")
