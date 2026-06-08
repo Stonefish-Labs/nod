@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SECRETS_DIR="${NOD_RELAY_SECRETS_DIR:-$ROOT/secrets}"
+CA_DIR="${NOD_RELAY_CA_DIR:-$ROOT/.relay-ca}"
+CA_DAYS="${NOD_RELAY_CA_DAYS:-3650}"
+CERT_DAYS="${NOD_RELAY_CERT_DAYS:-825}"
+SERVICE_UID="${NOD_RELAY_SERVICE_UID:-10001}"
+SERVICE_GID="${NOD_RELAY_SERVICE_GID:-10001}"
+FORCE=false
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: scripts/nod-relay-init [--force]
+
+Generates local mTLS material for the same-machine APNs relay.
+The relay CA private key is kept outside the container-mounted secrets dir.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+if ! command -v openssl >/dev/null 2>&1; then
+  echo "openssl is required to generate local relay certificates." >&2
+  exit 1
+fi
+
+mkdir -p "$SECRETS_DIR" "$CA_DIR"
+chmod 711 "$SECRETS_DIR" 2>/dev/null || true
+chmod 700 "$CA_DIR" 2>/dev/null || true
+
+CA_KEY="$CA_DIR/relay-ca.key"
+CA_SERIAL="$CA_DIR/relay-ca.srl"
+CA_CERT="$SECRETS_DIR/relay-ca.crt"
+SERVER_KEY="$SECRETS_DIR/relay-server.key"
+SERVER_CSR="$SECRETS_DIR/relay-server.csr"
+SERVER_CERT="$SECRETS_DIR/relay-server.crt"
+CLIENT_KEY="$SECRETS_DIR/relay-client.key"
+CLIENT_CSR="$SECRETS_DIR/relay-client.csr"
+CLIENT_CERT="$SECRETS_DIR/relay-client.crt"
+
+required_files=("$CA_CERT" "$SERVER_KEY" "$SERVER_CERT" "$CLIENT_KEY" "$CLIENT_CERT")
+generated_files=(
+  "$CA_KEY"
+  "$CA_SERIAL"
+  "$CA_CERT"
+  "$SERVER_KEY"
+  "$SERVER_CSR"
+  "$SERVER_CERT"
+  "$CLIENT_KEY"
+  "$CLIENT_CSR"
+  "$CLIENT_CERT"
+)
+
+fix_permissions() {
+  chmod 711 "$SECRETS_DIR" 2>/dev/null || true
+  chmod 700 "$CA_DIR" 2>/dev/null || true
+  chown "$SERVICE_UID:$SERVICE_GID" "$SERVER_KEY" "$CLIENT_KEY" 2>/dev/null || true
+  chmod 600 "$CA_KEY" "$SERVER_KEY" "$CLIENT_KEY" 2>/dev/null || true
+  chmod 644 "$CA_CERT" "$SERVER_CERT" "$CLIENT_CERT" 2>/dev/null || true
+}
+
+have_any=false
+have_all=true
+for file in "${required_files[@]}"; do
+  if [[ -e "$file" ]]; then
+    have_any=true
+  else
+    have_all=false
+  fi
+done
+
+if [[ "$FORCE" == false && "$have_all" == true ]]; then
+  fix_permissions
+  echo "Local APNs relay mTLS material already exists in $SECRETS_DIR"
+  exit 0
+fi
+
+if [[ "$FORCE" == false && "$have_any" == true ]]; then
+  cat >&2 <<EOF
+Partial local APNs relay mTLS material exists in $SECRETS_DIR.
+Run scripts/nod-relay-init --force to replace it, or remove the partial files.
+EOF
+  exit 1
+fi
+
+if [[ "$FORCE" == true ]]; then
+  rm -f "${generated_files[@]}"
+fi
+
+tmp_files=()
+cleanup() {
+  rm -f "${tmp_files[@]}" "$SERVER_CSR" "$CLIENT_CSR"
+}
+trap cleanup EXIT
+
+umask 077
+
+openssl genrsa -out "$CA_KEY" 4096 >/dev/null 2>&1
+openssl req \
+  -x509 \
+  -new \
+  -nodes \
+  -key "$CA_KEY" \
+  -sha256 \
+  -days "$CA_DAYS" \
+  -subj "/CN=nod-local-apns-relay-ca" \
+  -out "$CA_CERT" >/dev/null 2>&1
+
+openssl genrsa -out "$SERVER_KEY" 2048 >/dev/null 2>&1
+openssl req \
+  -new \
+  -key "$SERVER_KEY" \
+  -subj "/CN=nod-apns-relay" \
+  -out "$SERVER_CSR" >/dev/null 2>&1
+
+server_ext="$(mktemp "$SECRETS_DIR/relay-server-ext.XXXXXX")"
+tmp_files+=("$server_ext")
+cat >"$server_ext" <<'EOF'
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:nod-apns-relay
+EOF
+
+openssl x509 \
+  -req \
+  -in "$SERVER_CSR" \
+  -CA "$CA_CERT" \
+  -CAkey "$CA_KEY" \
+  -CAserial "$CA_SERIAL" \
+  -CAcreateserial \
+  -out "$SERVER_CERT" \
+  -days "$CERT_DAYS" \
+  -sha256 \
+  -extfile "$server_ext" >/dev/null 2>&1
+
+openssl genrsa -out "$CLIENT_KEY" 2048 >/dev/null 2>&1
+openssl req \
+  -new \
+  -key "$CLIENT_KEY" \
+  -subj "/CN=nod-server" \
+  -out "$CLIENT_CSR" >/dev/null 2>&1
+
+client_ext="$(mktemp "$SECRETS_DIR/relay-client-ext.XXXXXX")"
+tmp_files+=("$client_ext")
+cat >"$client_ext" <<'EOF'
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature
+extendedKeyUsage=clientAuth
+EOF
+
+openssl x509 \
+  -req \
+  -in "$CLIENT_CSR" \
+  -CA "$CA_CERT" \
+  -CAkey "$CA_KEY" \
+  -CAserial "$CA_SERIAL" \
+  -CAcreateserial \
+  -out "$CLIENT_CERT" \
+  -days "$CERT_DAYS" \
+  -sha256 \
+  -extfile "$client_ext" >/dev/null 2>&1
+
+fix_permissions
+
+cat >&2 <<EOF
+Generated local APNs relay mTLS material:
+  $CA_CERT
+  $SERVER_CERT
+  $SERVER_KEY
+  $CLIENT_CERT
+  $CLIENT_KEY
+
+Relay CA private key kept at:
+  $CA_KEY
+EOF

@@ -85,6 +85,64 @@ Then start the service. It binds to `127.0.0.1:8767` for Tailscale Serve:
 scripts/nod-compose up -d --build
 ```
 
+### Local APNs relay
+
+For a same-machine deployment with production APNs push, run the standalone
+relay as a private Compose sidecar. The relay has no host-published port; the
+server reaches it only on the Compose network at
+`https://nod-apns-relay:8768`.
+
+Initialize the relay env file and local mTLS material:
+
+```bash
+scripts/nod-compose --with-apns-relay config >/dev/null
+```
+
+This creates `secrets/relay.env` if needed and generates local mTLS files under
+`secrets/`. The local relay CA private key is kept in `.relay-ca/`, outside the
+container-mounted secrets directory.
+
+When migrating from a sibling `boop-server` checkout, `scripts/nod-compose
+--with-apns-relay` also imports existing Boop APNs team/key settings from
+`../../../boop-server/secrets/secrets.env` and copies the APNs `.p8` key into
+Nod's ignored `secrets/` directory. The relay still uses Nod's APNs topic,
+`com.batteryshark.Nod`, not Boop's bundle id.
+
+If there is no Boop checkout to import from, copy your Apple APNs `.p8` key into
+`secrets/` and fill these values in `secrets/relay.env`:
+
+```bash
+NOD_APNS_RELAY_TEAM_ID=...
+NOD_APNS_RELAY_KEY_ID=...
+NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/AuthKey_....p8
+NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Nod
+NOD_APNS_RELAY_ENVIRONMENT=production
+```
+
+Then start Nod with the relay enabled:
+
+```bash
+scripts/nod-compose --with-apns-relay up -d --build
+```
+
+To rotate the local relay mTLS material:
+
+```bash
+scripts/nod-relay-init --force
+scripts/nod-compose --with-apns-relay up -d --force-recreate
+```
+
+Verify mTLS from the Nod container:
+
+```bash
+scripts/nod-compose --with-apns-relay exec nod \
+  curl -fsS \
+    --cert /secrets/relay-client.crt \
+    --key /secrets/relay-client.key \
+    --cacert /secrets/relay-ca.crt \
+    https://nod-apns-relay:8768/health
+```
+
 For active development, use the dev image. It bind-mounts the repo and keeps Cargo caches in Docker volumes, so restarting recompiles only changed Rust code:
 
 ```bash
@@ -100,6 +158,15 @@ tailscale serve --bg --set-path /nod 8767
 ```
 
 Then point the Apple clients at `https://<your-tailnet-host>/nod`.
+
+When replacing an existing Boop deployment, keep the old public path and point
+it at Nod instead:
+
+```bash
+tailscale serve --bg --set-path /boop 8767
+```
+
+Then point Nod clients and issuers at `https://<your-tailnet-host>/boop`.
 
 ## Push Providers
 

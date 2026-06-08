@@ -2,8 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_SECRETS_DIR="${NOD_RELAY_SECRETS_DIR:-$ROOT/secrets}"
+BOOP_SECRETS_DIR="${BOOP_SECRETS_DIR:-$ROOT/../../../boop-server/secrets}"
+BOOP_SECRETS_ENV="${BOOP_SECRETS_ENV:-$BOOP_SECRETS_DIR/secrets.env}"
 NOD_SECRETS_ENV="${NOD_SECRETS_ENV:-$ROOT/secrets/secrets.env}"
+NOD_RELAY_SECRETS_ENV="${NOD_RELAY_SECRETS_ENV:-$ROOT/secrets/relay.env}"
 export NOD_SECRETS_ENV
+export NOD_RELAY_SECRETS_ENV
 
 generate_admin_token() {
   if command -v openssl >/dev/null 2>&1; then
@@ -19,6 +24,7 @@ ensure_admin_token() {
   local token
 
   mkdir -p "$(dirname "$NOD_SECRETS_ENV")"
+  chmod 711 "$(dirname "$NOD_SECRETS_ENV")" 2>/dev/null || true
   touch "$NOD_SECRETS_ENV"
   chmod 600 "$NOD_SECRETS_ENV" 2>/dev/null || true
 
@@ -34,12 +40,229 @@ ensure_admin_token() {
   printf 'Generated NOD_ADMIN_TOKEN in %s\n' "$NOD_SECRETS_ENV" >&2
 }
 
+append_env_line() {
+  local file="$1"
+  local line="$2"
+
+  if [[ -s "$file" ]] && [[ "$(tail -c 1 "$file")" != "" ]]; then
+    printf '\n' >>"$file"
+  fi
+  printf '%s\n' "$line" >>"$file"
+}
+
+env_file_has_value() {
+  local file="$1"
+  local name="$2"
+
+  [[ -f "$file" ]] && grep -Eq "^[[:space:]]*${name}=[^[:space:]]+" "$file"
+}
+
+env_file_value() {
+  local file="$1"
+  local name="$2"
+  local line
+  local value
+
+  if [[ ! -f "$file" ]]; then
+    return
+  fi
+  line="$(grep -E "^[[:space:]]*${name}=" "$file" | tail -n 1 || true)"
+  if [[ -n "$line" ]]; then
+    value="${line#*=}"
+    case "$value" in
+      \"*\")
+        value="${value#\"}"
+        value="${value%\"}"
+        ;;
+      \'*\')
+        value="${value#\'}"
+        value="${value%\'}"
+        ;;
+    esac
+    printf '%s\n' "$value"
+  fi
+}
+
+ensure_relay_env() {
+  mkdir -p "$(dirname "$NOD_RELAY_SECRETS_ENV")"
+  chmod 711 "$(dirname "$NOD_RELAY_SECRETS_ENV")" 2>/dev/null || true
+
+  if [[ ! -e "$NOD_RELAY_SECRETS_ENV" ]]; then
+    cat >"$NOD_RELAY_SECRETS_ENV" <<'EOF'
+# Required Apple APNs relay credentials. Fill these before starting the relay.
+# NOD_APNS_RELAY_TEAM_ID=...
+# NOD_APNS_RELAY_KEY_ID=...
+# NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/AuthKey_....p8
+
+NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Nod
+NOD_APNS_RELAY_ENVIRONMENT=production
+EOF
+    printf 'Created APNs relay env template in %s\n' "$NOD_RELAY_SECRETS_ENV" >&2
+  fi
+
+  chmod 600 "$NOD_RELAY_SECRETS_ENV" 2>/dev/null || true
+
+  if ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID"; then
+    append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Nod"
+  fi
+  if ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_ENVIRONMENT"; then
+    append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_ENVIRONMENT=production"
+  fi
+}
+
+relay_env_set_default() {
+  local name="$1"
+  local value="$2"
+
+  if [[ -n "$value" ]] && ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" "$name"; then
+    append_env_line "$NOD_RELAY_SECRETS_ENV" "$name=$value"
+    return 0
+  fi
+  return 1
+}
+
+boop_secret_source_path() {
+  local configured_path="$1"
+  local basename
+
+  if [[ -z "$configured_path" ]]; then
+    return
+  fi
+
+  basename="$(basename "$configured_path")"
+  if [[ -f "$BOOP_SECRETS_DIR/$basename" ]]; then
+    printf '%s\n' "$BOOP_SECRETS_DIR/$basename"
+  elif [[ -f "$configured_path" ]]; then
+    printf '%s\n' "$configured_path"
+  fi
+}
+
+import_boop_apns_env() {
+  local imported=false
+  local source_key_path
+  local key_basename
+  local target_key_path
+
+  if [[ ! -f "$BOOP_SECRETS_ENV" ]]; then
+    return
+  fi
+
+  if relay_env_set_default \
+    NOD_APNS_RELAY_TEAM_ID \
+    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_TEAM_ID)"; then
+    imported=true
+  fi
+  if relay_env_set_default \
+    NOD_APNS_RELAY_KEY_ID \
+    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_KEY_ID)"; then
+    imported=true
+  fi
+  if relay_env_set_default \
+    NOD_APNS_RELAY_ENVIRONMENT \
+    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_ENVIRONMENT)"; then
+    imported=true
+  fi
+
+  if ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_PRIVATE_KEY_PATH; then
+    source_key_path="$(boop_secret_source_path "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_PRIVATE_KEY_PATH)")"
+    if [[ -n "$source_key_path" ]]; then
+      key_basename="$(basename "$source_key_path")"
+      target_key_path="$RELAY_SECRETS_DIR/$key_basename"
+      mkdir -p "$RELAY_SECRETS_DIR"
+      chmod 711 "$RELAY_SECRETS_DIR" 2>/dev/null || true
+      if [[ "$source_key_path" != "$target_key_path" && ! -e "$target_key_path" ]]; then
+        cp "$source_key_path" "$target_key_path"
+      fi
+      chown "${NOD_RELAY_SERVICE_UID:-10001}:${NOD_RELAY_SERVICE_GID:-10001}" \
+        "$target_key_path" 2>/dev/null || true
+      chmod 600 "$target_key_path" 2>/dev/null || true
+      append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/$key_basename"
+      imported=true
+    fi
+  fi
+
+  if [[ "$imported" == true ]]; then
+    printf 'Imported APNs relay credentials from %s\n' "$BOOP_SECRETS_ENV" >&2
+    printf 'Using Nod APNs topic %s for the relay.\n' \
+      "$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_BUNDLE_ID)" >&2
+  fi
+}
+
+warn_missing_relay_env() {
+  local missing=()
+  local name
+
+  for name in \
+    NOD_APNS_RELAY_TEAM_ID \
+    NOD_APNS_RELAY_KEY_ID \
+    NOD_APNS_RELAY_PRIVATE_KEY_PATH
+  do
+    if [[ -z "${!name:-}" ]] && ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" "$name"; then
+      missing+=("$name")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf 'Warning: APNs relay credentials are missing from %s: %s\n' \
+      "$NOD_RELAY_SECRETS_ENV" "${missing[*]}" >&2
+    printf 'The relay container will not start successfully until those values are set.\n' >&2
+  fi
+}
+
+derive_relay_native_app_id() {
+  local bundle_id
+
+  if [[ -n "${NOD_APNS_RELAY_NATIVE_APP_ID:-}" ]]; then
+    export NOD_APNS_RELAY_NATIVE_APP_ID
+    return
+  fi
+
+  bundle_id="$(env_file_value "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID")"
+  NOD_APNS_RELAY_NATIVE_APP_ID="${bundle_id:-com.batteryshark.Nod}"
+  export NOD_APNS_RELAY_NATIVE_APP_ID
+}
+
 ensure_admin_token
 
+with_apns_relay=false
+dev=false
+compose_args=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-apns-relay)
+      with_apns_relay=true
+      shift
+      ;;
+    --dev)
+      dev=true
+      shift
+      ;;
+    --)
+      shift
+      compose_args+=("$@")
+      break
+      ;;
+    *)
+      compose_args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+set -- "${compose_args[@]}"
+
 compose_files=(-f "$ROOT/docker-compose.yml")
-if [[ "${1:-}" == "--dev" ]]; then
+if [[ "$dev" == true ]]; then
   compose_files+=(-f "$ROOT/docker-compose.dev.yml")
-  shift
+fi
+if [[ "$with_apns_relay" == true ]]; then
+  ensure_relay_env
+  import_boop_apns_env
+  "$ROOT/scripts/nod-relay-init"
+  warn_missing_relay_env
+  derive_relay_native_app_id
+  compose_files+=(-f "$ROOT/docker-compose.apns-relay.yml")
 fi
 
 if [[ $# -eq 0 ]]; then

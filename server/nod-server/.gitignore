@@ -1,6 +1,7 @@
 /target/
 /.boop/
 /.nod/
+/.relay-ca/
 /.env
 /secrets/*
 !/secrets/.gitkeep
