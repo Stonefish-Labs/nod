@@ -5,26 +5,26 @@ export interface EnrollParams {
   notification_sound?: string | null;
 }
 
-export interface SubmitActionParams {
-  event_id: string;
-  action_id: string;
+export interface SubmitOptionParams {
+  request_id: string;
+  option_id: string;
   text?: string | null;
 }
 
-export interface ChannelParams {
-  channel_id: string;
+export interface SourceParams {
+  source_id: string;
 }
 
 export interface SelectServerParams {
   server_id: string;
 }
 
-export interface SelectEventParams {
-  event_id: string;
+export interface SelectRequestParams {
+  request_id: string;
 }
 
 export interface SetSubscriptionParams {
-  channel_id: string;
+  source_id: string;
   subscribed: boolean;
 }
 

@@ -1,4 +1,4 @@
-use nod_client_core::models::Event;
+use nod_client_core::models::Request;
 
 pub(super) fn selected_id_after<'a>(
     ids: impl IntoIterator<Item = &'a str>,
@@ -32,10 +32,10 @@ pub(super) fn next_index(current: usize, count: usize) -> usize {
     current.saturating_add(1).min(count.saturating_sub(1))
 }
 
-pub(super) fn event_matches(event: &Event, query: &str) -> bool {
-    event.title.to_lowercase().contains(query)
-        || event.summary.to_lowercase().contains(query)
-        || event.body_markdown.to_lowercase().contains(query)
+pub(super) fn request_matches(request: &Request, query: &str) -> bool {
+    request.title.to_lowercase().contains(query)
+        || request.summary.to_lowercase().contains(query)
+        || request.body_markdown.to_lowercase().contains(query)
 }
 
 #[cfg(test)]

@@ -51,7 +51,7 @@ private func normalizedWebURL(from value: String) -> URL? {
   return url
 }
 
-struct EventImageView: View {
+struct RequestImageView: View {
   let url: URL
 
   var body: some View {
@@ -82,7 +82,7 @@ struct EventImageView: View {
   }
 }
 
-struct EventLinkView: View {
+struct RequestLinkView: View {
   let label: String
   let url: URL
 
@@ -162,12 +162,12 @@ private final class LinkPreviewModel: ObservableObject {
     let provider = LPMetadataProvider()
     self.provider = provider
     provider.startFetchingMetadata(for: url) { [weak self] metadata, _ in
-      let result = LinkMetadataResult(metadata: metadata)
-      Task { @MainActor [weak self, result] in
+      let decision = LinkMetadataResult(metadata: metadata)
+      Task { @MainActor [weak self, decision] in
         guard let self, self.requestedURL == url else {
           return
         }
-        self.metadata = result.metadata
+        self.metadata = decision.metadata
         self.provider = nil
       }
     }

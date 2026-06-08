@@ -1,4 +1,4 @@
-use nod_client_core::models::{DevicePlatform, Event, EventStatus, UserDevice};
+use nod_client_core::models::{DevicePlatform, Request, RequestStatus, UserDevice};
 use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
@@ -35,20 +35,20 @@ pub(super) fn tab_label(label: &'static str, selected: bool) -> Span<'static> {
     }
 }
 
-pub(super) fn status_label(event: &Event) -> &'static str {
-    event_status_label(&event.status)
+pub(super) fn status_label(request: &Request) -> &'static str {
+    request_status_label(&request.status)
 }
 
-pub(super) fn event_status_label(status: &EventStatus) -> &'static str {
+pub(super) fn request_status_label(status: &RequestStatus) -> &'static str {
     match status {
-        EventStatus::Pending => "pending",
-        EventStatus::Resolved => "resolved",
-        EventStatus::Expired => "expired",
-        EventStatus::Cancelled => "cancelled",
+        RequestStatus::Pending => "pending",
+        RequestStatus::Resolved => "resolved",
+        RequestStatus::Expired => "expired",
+        RequestStatus::Cancelled => "cancelled",
     }
 }
 
-pub(super) fn action_key_hint(kind: &str) -> &'static str {
+pub(super) fn option_key_hint(kind: &str) -> &'static str {
     match kind {
         "approve" | "approve_with_text" => "a",
         "reject" | "reject_with_text" => "r",

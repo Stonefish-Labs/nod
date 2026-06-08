@@ -2,6 +2,6 @@
 @import "./styles/base.css";
 @import "./styles/layout.css";
 @import "./styles/navigation.css";
-@import "./styles/events.css";
+@import "./styles/requests.css";
 @import "./styles/dialogs.css";
 @import "./styles/responsive.css";

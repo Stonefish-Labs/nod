@@ -1,17 +1,17 @@
 import Foundation
 
-public enum NodEventInbox {
-  public static let handledEventDisplayLimit = 500
+public enum NodRequestInbox {
+  public static let handledRequestDisplayLimit = 500
 
-  public static func pendingCountsByChannel(in events: [NodEvent]) -> [String: Int] {
+  public static func pendingCountsBySource(in requests: [NodRequest]) -> [String: Int] {
     Dictionary(
-      grouping: events.filter { $0.status == .pending },
-      by: \.channelId
+      grouping: requests.filter { $0.status == .pending },
+      by: \.sourceId
     ).mapValues(\.count)
   }
 
-  public static func newestFirst(_ events: [NodEvent]) -> [NodEvent] {
-    events.sorted { lhs, rhs in
+  public static func newestFirst(_ requests: [NodRequest]) -> [NodRequest] {
+    requests.sorted { lhs, rhs in
       if lhs.createdAt == rhs.createdAt {
         return lhs.id > rhs.id
       }
@@ -19,8 +19,8 @@ public enum NodEventInbox {
     }
   }
 
-  public static func pendingFirst(_ events: [NodEvent]) -> [NodEvent] {
-    events.sorted { lhs, rhs in
+  public static func pendingFirst(_ requests: [NodRequest]) -> [NodRequest] {
+    requests.sorted { lhs, rhs in
       if lhs.status == .pending, rhs.status != .pending {
         return true
       }
@@ -34,14 +34,14 @@ public enum NodEventInbox {
     }
   }
 
-  public static func visibleEvents(
-    _ events: [NodEvent],
-    handledLimit: Int = handledEventDisplayLimit
-  ) -> [NodEvent] {
+  public static func visibleRequests(
+    _ requests: [NodRequest],
+    handledLimit: Int = handledRequestDisplayLimit
+  ) -> [NodRequest] {
     var handledCount = 0
     // Pending items are never hidden; the cap only trims older handled history.
-    return pendingFirst(events).filter { event in
-      guard event.status != .pending else {
+    return pendingFirst(requests).filter { request in
+      guard request.status != .pending else {
         return true
       }
       handledCount += 1

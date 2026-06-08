@@ -70,59 +70,59 @@ public final class NodAPI: @unchecked Sendable {
         try await requestEmpty(.delete, path: "/api/v1/users/me/devices/\(id)")
     }
 
-    public func channels() async throws -> [NodChannel] {
-        let response: ChannelsResponse = try await request(.get, path: "/api/v1/sources")
-        return response.channels
+    public func sources() async throws -> [NodSource] {
+        let response: SourcesResponse = try await request(.get, path: "/api/v1/sources")
+        return response.sources
     }
 
-    public func events(_ query: NodEventQuery = .activeOnly) async throws -> [NodEvent] {
+    public func requests(_ query: NodRequestQuery = .activeOnly) async throws -> [NodRequest] {
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "include_cleared", value: query.includeCleared ? "true" : "false")
         ]
-        if let channelId = query.channelId {
-            queryItems.append(URLQueryItem(name: "source_id", value: channelId))
+        if let sourceId = query.sourceId {
+            queryItems.append(URLQueryItem(name: "source_id", value: sourceId))
         }
         if let limit = query.limit {
             queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
         }
-        let response: EventsResponse = try await request(.get, path: "/api/v1/requests", query: queryItems)
-        return response.events
+        let response: RequestsResponse = try await request(.get, path: "/api/v1/requests", query: queryItems)
+        return response.requests
     }
 
-    public func event(id: String) async throws -> NodEvent {
-        let response: EventResponse = try await request(.get, path: "/api/v1/requests/\(id)")
-        return response.event
+    public func request(id: String) async throws -> NodRequest {
+        let response: RequestResponse = try await request(.get, path: "/api/v1/requests/\(id)")
+        return response.request
     }
 
     public func submit(
-        eventId: String,
-        actionId: String,
+        requestId: String,
+        optionId: String,
         text: String? = nil,
         signature: NodDecisionSignature
-    ) async throws -> NodEvent {
+    ) async throws -> NodRequest {
         struct Body: Encodable {
             let text: String?
             let signature: NodDecisionSignature
         }
-        let response: EventResponse = try await request(
+        let response: RequestResponse = try await request(
             .post,
-            path: "/api/v1/requests/\(eventId)/options/\(actionId)",
+            path: "/api/v1/requests/\(requestId)/options/\(optionId)",
             body: Body(text: text, signature: signature)
         )
-        return response.event
+        return response.request
     }
 
-    public func clear(channelId: String) async throws {
-        try await requestEmpty(.post, path: "/api/v1/devices/me/sources/\(channelId)/clear")
+    public func clear(sourceId: String) async throws {
+        try await requestEmpty(.post, path: "/api/v1/devices/me/sources/\(sourceId)/clear")
     }
 
-    public func updateSubscription(channelId: String, subscribed: Bool) async throws {
+    public func updateSubscription(sourceId: String, subscribed: Bool) async throws {
         struct Body: Encodable {
             let subscribed: Bool
         }
         try await requestEmpty(
             .put,
-            path: "/api/v1/devices/me/subscriptions/\(channelId)",
+            path: "/api/v1/devices/me/subscriptions/\(sourceId)",
             body: Body(subscribed: subscribed)
         )
     }

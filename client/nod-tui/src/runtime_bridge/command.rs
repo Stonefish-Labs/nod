@@ -1,8 +1,8 @@
 use nod_client_core::{
-    models::{ClientState, Event, UserDevice},
-    ChannelParams, EnrollParams, NotificationPreferenceParams, RenameDeviceParams,
-    RevokeDeviceParams, SelectEventParams, SelectServerParams, SetSubscriptionParams,
-    SubmitActionParams,
+    models::{ClientState, Request, UserDevice},
+    EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SubmitOptionParams,
 };
 
 #[derive(Debug, Clone)]
@@ -12,10 +12,10 @@ pub(crate) enum RuntimeCommand {
     ConnectSync,
     SelectServer(SelectServerParams),
     ForgetServer(SelectServerParams),
-    SelectChannel(ChannelParams),
-    SelectEvent(SelectEventParams),
-    SubmitAction(SubmitActionParams),
-    ClearChannel(ChannelParams),
+    SelectSource(SourceParams),
+    SelectRequest(SelectRequestParams),
+    SubmitOption(SubmitOptionParams),
+    ClearSource(SourceParams),
     SetSubscription(SetSubscriptionParams),
     SetNotificationPreference(NotificationPreferenceParams),
     ListDevices,
@@ -31,10 +31,10 @@ impl RuntimeCommand {
             Self::ConnectSync => "Connecting sync",
             Self::SelectServer(_) => "Switching server",
             Self::ForgetServer(_) => "Forgetting server",
-            Self::SelectChannel(_) => "Loading channel",
-            Self::SelectEvent(_) => "Selecting notification",
-            Self::SubmitAction(_) => "Submitting action",
-            Self::ClearChannel(_) => "Clearing channel",
+            Self::SelectSource(_) => "Loading source",
+            Self::SelectRequest(_) => "Selecting request",
+            Self::SubmitOption(_) => "Submitting option",
+            Self::ClearSource(_) => "Clearing source",
             Self::SetSubscription(_) => "Updating subscription",
             Self::SetNotificationPreference(_) => "Updating notification sound",
             Self::ListDevices => "Loading devices",
@@ -61,18 +61,20 @@ impl PartialEq for RuntimeCommand {
             | (Self::ForgetServer(left), Self::ForgetServer(right)) => {
                 left.server_id == right.server_id
             }
-            (Self::SelectChannel(left), Self::SelectChannel(right))
-            | (Self::ClearChannel(left), Self::ClearChannel(right)) => {
-                left.channel_id == right.channel_id
+            (Self::SelectSource(left), Self::SelectSource(right))
+            | (Self::ClearSource(left), Self::ClearSource(right)) => {
+                left.source_id == right.source_id
             }
-            (Self::SelectEvent(left), Self::SelectEvent(right)) => left.event_id == right.event_id,
-            (Self::SubmitAction(left), Self::SubmitAction(right)) => {
-                left.event_id == right.event_id
-                    && left.action_id == right.action_id
+            (Self::SelectRequest(left), Self::SelectRequest(right)) => {
+                left.request_id == right.request_id
+            }
+            (Self::SubmitOption(left), Self::SubmitOption(right)) => {
+                left.request_id == right.request_id
+                    && left.option_id == right.option_id
                     && left.text == right.text
             }
             (Self::SetSubscription(left), Self::SetSubscription(right)) => {
-                left.channel_id == right.channel_id && left.subscribed == right.subscribed
+                left.source_id == right.source_id && left.subscribed == right.subscribed
             }
             (Self::SetNotificationPreference(left), Self::SetNotificationPreference(right)) => {
                 left.notification_sound == right.notification_sound
@@ -95,7 +97,7 @@ impl Eq for RuntimeCommand {}
 #[derive(Debug, Clone)]
 pub(crate) enum RuntimeCommandOutcome {
     State(Box<ClientState>),
-    Event(Box<Event>),
+    Request(Box<Request>),
     Device(Box<UserDevice>),
     Devices(Vec<UserDevice>),
     None,

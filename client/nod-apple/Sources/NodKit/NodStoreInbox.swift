@@ -6,8 +6,8 @@ extension NodStore {
       guard let api = api() else {
         currentUser = nil
         registeredDevices = []
-        channels = []
-        events = []
+        sources = []
+        requests = []
         notificationDeliveryMode = .push
         return
       }
@@ -15,22 +15,22 @@ extension NodStore {
       guard selectedServer != nil else {
         return
       }
-      channels = try await api.channels()
-      selectFirstVisibleChannelIfNeeded()
+      sources = try await api.sources()
+      selectFirstVisibleSourceIfNeeded()
 
-      let allVisibleEvents = try await api.events(NodEventQuery(limit: 500))
-      let pendingEvents = allVisibleEvents.filter { $0.status == .pending }
-      pendingCountsByChannel = NodEventInbox.pendingCountsByChannel(in: pendingEvents)
-      await presentNotificationsForPendingEventsDiscoveredByRefresh(pendingEvents)
-      if let selectedChannelId {
-        events = NodEventInbox.visibleEvents(
-          allVisibleEvents.filter { $0.channelId == selectedChannelId }
+      let allVisibleRequests = try await api.requests(NodRequestQuery(limit: 500))
+      let pendingRequests = allVisibleRequests.filter { $0.status == .pending }
+      pendingCountsBySource = NodRequestInbox.pendingCountsBySource(in: pendingRequests)
+      await presentNotificationsForPendingRequestsDiscoveredByRefresh(pendingRequests)
+      if let selectedSourceId {
+        requests = NodRequestInbox.visibleRequests(
+          allVisibleRequests.filter { $0.sourceId == selectedSourceId }
         )
       } else {
-        events = []
+        requests = []
       }
-      if selectedEventId == nil || !events.contains(where: { $0.id == selectedEventId }) {
-        selectedEventId = events.first?.id
+      if selectedRequestId == nil || !requests.contains(where: { $0.id == selectedRequestId }) {
+        selectedRequestId = requests.first?.id
       }
       markServerContactSucceeded()
       lastError = nil
@@ -39,15 +39,15 @@ extension NodStore {
     }
   }
 
-  public func submit(event: NodEvent, action: NodAction, text: String? = nil) async {
+  public func submit(request: NodRequest, option: NodRequestOption, text: String? = nil) async {
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      let signature = try decisionSignature(for: event, action: action, text: text)
+      let signature = try decisionSignature(for: request, option: option, text: text)
       let updated = try await api.submit(
-        eventId: event.id,
-        actionId: action.id,
+        requestId: request.id,
+        optionId: option.id,
         text: text,
         signature: signature
       )
@@ -58,19 +58,19 @@ extension NodStore {
     }
   }
 
-  public func dismissIfInformational(event: NodEvent) async {
-    guard event.status == .pending, event.actions.isEmpty else {
+  public func dismissIfInformational(request: NodRequest) async {
+    guard request.status == .pending, request.options.isEmpty else {
       return
     }
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      let action = NodAction(id: "dismiss", label: "Dismiss", kind: .dismiss)
-      let signature = try decisionSignature(for: event, action: action)
+      let option = NodRequestOption(id: "dismiss", label: "Dismiss", kind: .dismiss)
+      let signature = try decisionSignature(for: request, option: option)
       let updated = try await api.submit(
-        eventId: event.id,
-        actionId: "dismiss",
+        requestId: request.id,
+        optionId: "dismiss",
         signature: signature
       )
       upsert(updated)
@@ -80,19 +80,19 @@ extension NodStore {
     }
   }
 
-  func submitNotificationAction(eventId: String, actionId: String, text: String?) async {
+  func submitNotificationOption(requestId: String, optionId: String, text: String?) async {
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      let event = try await api.event(id: eventId)
-      let action =
-        event.actions.first(where: { $0.id == actionId })
-        ?? NodAction(id: actionId, label: actionId, kind: .custom)
-      let signature = try decisionSignature(for: event, action: action, text: text)
+      let request = try await api.request(id: requestId)
+      let option =
+        request.options.first(where: { $0.id == optionId })
+        ?? NodRequestOption(id: optionId, label: optionId, kind: .custom)
+      let signature = try decisionSignature(for: request, option: option, text: text)
       let updated = try await api.submit(
-        eventId: event.id,
-        actionId: action.id,
+        requestId: request.id,
+        optionId: option.id,
         text: text,
         signature: signature
       )
@@ -103,37 +103,37 @@ extension NodStore {
     }
   }
 
-  public func clearSelectedChannel() async {
-    guard let selectedChannelId else {
+  public func clearSelectedSource() async {
+    guard let selectedSourceId else {
       return
     }
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      try await api.clear(channelId: selectedChannelId)
-      events.removeAll { $0.channelId == selectedChannelId }
-      pendingCountsByChannel[selectedChannelId] = 0
-      selectedEventId = events.first?.id
+      try await api.clear(sourceId: selectedSourceId)
+      requests.removeAll { $0.sourceId == selectedSourceId }
+      pendingCountsBySource[selectedSourceId] = 0
+      selectedRequestId = requests.first?.id
       lastError = nil
     } catch {
       handleAuthenticatedRequestError(error)
     }
   }
 
-  public func setSubscription(channelId: String, subscribed: Bool) async {
+  public func setSubscription(sourceId: String, subscribed: Bool) async {
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      try await api.updateSubscription(channelId: channelId, subscribed: subscribed)
-      if let index = channels.firstIndex(where: { $0.id == channelId }) {
-        channels[index].subscribed = subscribed
+      try await api.updateSubscription(sourceId: sourceId, subscribed: subscribed)
+      if let index = sources.firstIndex(where: { $0.id == sourceId }) {
+        sources[index].subscribed = subscribed
       }
-      if !subscribed, selectedChannelId == channelId {
-        selectedChannelId = subscribedChannels.first?.id
-        events = []
-        pendingCountsByChannel[channelId] = nil
+      if !subscribed, selectedSourceId == sourceId {
+        selectedSourceId = subscribedSources.first?.id
+        requests = []
+        pendingCountsBySource[sourceId] = nil
         await refresh()
       }
       lastError = nil
@@ -148,34 +148,34 @@ extension NodStore {
     await syncDevicePreferences()
   }
 
-  func resetKnownPendingEvents() {
-    knownPendingEventIds = []
-    hasLoadedPendingEventSnapshot = false
+  func resetKnownPendingRequests() {
+    knownPendingRequestIds = []
+    hasLoadedPendingRequestSnapshot = false
   }
 
-  func upsert(_ event: NodEvent) {
-    if let index = events.firstIndex(where: { $0.id == event.id }) {
-      events[index] = event
+  func upsert(_ request: NodRequest) {
+    if let index = requests.firstIndex(where: { $0.id == request.id }) {
+      requests[index] = request
     } else {
-      events.insert(event, at: 0)
+      requests.insert(request, at: 0)
     }
-    events = NodEventInbox.visibleEvents(events)
-    if selectedEventId == nil {
-      selectedEventId = event.id
+    requests = NodRequestInbox.visibleRequests(requests)
+    if selectedRequestId == nil {
+      selectedRequestId = request.id
     }
   }
 
   private func decisionSignature(
-    for event: NodEvent,
-    action: NodAction,
+    for request: NodRequest,
+    option: NodRequestOption,
     text: String? = nil
   ) throws -> NodDecisionSignature {
     guard let server = selectedServer else {
       throw NodSigningError.missingDeviceIdentity
     }
     return try signingKeys.sign(NodDecisionSigningRequest(
-      event: event,
-      action: action,
+      request: request,
+      option: option,
       text: text,
       userId: server.userId,
       deviceId: server.deviceId,
@@ -183,12 +183,12 @@ extension NodStore {
     ))
   }
 
-  private func selectFirstVisibleChannelIfNeeded() {
-    let visibleChannels = subscribedChannels
-    if selectedChannelId == nil
-      || !visibleChannels.contains(where: { $0.id == selectedChannelId })
+  private func selectFirstVisibleSourceIfNeeded() {
+    let visibleSources = subscribedSources
+    if selectedSourceId == nil
+      || !visibleSources.contains(where: { $0.id == selectedSourceId })
     {
-      selectedChannelId = visibleChannels.first?.id
+      selectedSourceId = visibleSources.first?.id
     }
   }
 }

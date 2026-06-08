@@ -1,21 +1,21 @@
 import { Bell, RefreshCw, Server, Settings } from "lucide-react";
 import { pendingCountFor, totalPendingCount } from "../domain";
-import type { Channel, ClientState, ServerProfile } from "../types";
+import type { Source, ClientState, ServerProfile } from "../types";
 
 interface SidebarProps {
-  activeChannel?: Channel;
+  activeSource?: Source;
   onOpenSettings: () => void;
   onRefresh: () => Promise<void>;
-  onSelectChannel: (channel: Channel) => Promise<void>;
+  onSelectSource: (source: Source) => Promise<void>;
   onSelectServer: (server: ServerProfile) => Promise<void>;
   state: ClientState;
 }
 
 export function Sidebar({
-  activeChannel,
+  activeSource,
   onOpenSettings,
   onRefresh,
-  onSelectChannel,
+  onSelectSource,
   onSelectServer,
   state,
 }: SidebarProps): JSX.Element {
@@ -31,13 +31,13 @@ export function Sidebar({
         selectedServerId={state.selected_server_id ?? null}
         onSelect={onSelectServer}
       />
-      <ChannelList
-        channels={state.channels.filter((channel) => channel.subscribed)}
-        activeChannel={activeChannel}
+      <SourceList
+        sources={state.sources.filter((source) => source.subscribed)}
+        activeSource={activeSource}
         state={state}
-        onSelect={onSelectChannel}
+        onSelect={onSelectSource}
       />
-      <div className="sidebarActions">
+      <div className="sidebarControls">
         <button type="button" onClick={() => void onRefresh()}>
           <RefreshCw size={16} />
           Refresh
@@ -80,32 +80,32 @@ function ServerList({
   );
 }
 
-interface ChannelListProps {
-  activeChannel?: Channel;
-  channels: Channel[];
-  onSelect: (channel: Channel) => Promise<void>;
+interface SourceListProps {
+  activeSource?: Source;
+  sources: Source[];
+  onSelect: (source: Source) => Promise<void>;
   state: ClientState;
 }
 
-function ChannelList({
-  activeChannel,
-  channels,
+function SourceList({
+  activeSource,
+  sources,
   onSelect,
   state,
-}: ChannelListProps): JSX.Element {
+}: SourceListProps): JSX.Element {
   return (
-    <section className="navGroup channels">
-      <h2>Channels</h2>
-      {channels.map((channel) => (
+    <section className="navGroup sources">
+      <h2>Sources</h2>
+      {sources.map((source) => (
         <button
           type="button"
-          key={channel.id}
-          className={channel.id === activeChannel?.id ? "active" : ""}
-          onClick={() => void onSelect(channel)}
+          key={source.id}
+          className={source.id === activeSource?.id ? "active" : ""}
+          onClick={() => void onSelect(source)}
         >
-          <span className="swatch" style={{ backgroundColor: channel.color }} />
-          <span>{channel.name}</span>
-          <strong>{pendingCountFor(channel, state)}</strong>
+          <span className="swatch" style={{ backgroundColor: source.color }} />
+          <span>{source.name}</span>
+          <strong>{pendingCountFor(source, state)}</strong>
         </button>
       ))}
     </section>

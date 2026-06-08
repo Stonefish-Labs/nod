@@ -24,18 +24,18 @@
 		010000000000000000000017 /* RegistrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000117 /* RegistrationView.swift */; };
 		010000000000000000000018 /* SubscriptionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000118 /* SubscriptionSheet.swift */; };
 		010000000000000000000019 /* DeviceManagementSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000119 /* DeviceManagementSheet.swift */; };
-		010000000000000000000020 /* EventListViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000120 /* EventListViews.swift */; };
-		010000000000000000000021 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000121 /* EventDetailView.swift */; };
-		010000000000000000000022 /* EventMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000122 /* EventMediaViews.swift */; };
+		010000000000000000000020 /* RequestListViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000120 /* RequestListViews.swift */; };
+		010000000000000000000021 /* RequestDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000121 /* RequestDetailView.swift */; };
+		010000000000000000000022 /* RequestMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000122 /* RequestMediaViews.swift */; };
 		010000000000000000000023 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000123 /* MarkdownText.swift */; };
 		010000000000000000000024 /* AppBuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000124 /* AppBuildInfo.swift */; };
 		010000000000000000000025 /* NodRootViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000116 /* NodRootViews.swift */; };
 		010000000000000000000026 /* RegistrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000117 /* RegistrationView.swift */; };
 		010000000000000000000027 /* SubscriptionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000118 /* SubscriptionSheet.swift */; };
 		010000000000000000000028 /* DeviceManagementSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000119 /* DeviceManagementSheet.swift */; };
-		010000000000000000000029 /* EventListViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000120 /* EventListViews.swift */; };
-		010000000000000000000030 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000121 /* EventDetailView.swift */; };
-		010000000000000000000031 /* EventMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000122 /* EventMediaViews.swift */; };
+		010000000000000000000029 /* RequestListViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000120 /* RequestListViews.swift */; };
+		010000000000000000000030 /* RequestDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000121 /* RequestDetailView.swift */; };
+		010000000000000000000031 /* RequestMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000122 /* RequestMediaViews.swift */; };
 		010000000000000000000032 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000123 /* MarkdownText.swift */; };
 		010000000000000000000033 /* AppBuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000124 /* AppBuildInfo.swift */; };
 /* End PBXBuildFile section */
@@ -58,9 +58,9 @@
 		010000000000000000000117 /* RegistrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationView.swift; sourceTree = "<group>"; };
 		010000000000000000000118 /* SubscriptionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionSheet.swift; sourceTree = "<group>"; };
 		010000000000000000000119 /* DeviceManagementSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceManagementSheet.swift; sourceTree = "<group>"; };
-		010000000000000000000120 /* EventListViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventListViews.swift; sourceTree = "<group>"; };
-		010000000000000000000121 /* EventDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailView.swift; sourceTree = "<group>"; };
-		010000000000000000000122 /* EventMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventMediaViews.swift; sourceTree = "<group>"; };
+		010000000000000000000120 /* RequestListViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestListViews.swift; sourceTree = "<group>"; };
+		010000000000000000000121 /* RequestDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestDetailView.swift; sourceTree = "<group>"; };
+		010000000000000000000122 /* RequestMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestMediaViews.swift; sourceTree = "<group>"; };
 		010000000000000000000123 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
 		010000000000000000000124 /* AppBuildInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBuildInfo.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -150,9 +150,9 @@
 			children = (
 				010000000000000000000124 /* AppBuildInfo.swift */,
 				010000000000000000000119 /* DeviceManagementSheet.swift */,
-				010000000000000000000121 /* EventDetailView.swift */,
-				010000000000000000000120 /* EventListViews.swift */,
-				010000000000000000000122 /* EventMediaViews.swift */,
+				010000000000000000000121 /* RequestDetailView.swift */,
+				010000000000000000000120 /* RequestListViews.swift */,
+				010000000000000000000122 /* RequestMediaViews.swift */,
 				010000000000000000000123 /* MarkdownText.swift */,
 				010000000000000000000116 /* NodRootViews.swift */,
 				010000000000000000000117 /* RegistrationView.swift */,
@@ -281,9 +281,9 @@
 				010000000000000000000017 /* RegistrationView.swift in Sources */,
 				010000000000000000000018 /* SubscriptionSheet.swift in Sources */,
 				010000000000000000000019 /* DeviceManagementSheet.swift in Sources */,
-				010000000000000000000020 /* EventListViews.swift in Sources */,
-				010000000000000000000021 /* EventDetailView.swift in Sources */,
-				010000000000000000000022 /* EventMediaViews.swift in Sources */,
+				010000000000000000000020 /* RequestListViews.swift in Sources */,
+				010000000000000000000021 /* RequestDetailView.swift in Sources */,
+				010000000000000000000022 /* RequestMediaViews.swift in Sources */,
 				010000000000000000000023 /* MarkdownText.swift in Sources */,
 				010000000000000000000024 /* AppBuildInfo.swift in Sources */,
 			);
@@ -298,9 +298,9 @@
 				010000000000000000000026 /* RegistrationView.swift in Sources */,
 				010000000000000000000027 /* SubscriptionSheet.swift in Sources */,
 				010000000000000000000028 /* DeviceManagementSheet.swift in Sources */,
-				010000000000000000000029 /* EventListViews.swift in Sources */,
-				010000000000000000000030 /* EventDetailView.swift in Sources */,
-				010000000000000000000031 /* EventMediaViews.swift in Sources */,
+				010000000000000000000029 /* RequestListViews.swift in Sources */,
+				010000000000000000000030 /* RequestDetailView.swift in Sources */,
+				010000000000000000000031 /* RequestMediaViews.swift in Sources */,
 				010000000000000000000032 /* MarkdownText.swift in Sources */,
 				010000000000000000000033 /* AppBuildInfo.swift in Sources */,
 			);

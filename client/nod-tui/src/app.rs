@@ -1,7 +1,7 @@
-mod action_text;
 mod enrollment;
 mod focus;
 mod navigation;
+mod option_text;
 mod rename_device;
 mod settings;
 mod text_input;
@@ -10,15 +10,15 @@ use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use nod_client_core::{
-    models::{ActionKind, ClientState, Event, UserDevice},
-    ChannelParams, NodClientEvent, RevokeDeviceParams, SelectEventParams, SelectServerParams,
-    SubmitActionParams,
+    models::{ClientState, OptionKind, Request, UserDevice},
+    NodClientMessage, RevokeDeviceParams, SelectRequestParams, SelectServerParams, SourceParams,
+    SubmitOptionParams,
 };
 
-pub(crate) use action_text::ActionTextForm;
 pub(crate) use enrollment::{EnrollmentField, EnrollmentForm};
 pub(crate) use focus::Focus;
-use navigation::{event_matches, selected_id_after};
+use navigation::{request_matches, selected_id_after};
+pub(crate) use option_text::OptionTextForm;
 pub(crate) use rename_device::RenameDeviceForm;
 pub(crate) use settings::{SettingsState, SettingsTab};
 pub(crate) use text_input::TextInput;
@@ -40,7 +40,7 @@ pub(crate) const SOUND_OPTIONS: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Modal {
     Enrollment(EnrollmentForm),
-    ActionText(ActionTextForm),
+    OptionText(OptionTextForm),
     Settings(SettingsState),
     RenameDevice(RenameDeviceForm),
     Filter(TextInput),
@@ -73,7 +73,7 @@ impl AppState {
         Self {
             client_state,
             devices: Vec::new(),
-            focus: Focus::Events,
+            focus: Focus::Requests,
             modal,
             filter: String::new(),
             error: None,
@@ -128,11 +128,11 @@ impl AppState {
         self.should_quit
     }
 
-    pub(crate) fn visible_events(&self) -> Vec<&Event> {
+    pub(crate) fn visible_requests(&self) -> Vec<&Request> {
         let query = self.filter.trim().to_lowercase();
-        domain::ordered_events(&self.client_state.events)
+        domain::ordered_requests(&self.client_state.requests)
             .into_iter()
-            .filter(|event| query.is_empty() || event_matches(event, &query))
+            .filter(|request| query.is_empty() || request_matches(request, &query))
             .collect()
     }
 
@@ -163,7 +163,7 @@ impl AppState {
     pub(crate) fn apply_runtime_outcome(&mut self, outcome: RuntimeCommandOutcome) {
         match outcome {
             RuntimeCommandOutcome::State(state) => self.apply_state(*state),
-            RuntimeCommandOutcome::Event(event) => self.apply_event(*event),
+            RuntimeCommandOutcome::Request(request) => self.apply_request(*request),
             RuntimeCommandOutcome::Device(device) => self.apply_device(*device),
             RuntimeCommandOutcome::Devices(devices) => self.devices = devices,
             RuntimeCommandOutcome::None => {}
@@ -172,27 +172,27 @@ impl AppState {
         self.status = "Ready".to_string();
     }
 
-    pub(crate) fn apply_runtime_event(&mut self, event: NodClientEvent) -> AlertEffect {
-        // Only live notification events drive terminal alerts; state snapshots
+    pub(crate) fn apply_runtime_message(&mut self, request: NodClientMessage) -> AlertEffect {
+        // Only live request messages drive terminal alerts; state snapshots
         // can refresh the screen without ringing for already-known work.
-        let alert_effect = self.alerts.apply_runtime_event(&event, Instant::now());
-        match event {
-            NodClientEvent::Ready { state_path } => {
+        let alert_effect = self.alerts.apply_runtime_message(&request, Instant::now());
+        match request {
+            NodClientMessage::Ready { state_path } => {
                 self.status = format!("State: {state_path}");
             }
-            NodClientEvent::State(state) => self.apply_state(*state),
-            NodClientEvent::SyncStatus { connected } => {
+            NodClientMessage::State(state) => self.apply_state(*state),
+            NodClientMessage::SyncStatus { connected } => {
                 self.client_state.is_sync_connected = connected;
             }
-            NodClientEvent::AuthRevoked {} => {
+            NodClientMessage::AuthRevoked {} => {
                 self.set_error("This device registration was revoked.".to_string());
             }
-            NodClientEvent::ResyncRequired {} => {
+            NodClientMessage::ResyncRequired {} => {
                 self.status = "Server requested resync. Press R to refresh.".to_string();
             }
-            NodClientEvent::TransientError { message } => self.set_error(message),
-            NodClientEvent::NotificationCandidate { .. }
-            | NodClientEvent::NotificationRemoved { .. } => {}
+            NodClientMessage::TransientError { message } => self.set_error(message),
+            NodClientMessage::NotificationCandidate { .. }
+            | NodClientMessage::NotificationRemoved { .. } => {}
         }
         alert_effect
     }
@@ -218,16 +218,16 @@ impl AppState {
         }
     }
 
-    fn apply_event(&mut self, event: Event) {
+    fn apply_request(&mut self, request: Request) {
         if let Some(existing) = self
             .client_state
-            .events
+            .requests
             .iter_mut()
-            .find(|existing| existing.id == event.id)
+            .find(|existing| existing.id == request.id)
         {
-            *existing = event;
+            *existing = request;
         } else {
-            self.client_state.events.insert(0, event);
+            self.client_state.requests.insert(0, request);
         }
     }
 
@@ -274,13 +274,13 @@ impl AppState {
                 self.alerts.toggle_mute();
                 Vec::new()
             }
-            KeyCode::Char('a') => self.command_for_action_kind(ActionKind::Approve),
-            KeyCode::Char('r') => self.command_for_action_kind(ActionKind::Reject),
-            KeyCode::Char('d') => self.command_for_action_kind(ActionKind::Dismiss),
-            KeyCode::Char('n') => self.command_for_text_action(),
-            KeyCode::Char('c') => self.command_for_clear_channel(),
+            KeyCode::Char('a') => self.command_for_option_kind(OptionKind::Approve),
+            KeyCode::Char('r') => self.command_for_option_kind(OptionKind::Reject),
+            KeyCode::Char('d') => self.command_for_option_kind(OptionKind::Dismiss),
+            KeyCode::Char('n') => self.command_for_text_option(),
+            KeyCode::Char('c') => self.command_for_clear_source(),
             KeyCode::Enter => {
-                if self.focus == Focus::Events {
+                if self.focus == Focus::Requests {
                     self.focus = Focus::Detail;
                 }
                 Vec::new()
@@ -288,11 +288,11 @@ impl AppState {
             KeyCode::Up | KeyCode::Char('k') => self.move_selection(-1),
             KeyCode::Down | KeyCode::Char('j') => self.move_selection(1),
             KeyCode::Left => {
-                self.focus = Focus::Channels;
+                self.focus = Focus::Sources;
                 Vec::new()
             }
             KeyCode::Right => {
-                self.focus = Focus::Events;
+                self.focus = Focus::Requests;
                 Vec::new()
             }
             _ => Vec::new(),
@@ -310,9 +310,9 @@ impl AppState {
                 self.modal = next_modal.map(Modal::Enrollment);
                 command.into_iter().collect()
             }
-            Modal::ActionText(mut form) => {
+            Modal::OptionText(mut form) => {
                 let result = form.handle_key(key);
-                self.modal = result.modal.map(Modal::ActionText);
+                self.modal = result.modal.map(Modal::OptionText);
                 result.commands
             }
             Modal::Settings(mut settings) => {
@@ -415,8 +415,8 @@ impl AppState {
     fn move_selection(&mut self, delta: isize) -> Vec<RuntimeCommand> {
         match self.focus {
             Focus::Servers => self.move_server(delta),
-            Focus::Channels => self.move_channel(delta),
-            Focus::Events => self.move_event(delta),
+            Focus::Sources => self.move_source(delta),
+            Focus::Requests => self.move_request(delta),
             Focus::Detail => Vec::new(),
         }
     }
@@ -438,84 +438,86 @@ impl AppState {
         })]
     }
 
-    fn move_channel(&self, delta: isize) -> Vec<RuntimeCommand> {
-        let channels = domain::subscribed_channels(&self.client_state);
-        let current =
-            domain::selected_channel(&self.client_state).map(|channel| channel.id.as_str());
+    fn move_source(&self, delta: isize) -> Vec<RuntimeCommand> {
+        let sources = domain::subscribed_sources(&self.client_state);
+        let current = domain::selected_source(&self.client_state).map(|source| source.id.as_str());
         let Some(next_id) = selected_id_after(
-            channels.iter().map(|channel| channel.id.as_str()),
+            sources.iter().map(|source| source.id.as_str()),
             current,
             delta,
         ) else {
             return Vec::new();
         };
 
-        vec![RuntimeCommand::SelectChannel(ChannelParams {
-            channel_id: next_id,
+        vec![RuntimeCommand::SelectSource(SourceParams {
+            source_id: next_id,
         })]
     }
 
-    fn move_event(&self, delta: isize) -> Vec<RuntimeCommand> {
-        let events = self.visible_events();
-        let current = domain::selected_event(&self.client_state).map(|event| event.id.as_str());
-        let Some(next_id) =
-            selected_id_after(events.iter().map(|event| event.id.as_str()), current, delta)
-        else {
+    fn move_request(&self, delta: isize) -> Vec<RuntimeCommand> {
+        let requests = self.visible_requests();
+        let current =
+            domain::selected_request(&self.client_state).map(|request| request.id.as_str());
+        let Some(next_id) = selected_id_after(
+            requests.iter().map(|request| request.id.as_str()),
+            current,
+            delta,
+        ) else {
             return Vec::new();
         };
 
-        vec![RuntimeCommand::SelectEvent(SelectEventParams {
-            event_id: next_id,
+        vec![RuntimeCommand::SelectRequest(SelectRequestParams {
+            request_id: next_id,
         })]
     }
 
-    fn command_for_action_kind(&mut self, kind: ActionKind) -> Vec<RuntimeCommand> {
-        let Some(event) = domain::selected_event(&self.client_state) else {
-            self.set_error("No notification selected.".to_string());
+    fn command_for_option_kind(&mut self, kind: OptionKind) -> Vec<RuntimeCommand> {
+        let Some(request) = domain::selected_request(&self.client_state) else {
+            self.set_error("No request selected.".to_string());
             return Vec::new();
         };
-        let Some(action) = domain::action_for_kind(event, kind) else {
-            self.set_error("Selected notification does not offer that action.".to_string());
+        let Some(option) = domain::option_for_kind(request, kind) else {
+            self.set_error("Selected request does not offer that option.".to_string());
             return Vec::new();
         };
 
-        if action.requires_text {
-            self.modal = Some(Modal::ActionText(ActionTextForm::from_choice(
-                event, action,
+        if option.requires_text {
+            self.modal = Some(Modal::OptionText(OptionTextForm::from_choice(
+                request, option,
             )));
             Vec::new()
         } else {
-            vec![RuntimeCommand::SubmitAction(SubmitActionParams {
-                event_id: event.id.clone(),
-                action_id: action.id.to_string(),
+            vec![RuntimeCommand::SubmitOption(SubmitOptionParams {
+                request_id: request.id.clone(),
+                option_id: option.id.to_string(),
                 text: None,
             })]
         }
     }
 
-    fn command_for_text_action(&mut self) -> Vec<RuntimeCommand> {
-        let Some(event) = domain::selected_event(&self.client_state) else {
-            self.set_error("No notification selected.".to_string());
+    fn command_for_text_option(&mut self) -> Vec<RuntimeCommand> {
+        let Some(request) = domain::selected_request(&self.client_state) else {
+            self.set_error("No request selected.".to_string());
             return Vec::new();
         };
-        let Some(action) = domain::first_text_action(event) else {
-            self.set_error("Selected notification has no text action.".to_string());
+        let Some(option) = domain::first_text_option(request) else {
+            self.set_error("Selected request has no text option.".to_string());
             return Vec::new();
         };
 
-        self.modal = Some(Modal::ActionText(ActionTextForm::from_choice(
-            event, action,
+        self.modal = Some(Modal::OptionText(OptionTextForm::from_choice(
+            request, option,
         )));
         Vec::new()
     }
 
-    fn command_for_clear_channel(&self) -> Vec<RuntimeCommand> {
-        let Some(channel) = domain::selected_channel(&self.client_state) else {
+    fn command_for_clear_source(&self) -> Vec<RuntimeCommand> {
+        let Some(source) = domain::selected_source(&self.client_state) else {
             return Vec::new();
         };
 
-        vec![RuntimeCommand::ClearChannel(ChannelParams {
-            channel_id: channel.id.clone(),
+        vec![RuntimeCommand::ClearSource(SourceParams {
+            source_id: source.id.clone(),
         })]
     }
 }
@@ -558,33 +560,33 @@ fn is_interrupt_key(key: KeyEvent) -> bool {
 #[cfg(test)]
 mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use nod_client_core::models::{Action, ActionKind};
+    use nod_client_core::models::{OptionKind, RequestOption};
 
     use super::*;
-    use crate::test_support::{client_state, event};
+    use crate::test_support::{client_state, request};
 
     #[test]
-    fn event_navigation_selects_next_visible_event() {
+    fn request_navigation_selects_next_visible_request() {
         let mut state = client_state();
-        state.events = vec![event("first", "default"), event("second", "default")];
-        state.selected_event_id = Some("second".to_string());
+        state.requests = vec![request("first", "default"), request("second", "default")];
+        state.selected_request_id = Some("second".to_string());
         let mut app = AppState::new(state);
 
         let commands = app.handle_key(key(KeyCode::Down));
 
         assert_eq!(
             commands,
-            vec![RuntimeCommand::SelectEvent(SelectEventParams {
-                event_id: "first".to_string()
+            vec![RuntimeCommand::SelectRequest(SelectRequestParams {
+                request_id: "first".to_string()
             })]
         );
     }
 
     #[test]
-    fn filter_limits_event_navigation() {
+    fn filter_limits_request_navigation() {
         let mut state = client_state();
-        state.events = vec![event("deploy", "default"), event("backup", "default")];
-        state.selected_event_id = Some("deploy".to_string());
+        state.requests = vec![request("deploy", "default"), request("backup", "default")];
+        state.selected_request_id = Some("deploy".to_string());
         let mut app = AppState::new(state);
         app.filter = "backup".to_string();
 
@@ -592,32 +594,32 @@ mod tests {
 
         assert_eq!(
             commands,
-            vec![RuntimeCommand::SelectEvent(SelectEventParams {
-                event_id: "backup".to_string()
+            vec![RuntimeCommand::SelectRequest(SelectRequestParams {
+                request_id: "backup".to_string()
             })]
         );
     }
 
     #[test]
-    fn text_action_opens_editor_and_submits_text() {
+    fn text_option_opens_editor_and_submits_text() {
         let mut state = client_state();
-        let mut candidate = event("deploy", "default");
-        candidate.actions = vec![Action {
+        let mut candidate = request("deploy", "default");
+        candidate.options = vec![RequestOption {
             id: "approve_notes".to_string(),
             label: "Approve with notes".to_string(),
-            kind: ActionKind::ApproveWithText,
+            kind: OptionKind::ApproveWithText,
             style: "default".to_string(),
             requires_text: true,
             text_placeholder: Some("Notes".to_string()),
             destructive: false,
             foreground: false,
         }];
-        state.events = vec![candidate];
-        state.selected_event_id = Some("deploy".to_string());
+        state.requests = vec![candidate];
+        state.selected_request_id = Some("deploy".to_string());
         let mut app = AppState::new(state);
 
         assert!(app.handle_key(key(KeyCode::Char('n'))).is_empty());
-        assert!(matches!(app.modal(), Some(Modal::ActionText(_))));
+        assert!(matches!(app.modal(), Some(Modal::OptionText(_))));
 
         app.handle_key(key(KeyCode::Char('o')));
         app.handle_key(key(KeyCode::Char('k')));
@@ -625,16 +627,16 @@ mod tests {
 
         assert_eq!(
             commands,
-            vec![RuntimeCommand::SubmitAction(SubmitActionParams {
-                event_id: "deploy".to_string(),
-                action_id: "approve_notes".to_string(),
+            vec![RuntimeCommand::SubmitOption(SubmitOptionParams {
+                request_id: "deploy".to_string(),
+                option_id: "approve_notes".to_string(),
                 text: Some("ok".to_string())
             })]
         );
     }
 
     #[test]
-    fn settings_channel_toggle_uses_core_subscription_command() {
+    fn settings_source_toggle_uses_core_subscription_command() {
         let mut app = AppState::new(client_state());
         app.modal = Some(Modal::Settings(SettingsState::new()));
 
@@ -644,7 +646,7 @@ mod tests {
             commands,
             vec![RuntimeCommand::SetSubscription(
                 nod_client_core::SetSubscriptionParams {
-                    channel_id: "default".to_string(),
+                    source_id: "default".to_string(),
                     subscribed: false
                 }
             )]

@@ -6,7 +6,7 @@ mod state;
 mod store;
 
 pub use runtime::{
-    ChannelParams, EnrollParams, NodClientEvent, NodClientRuntime, NotificationPreferenceParams,
-    RenameDeviceParams, RevokeDeviceParams, RpcRequest, RpcResponse, SelectEventParams,
-    SelectServerParams, SetSubscriptionParams, SubmitActionParams,
+    EnrollParams, NodClientMessage, NodClientRuntime, NotificationPreferenceParams,
+    RenameDeviceParams, RevokeDeviceParams, RpcRequest, RpcResponse, SelectRequestParams,
+    SelectServerParams, SetSubscriptionParams, SourceParams, SubmitOptionParams,
 };

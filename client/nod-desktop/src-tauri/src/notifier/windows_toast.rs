@@ -1,30 +1,30 @@
-use nod_client_core::models::Event;
+use nod_client_core::models::Request;
 
-use super::actions::desktop_notification_actions;
+use super::options::desktop_notification_options;
 
-pub(super) fn windows_toast_xml(event: &Event) -> String {
-    let body = if event.summary.trim().is_empty() {
-        event.body_markdown.as_str()
+pub(super) fn windows_toast_xml(request: &Request) -> String {
+    let body = if request.summary.trim().is_empty() {
+        request.body_markdown.as_str()
     } else {
-        event.summary.as_str()
+        request.summary.as_str()
     };
-    let actions = desktop_notification_actions(event)
+    let options = desktop_notification_options(request)
         .into_iter()
-        .map(|action| {
+        .map(|option| {
             format!(
-                "<action content=\"{}\" arguments=\"{}\" activationType=\"foreground\"/>",
-                xml_escape(&action.label),
-                xml_escape(&action.id)
+                "<option content=\"{}\" arguments=\"{}\" activationType=\"foreground\"/>",
+                xml_escape(&option.label),
+                xml_escape(&option.id)
             )
         })
         .collect::<Vec<_>>()
         .join("");
 
     format!(
-        "<toast launch=\"open\"><visual><binding template=\"ToastGeneric\"><text>{}</text><text>{}</text></binding></visual><actions>{}</actions></toast>",
-        xml_escape(&event.title),
+        "<toast launch=\"open\"><visual><binding template=\"ToastGeneric\"><text>{}</text><text>{}</text></binding></visual><options>{}</options></toast>",
+        xml_escape(&request.title),
         xml_escape(body),
-        actions
+        options
     )
 }
 

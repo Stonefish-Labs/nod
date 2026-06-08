@@ -7,11 +7,11 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
 use crate::{
-    models::{EventStatus, NotificationDeliveryMode, SyncEnvelope},
+    models::{NotificationDeliveryMode, RequestStatus, SyncEnvelope},
     state::StateReducer,
 };
 
-use super::{emit_to, NodClientEvent, NodClientRuntime, Outbox};
+use super::{emit_to, NodClientMessage, NodClientRuntime, Outbox};
 
 type SharedReducer = Arc<Mutex<StateReducer>>;
 
@@ -35,7 +35,7 @@ impl NodClientRuntime {
             task.abort();
         }
         self.reducer.lock().await.mark_sync_connected(false);
-        self.emit_event(NodClientEvent::SyncStatus { connected: false })
+        self.emit_message(NodClientMessage::SyncStatus { connected: false })
             .await;
         self.emit_state().await;
     }
@@ -46,7 +46,7 @@ async fn run_sync_loop(url: Url, reducer: SharedReducer, tx: Outbox) {
         if let Err(error) = run_connection(&url, &reducer, &tx).await {
             emit_to(
                 &tx,
-                NodClientEvent::TransientError {
+                NodClientMessage::TransientError {
                     message: error.to_string(),
                 },
             )
@@ -98,44 +98,44 @@ async fn apply_sync_envelope(reducer: &SharedReducer, tx: &Outbox, envelope: Syn
         reducer.apply_sync_envelope(envelope)
     };
 
-    for event in candidates {
+    for request in candidates {
         emit_to(
             tx,
-            NodClientEvent::NotificationCandidate {
-                event: Box::new(event),
+            NodClientMessage::NotificationCandidate {
+                request: Box::new(request),
             },
         )
         .await;
     }
-    if let Some(event_id) = notification_removal {
-        emit_to(tx, NodClientEvent::NotificationRemoved { event_id }).await;
+    if let Some(request_id) = notification_removal {
+        emit_to(tx, NodClientMessage::NotificationRemoved { request_id }).await;
     }
 
     let state = reducer.lock().await.state.clone();
-    emit_to(tx, NodClientEvent::State(Box::new(state))).await;
+    emit_to(tx, NodClientMessage::State(Box::new(state))).await;
 
     if auth_revoked {
-        emit_to(tx, NodClientEvent::AuthRevoked {}).await;
+        emit_to(tx, NodClientMessage::AuthRevoked {}).await;
     }
     if should_resync {
-        emit_to(tx, NodClientEvent::ResyncRequired {}).await;
+        emit_to(tx, NodClientMessage::ResyncRequired {}).await;
     }
 }
 
 async fn publish_connection_state(reducer: &SharedReducer, tx: &Outbox, connected: bool) {
     let mut reducer = reducer.lock().await;
     reducer.mark_sync_connected(connected);
-    emit_to(tx, NodClientEvent::SyncStatus { connected }).await;
-    emit_to(tx, NodClientEvent::State(Box::new(reducer.state.clone()))).await;
+    emit_to(tx, NodClientMessage::SyncStatus { connected }).await;
+    emit_to(tx, NodClientMessage::State(Box::new(reducer.state.clone()))).await;
 }
 
 fn notification_removal_for(envelope: &SyncEnvelope) -> Option<String> {
     envelope
         .payload
-        .event
+        .request
         .as_ref()
-        .filter(|event| event.status != EventStatus::Pending)
-        .map(|event| event.id.clone())
+        .filter(|request| request.status != RequestStatus::Pending)
+        .map(|request| request.id.clone())
 }
 
 fn notification_delivery_mode_for(envelope: &SyncEnvelope) -> Option<NotificationDeliveryMode> {
@@ -198,13 +198,13 @@ mod tests {
     }
 
     #[test]
-    fn resyncs_after_device_lifecycle_events() {
+    fn resyncs_after_device_lifecycle_messages() {
         assert!(should_resync_after(&envelope("device_revoked")));
         assert!(should_resync_after(&envelope("device_renamed")));
     }
 
     #[test]
-    fn does_not_resync_after_event_creation() {
+    fn does_not_resync_after_request_creation() {
         assert!(!should_resync_after(&envelope("created")));
     }
 

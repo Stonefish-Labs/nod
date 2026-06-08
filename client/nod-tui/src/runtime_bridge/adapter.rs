@@ -1,10 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use nod_client_core::{
-    models::{ClientState, Event, UserDevice},
-    ChannelParams, NodClientRuntime, NotificationPreferenceParams, RenameDeviceParams,
-    RevokeDeviceParams, SelectEventParams, SelectServerParams, SetSubscriptionParams,
-    SubmitActionParams,
+    models::{ClientState, Request, UserDevice},
+    NodClientRuntime, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SubmitOptionParams,
 };
 
 use super::RuntimePort;
@@ -31,20 +31,20 @@ impl RuntimePort for NodClientRuntime {
         self.forget_server(&params.server_id).await
     }
 
-    async fn select_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
-        self.select_channel(params).await
+    async fn select_source(&mut self, params: SourceParams) -> Result<ClientState> {
+        self.select_source(params).await
     }
 
-    async fn select_event(&mut self, params: SelectEventParams) -> Result<ClientState> {
-        self.select_event(params).await
+    async fn select_request(&mut self, params: SelectRequestParams) -> Result<ClientState> {
+        self.select_request(params).await
     }
 
-    async fn submit_action(&mut self, params: SubmitActionParams) -> Result<Event> {
-        self.submit_action(params).await
+    async fn submit_option(&mut self, params: SubmitOptionParams) -> Result<Request> {
+        self.submit_option(params).await
     }
 
-    async fn clear_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
-        self.clear_channel(params).await
+    async fn clear_source(&mut self, params: SourceParams) -> Result<ClientState> {
+        self.clear_source(params).await
     }
 
     async fn set_subscription(&mut self, params: SetSubscriptionParams) -> Result<ClientState> {

@@ -27,7 +27,7 @@ impl DevicePlatform {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Channel {
+pub struct Source {
     pub id: String,
     pub name: String,
     pub icon: String,
@@ -107,7 +107,7 @@ pub struct Link {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum ActionKind {
+pub enum OptionKind {
     Approve,
     ApproveWithText,
     Reject,
@@ -117,7 +117,7 @@ pub enum ActionKind {
     Custom,
 }
 
-impl ActionKind {
+impl OptionKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Approve => "approve",
@@ -132,10 +132,10 @@ impl ActionKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Action {
+pub struct RequestOption {
     pub id: String,
     pub label: String,
-    pub kind: ActionKind,
+    pub kind: OptionKind,
     #[serde(default = "default_style")]
     pub style: String,
     #[serde(default)]
@@ -150,7 +150,7 @@ pub struct Action {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum EventStatus {
+pub enum RequestStatus {
     Pending,
     Resolved,
     Expired,
@@ -158,17 +158,11 @@ pub enum EventStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct EventResult {
-    // The server's decision payload still uses request/option field names.
-    // Client code uses event/action names everywhere else.
-    #[serde(alias = "request_id")]
-    pub event_id: String,
-    #[serde(alias = "option_id")]
-    pub action_id: String,
-    #[serde(alias = "option_kind")]
-    pub action_kind: ActionKind,
-    #[serde(alias = "option_label")]
-    pub action_label: String,
+pub struct Decision {
+    pub request_id: String,
+    pub option_id: String,
+    pub option_kind: OptionKind,
+    pub option_label: String,
     #[serde(default)]
     pub text: Option<String>,
     #[serde(default)]
@@ -179,28 +173,27 @@ pub struct EventResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct EventUserResult {
+pub struct UserDecision {
     pub user_id: String,
-    #[serde(alias = "decision")]
-    pub result: EventResult,
+    pub decision: Decision,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum ActionResolution {
+pub enum DecisionResolution {
     Shared,
     PerUser,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Event {
+pub struct Request {
     pub id: String,
-    #[serde(alias = "source_id")]
-    pub channel_id: String,
+    pub request_id: String,
+    pub source_id: String,
     #[serde(default)]
     pub recipients: Vec<String>,
-    #[serde(default = "default_action_resolution", alias = "decision_resolution")]
-    pub action_resolution: ActionResolution,
+    #[serde(default = "default_decision_resolution")]
+    pub decision_resolution: DecisionResolution,
     pub title: String,
     #[serde(default)]
     pub summary: String,
@@ -218,22 +211,18 @@ pub struct Event {
     pub dedupe_key: Option<String>,
     #[serde(default)]
     pub expires_at: Option<DateTime<Utc>>,
-    pub status: EventStatus,
+    pub status: RequestStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     #[serde(default)]
     pub resolved_at: Option<DateTime<Utc>>,
     #[serde(default)]
-    #[serde(alias = "decision")]
-    pub result: Option<EventResult>,
+    pub decision: Option<Decision>,
     #[serde(default)]
-    #[serde(alias = "decisions")]
-    pub user_results: Vec<EventUserResult>,
+    pub decisions: Vec<UserDecision>,
     #[serde(default)]
     pub callback_url: Option<String>,
-    #[serde(default)]
-    #[serde(alias = "options")]
-    pub actions: Vec<Action>,
+    pub options: Vec<RequestOption>,
     #[serde(default)]
     pub request_digest: Option<String>,
 }
@@ -269,10 +258,10 @@ pub struct DecisionSignature {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SyncPayload {
-    #[serde(default, alias = "request")]
-    pub event: Option<Event>,
-    #[serde(default, alias = "source")]
-    pub channel: Option<Channel>,
+    #[serde(default)]
+    pub request: Option<Request>,
+    #[serde(default)]
+    pub source: Option<Source>,
     #[serde(default)]
     pub notification_delivery: Option<NotificationDelivery>,
     #[serde(flatten)]
@@ -285,11 +274,11 @@ pub struct ClientState {
     pub selected_server_id: Option<String>,
     pub current_user: Option<User>,
     pub devices: Vec<UserDevice>,
-    pub channels: Vec<Channel>,
-    pub pending_counts_by_channel: BTreeMap<String, usize>,
-    pub events: Vec<Event>,
-    pub selected_channel_id: Option<String>,
-    pub selected_event_id: Option<String>,
+    pub sources: Vec<Source>,
+    pub pending_counts_by_source: BTreeMap<String, usize>,
+    pub requests: Vec<Request>,
+    pub selected_source_id: Option<String>,
+    pub selected_request_id: Option<String>,
     pub notification_sound: String,
     #[serde(default)]
     pub notification_delivery_mode: NotificationDeliveryMode,
@@ -302,11 +291,8 @@ pub struct ClientState {
 pub struct EnrollDeviceResponse {
     pub device_id: String,
     pub token: String,
-    #[serde(alias = "sources")]
-    pub channels: Vec<Channel>,
-    #[serde(default = "default_user_id")]
+    pub sources: Vec<Source>,
     pub user_id: String,
-    #[serde(default = "default_user_name")]
     pub user_name: String,
     #[serde(default)]
     pub devices: Vec<UserDevice>,
@@ -333,21 +319,18 @@ pub struct UserDeviceResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ChannelsResponse {
-    #[serde(alias = "sources")]
-    pub channels: Vec<Channel>,
+pub struct SourcesResponse {
+    pub sources: Vec<Source>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct EventsResponse {
-    #[serde(alias = "requests")]
-    pub events: Vec<Event>,
+pub struct RequestsResponse {
+    pub requests: Vec<Request>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct EventResponse {
-    #[serde(alias = "request")]
-    pub event: Event,
+pub struct RequestResponse {
+    pub request: Request,
 }
 
 fn default_true() -> bool {
@@ -362,14 +345,6 @@ fn default_decision_signature_algorithm() -> String {
     crate::signing::DECISION_SIGNING_ALGORITHM.to_string()
 }
 
-fn default_action_resolution() -> ActionResolution {
-    ActionResolution::Shared
-}
-
-fn default_user_id() -> String {
-    "default".to_string()
-}
-
-fn default_user_name() -> String {
-    "Nod".to_string()
+fn default_decision_resolution() -> DecisionResolution {
+    DecisionResolution::Shared
 }

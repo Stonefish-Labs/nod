@@ -24,7 +24,7 @@
   padding: 8px 10px;
 }
 
-.eventList {
+.requestList {
   border-right: 1px solid #ddd7cc;
   display: flex;
   flex-direction: column;
@@ -33,7 +33,7 @@
   padding: 14px;
 }
 
-.eventCard {
+.requestCard {
   background: #fffaf1;
   border: 1px solid #e2d8c8;
   color: #1a2521;
@@ -46,22 +46,22 @@
   width: 100%;
 }
 
-.eventCard.active {
+.requestCard.active {
   border-color: #4d8d7a;
   box-shadow: inset 3px 0 0 #4d8d7a;
 }
 
-.eventCard strong,
-.eventCard span:not(.status),
-.eventCard time {
+.requestCard strong,
+.requestCard span:not(.status),
+.requestCard time {
   grid-column: 2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.eventCard span:not(.status),
-.eventCard time {
+.requestCard span:not(.status),
+.requestCard time {
   color: #66736e;
   font-size: 13px;
 }
@@ -133,7 +133,7 @@
   margin: 0;
 }
 
-.eventImage {
+.requestImage {
   border-radius: 6px;
   max-height: 260px;
   max-width: 100%;
@@ -170,7 +170,7 @@ dd {
 }
 
 .links,
-.actions {
+.options {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -178,7 +178,7 @@ dd {
 }
 
 .links button,
-.actions button,
+.options button,
 .enrollment button,
 .dialog footer button {
   background: #16221e;
@@ -187,18 +187,18 @@ dd {
   padding: 8px 12px;
 }
 
-.actionRow {
+.optionRow {
   align-items: center;
   display: grid;
   gap: 8px;
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.actionRow input {
+.optionRow input {
   min-height: 38px;
 }
 
-.actionRow button:only-child {
+.optionRow button:only-child {
   grid-column: 2;
 }
 

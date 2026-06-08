@@ -8,8 +8,8 @@ export type DevicePlatform =
   | "unknown";
 
 export type NotificationDeliveryMode = "push" | "websocket";
-export type EventStatus = "pending" | "resolved" | "expired" | "cancelled";
-export type ActionKind =
+export type RequestStatus = "pending" | "resolved" | "expired" | "cancelled";
+export type OptionKind =
   | "approve"
   | "approve_with_text"
   | "reject"
@@ -49,7 +49,7 @@ export interface UserDevice {
   is_current: boolean;
 }
 
-export interface Channel {
+export interface Source {
   id: string;
   name: string;
   icon: string;
@@ -60,21 +60,21 @@ export interface Channel {
   created_at: string;
 }
 
-export interface EventField {
+export interface RequestField {
   label: string;
   value: string;
   style?: string | null;
 }
 
-export interface EventLink {
+export interface RequestLink {
   label: string;
   url: string;
 }
 
-export interface EventAction {
+export interface RequestOption {
   id: string;
   label: string;
-  kind: ActionKind;
+  kind: OptionKind;
   style: string;
   requires_text: boolean;
   text_placeholder?: string | null;
@@ -82,45 +82,46 @@ export interface EventAction {
   foreground: boolean;
 }
 
-export interface EventResult {
-  event_id: string;
-  action_id: string;
-  action_kind: ActionKind;
-  action_label: string;
+export interface Decision {
+  request_id: string;
+  option_id: string;
+  option_kind: OptionKind;
+  option_label: string;
   text?: string | null;
   actor_user_id?: string | null;
   actor_device_id?: string | null;
   resolved_at: string;
 }
 
-export interface EventUserResult {
+export interface UserDecision {
   user_id: string;
-  result: EventResult;
+  decision: Decision;
 }
 
-export interface NodEvent {
+export interface NodRequest {
   id: string;
-  channel_id: string;
+  request_id: string;
+  source_id: string;
   recipients: string[];
-  action_resolution: "shared" | "per_user";
+  decision_resolution: "shared" | "per_user";
   title: string;
   summary: string;
   body_markdown: string;
-  fields: EventField[];
-  links: EventLink[];
+  fields: RequestField[];
+  links: RequestLink[];
   image_url?: string | null;
   priority: number;
   privacy: string;
   dedupe_key?: string | null;
   expires_at?: string | null;
-  status: EventStatus;
+  status: RequestStatus;
   created_at: string;
   updated_at: string;
   resolved_at?: string | null;
-  result?: EventResult | null;
-  user_results: EventUserResult[];
+  decision?: Decision | null;
+  decisions: UserDecision[];
   callback_url?: string | null;
-  actions: EventAction[];
+  options: RequestOption[];
   request_digest?: string | null;
 }
 
@@ -129,11 +130,11 @@ export interface ClientState {
   selected_server_id?: string | null;
   current_user?: User | null;
   devices: UserDevice[];
-  channels: Channel[];
-  pending_counts_by_channel: Record<string, number>;
-  events: NodEvent[];
-  selected_channel_id?: string | null;
-  selected_event_id?: string | null;
+  sources: Source[];
+  pending_counts_by_source: Record<string, number>;
+  requests: NodRequest[];
+  selected_source_id?: string | null;
+  selected_request_id?: string | null;
   notification_sound: string;
   notification_delivery_mode: NotificationDeliveryMode;
   is_registered: boolean;

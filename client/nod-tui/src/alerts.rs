@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use nod_client_core::{models::Event, NodClientEvent};
+use nod_client_core::{models::Request, NodClientMessage};
 
 const FLASH_DURATION: Duration = Duration::from_millis(900);
 
@@ -12,7 +12,7 @@ pub struct AlertEffect {
 #[derive(Debug, Clone)]
 pub struct AlertState {
     muted: bool,
-    active_event_id: Option<String>,
+    active_request_id: Option<String>,
     message: Option<String>,
     flash_until: Option<Instant>,
 }
@@ -27,17 +27,21 @@ impl AlertState {
     pub fn new() -> Self {
         Self {
             muted: false,
-            active_event_id: None,
+            active_request_id: None,
             message: None,
             flash_until: None,
         }
     }
 
-    pub fn apply_runtime_event(&mut self, event: &NodClientEvent, now: Instant) -> AlertEffect {
-        match event {
-            NodClientEvent::NotificationCandidate { event } => self.alert_for(event, now),
-            NodClientEvent::NotificationRemoved { event_id } => {
-                self.remove_event(event_id);
+    pub fn apply_runtime_message(
+        &mut self,
+        request: &NodClientMessage,
+        now: Instant,
+    ) -> AlertEffect {
+        match request {
+            NodClientMessage::NotificationCandidate { request } => self.alert_for(request, now),
+            NodClientMessage::NotificationRemoved { request_id } => {
+                self.remove_request(request_id);
                 AlertEffect::default()
             }
             _ => AlertEffect::default(),
@@ -73,9 +77,9 @@ impl AlertState {
         self.message.as_deref()
     }
 
-    fn alert_for(&mut self, event: &Event, now: Instant) -> AlertEffect {
-        self.active_event_id = Some(event.id.clone());
-        self.message = Some(format!("New notification: {}", event.title));
+    fn alert_for(&mut self, request: &Request, now: Instant) -> AlertEffect {
+        self.active_request_id = Some(request.id.clone());
+        self.message = Some(format!("New request: {}", request.title));
 
         if self.muted {
             return AlertEffect::default();
@@ -85,9 +89,9 @@ impl AlertState {
         AlertEffect { ring_bell: true }
     }
 
-    fn remove_event(&mut self, event_id: &str) {
-        if self.active_event_id.as_deref() == Some(event_id) {
-            self.active_event_id = None;
+    fn remove_request(&mut self, request_id: &str) {
+        if self.active_request_id.as_deref() == Some(request_id) {
+            self.active_request_id = None;
             self.message = None;
             self.flash_until = None;
         }
@@ -98,29 +102,29 @@ impl AlertState {
 mod tests {
     use std::time::{Duration, Instant};
 
-    use nod_client_core::NodClientEvent;
+    use nod_client_core::NodClientMessage;
 
     use super::*;
-    use crate::test_support::event;
+    use crate::test_support::request;
 
     #[test]
     fn notification_candidate_rings_once_and_flashes() {
         let now = Instant::now();
         let mut alerts = AlertState::new();
-        let effect = alerts.apply_runtime_event(
-            &NodClientEvent::NotificationCandidate {
-                event: Box::new(event("new", "default")),
+        let effect = alerts.apply_runtime_message(
+            &NodClientMessage::NotificationCandidate {
+                request: Box::new(request("new", "default")),
             },
             now,
         );
 
         assert!(effect.ring_bell);
         assert!(alerts.flashing());
-        assert_eq!(alerts.message(), Some("New notification: new"));
+        assert_eq!(alerts.message(), Some("New request: new"));
 
         alerts.tick(now + Duration::from_secs(2));
         assert!(!alerts.flashing());
-        assert_eq!(alerts.message(), Some("New notification: new"));
+        assert_eq!(alerts.message(), Some("New request: new"));
     }
 
     #[test]
@@ -129,32 +133,32 @@ mod tests {
         let mut alerts = AlertState::new();
         alerts.toggle_mute();
 
-        let effect = alerts.apply_runtime_event(
-            &NodClientEvent::NotificationCandidate {
-                event: Box::new(event("quiet", "default")),
+        let effect = alerts.apply_runtime_message(
+            &NodClientMessage::NotificationCandidate {
+                request: Box::new(request("quiet", "default")),
             },
             now,
         );
 
         assert!(!effect.ring_bell);
         assert!(!alerts.flashing());
-        assert_eq!(alerts.message(), Some("New notification: quiet"));
+        assert_eq!(alerts.message(), Some("New request: quiet"));
     }
 
     #[test]
     fn removal_clears_active_alert() {
         let now = Instant::now();
         let mut alerts = AlertState::new();
-        alerts.apply_runtime_event(
-            &NodClientEvent::NotificationCandidate {
-                event: Box::new(event("done", "default")),
+        alerts.apply_runtime_message(
+            &NodClientMessage::NotificationCandidate {
+                request: Box::new(request("done", "default")),
             },
             now,
         );
 
-        alerts.apply_runtime_event(
-            &NodClientEvent::NotificationRemoved {
-                event_id: "done".to_string(),
+        alerts.apply_runtime_message(
+            &NodClientMessage::NotificationRemoved {
+                request_id: "done".to_string(),
             },
             now,
         );

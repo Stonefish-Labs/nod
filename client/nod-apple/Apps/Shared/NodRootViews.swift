@@ -55,7 +55,7 @@ struct NodPhoneInbox: View {
     NavigationStack(path: $path) {
       List {
         serversSection
-        channelsSection
+        sourcesSection
         appBuildSection
       }
       .navigationTitle("Nod")
@@ -78,8 +78,8 @@ struct NodPhoneInbox: View {
           }
         }
       }
-      .navigationDestination(for: String.self) { channelId in
-        ChannelEventsView(channelId: channelId)
+      .navigationDestination(for: String.self) { sourceId in
+        SourceRequestsView(sourceId: sourceId)
       }
     }
     .onAppear {
@@ -105,13 +105,13 @@ struct NodPhoneInbox: View {
     guard
       let request,
       handledNotificationOpenRequestId != request.id,
-      let channelId = request.channelId,
-      !channelId.isEmpty
+      let sourceId = request.sourceId,
+      !sourceId.isEmpty
     else {
       return
     }
     handledNotificationOpenRequestId = request.id
-    path = [channelId]
+    path = [sourceId]
   }
 
   private var serversSection: some View {
@@ -146,16 +146,16 @@ struct NodPhoneInbox: View {
     }
   }
 
-  private var channelsSection: some View {
-    Section("Channels") {
-      if store.subscribedChannels.isEmpty {
-        ContentUnavailableView("No Subscribed Channels", systemImage: "number")
+  private var sourcesSection: some View {
+    Section("Sources") {
+      if store.subscribedSources.isEmpty {
+        ContentUnavailableView("No Subscribed Sources", systemImage: "number")
       } else {
-        ForEach(store.subscribedChannels) { channel in
-          NavigationLink(value: channel.id) {
-            ChannelRow(
-              channel: channel,
-              pendingCount: store.pendingCountsByChannel[channel.id, default: 0]
+        ForEach(store.subscribedSources) { source in
+          NavigationLink(value: source.id) {
+            SourceRow(
+              source: source,
+              pendingCount: store.pendingCountsBySource[source.id, default: 0]
             )
           }
         }
@@ -187,9 +187,9 @@ struct NodDesktopInbox: View {
         showingDevices: $showingDevices
       )
     } content: {
-      EventListView()
+      RequestListView()
     } detail: {
-      EventDetailContainer(eventId: store.selectedEventId)
+      RequestDetailContainer(requestId: store.selectedRequestId)
     }
     .sheet(isPresented: $showingRegistration) {
       NavigationStack {
@@ -220,19 +220,19 @@ struct NodSidebar: View {
         }
       }
 
-      Section("Channels") {
-        if store.subscribedChannels.isEmpty {
-          Text("No subscribed channels")
+      Section("Sources") {
+        if store.subscribedSources.isEmpty {
+          Text("No subscribed sources")
             .foregroundStyle(.secondary)
         } else {
-          ForEach(store.subscribedChannels) { channel in
+          ForEach(store.subscribedSources) { source in
             Button {
-              store.selectedChannelId = channel.id
+              store.selectedSourceId = source.id
               Task { await store.refresh() }
             } label: {
-              ChannelRow(
-                channel: channel,
-                pendingCount: store.pendingCountsByChannel[channel.id, default: 0]
+              SourceRow(
+                source: source,
+                pendingCount: store.pendingCountsBySource[source.id, default: 0]
               )
             }
             .buttonStyle(.plain)
@@ -308,22 +308,22 @@ struct NodSidebar: View {
       .buttonStyle(.plain)
 
       Menu {
-        serverActions(for: server)
+        serverCommands(for: server)
       } label: {
-        Label("Server Actions", systemImage: "ellipsis.circle")
+        Label("Server Commands", systemImage: "ellipsis.circle")
       }
       .labelStyle(.iconOnly)
       .menuStyle(.borderlessButton)
       .controlSize(.small)
-      .help("Server Actions")
+      .help("Server Commands")
     }
     .contextMenu {
-      serverActions(for: server)
+      serverCommands(for: server)
     }
   }
 
   @ViewBuilder
-  private func serverActions(for server: NodServerProfile) -> some View {
+  private func serverCommands(for server: NodServerProfile) -> some View {
     Button {
       store.selectServer(server.id)
       showingDevices = true

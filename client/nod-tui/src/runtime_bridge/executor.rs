@@ -33,23 +33,23 @@ pub(crate) async fn execute_runtime_command(
             .await
             .map(Box::new)
             .map(RuntimeCommandOutcome::State),
-        RuntimeCommand::SelectChannel(params) => runtime
-            .select_channel(params)
+        RuntimeCommand::SelectSource(params) => runtime
+            .select_source(params)
             .await
             .map(Box::new)
             .map(RuntimeCommandOutcome::State),
-        RuntimeCommand::SelectEvent(params) => runtime
-            .select_event(params)
+        RuntimeCommand::SelectRequest(params) => runtime
+            .select_request(params)
             .await
             .map(Box::new)
             .map(RuntimeCommandOutcome::State),
-        RuntimeCommand::SubmitAction(params) => runtime
-            .submit_action(params)
+        RuntimeCommand::SubmitOption(params) => runtime
+            .submit_option(params)
             .await
             .map(Box::new)
-            .map(RuntimeCommandOutcome::Event),
-        RuntimeCommand::ClearChannel(params) => runtime
-            .clear_channel(params)
+            .map(RuntimeCommandOutcome::Request),
+        RuntimeCommand::ClearSource(params) => runtime
+            .clear_source(params)
             .await
             .map(Box::new)
             .map(RuntimeCommandOutcome::State),

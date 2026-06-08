@@ -1,5 +1,5 @@
 use anyhow::Result;
-use nod_client_core::{NodClientEvent, NodClientRuntime, RpcRequest, RpcResponse};
+use nod_client_core::{NodClientMessage, NodClientRuntime, RpcRequest, RpcResponse};
 use serde_json::{json, Value};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -9,11 +9,11 @@ use tokio::{
 #[tokio::main]
 async fn main() -> Result<()> {
     let (stdout_tx, mut stdout_rx) = mpsc::channel::<Value>(128);
-    let (event_tx, mut event_rx) = mpsc::channel::<NodClientEvent>(128);
-    let event_stdout = stdout_tx.clone();
+    let (message_tx, mut message_rx) = mpsc::channel::<NodClientMessage>(128);
+    let message_stdout = stdout_tx.clone();
     tokio::spawn(async move {
-        while let Some(event) = event_rx.recv().await {
-            if event_stdout.send(json!(event)).await.is_err() {
+        while let Some(message) = message_rx.recv().await {
+            if message_stdout.send(json!(message)).await.is_err() {
                 break;
             }
         }
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    let mut runtime = NodClientRuntime::new(event_tx.clone()).await?;
+    let mut runtime = NodClientRuntime::new(message_tx.clone()).await?;
     runtime.emit_ready().await;
     runtime.emit_state().await;
 

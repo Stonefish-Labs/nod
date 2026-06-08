@@ -10,7 +10,7 @@ mod ui;
 use std::sync::Arc;
 
 use anyhow::Result;
-use nod_client_core::{NodClientEvent, NodClientRuntime};
+use nod_client_core::{NodClientMessage, NodClientRuntime};
 use tokio::sync::{mpsc, Mutex};
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
     terminal::TerminalSession,
 };
 
-const RUNTIME_EVENT_CAPACITY: usize = 128;
+const RUNTIME_MESSAGE_CAPACITY: usize = 128;
 const COMMAND_RESULT_CAPACITY: usize = 16;
 
 #[tokio::main]
@@ -34,8 +34,8 @@ async fn main() -> Result<()> {
 }
 
 async fn run() -> Result<()> {
-    let (event_tx, event_rx) = mpsc::channel::<NodClientEvent>(RUNTIME_EVENT_CAPACITY);
-    let runtime = NodClientRuntime::new(event_tx).await?;
+    let (message_tx, message_rx) = mpsc::channel::<NodClientMessage>(RUNTIME_MESSAGE_CAPACITY);
+    let runtime = NodClientRuntime::new(message_tx).await?;
     let app = AppState::new(runtime.state().await);
     let runtime = Arc::new(Mutex::new(runtime));
     let terminal = TerminalSession::enter()?;
@@ -43,11 +43,11 @@ async fn run() -> Result<()> {
 
     runtime.lock().await.emit_ready().await;
     let startup_commands = startup_commands_for(&app);
-    run_event_loop(
+    run_message_loop(
         runtime,
         app,
         terminal,
-        event_rx,
+        message_rx,
         command_tx,
         command_rx,
         startup_commands,
@@ -55,11 +55,11 @@ async fn run() -> Result<()> {
     .await
 }
 
-async fn run_event_loop(
+async fn run_message_loop(
     runtime: SharedRuntime,
     mut app: AppState,
     mut terminal: TerminalSession,
-    mut event_rx: mpsc::Receiver<NodClientEvent>,
+    mut message_rx: mpsc::Receiver<NodClientMessage>,
     command_tx: mpsc::Sender<CommandResultMessage>,
     mut command_rx: mpsc::Receiver<CommandResultMessage>,
     startup_commands: Vec<RuntimeCommand>,
@@ -73,7 +73,7 @@ async fn run_event_loop(
     }
 
     while !app.should_quit() {
-        drain_runtime_events(&mut app, &mut terminal, &mut event_rx)?;
+        drain_runtime_messages(&mut app, &mut terminal, &mut message_rx)?;
         in_flight_commands =
             in_flight_commands.saturating_sub(drain_command_results(&mut app, &mut command_rx));
         app.tick();
@@ -100,13 +100,13 @@ async fn run_event_loop(
     Ok(())
 }
 
-fn drain_runtime_events(
+fn drain_runtime_messages(
     app: &mut AppState,
     terminal: &mut TerminalSession,
-    event_rx: &mut mpsc::Receiver<NodClientEvent>,
+    message_rx: &mut mpsc::Receiver<NodClientMessage>,
 ) -> Result<()> {
-    while let Ok(event) = event_rx.try_recv() {
-        if app.apply_runtime_event(event).ring_bell {
+    while let Ok(message) = message_rx.try_recv() {
+        if app.apply_runtime_message(message).ring_bell {
             terminal.ring_bell()?;
         }
     }

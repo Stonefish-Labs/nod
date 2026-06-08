@@ -28,15 +28,15 @@ the local core config file instead.
 ## Keys
 
 - `j`/`k` or arrows: move through the focused pane.
-- `Tab`: cycle focus between servers, channels, notifications, and detail.
-- `Enter`: open the selected notification detail or submit the active form.
-- `a`: approve the selected notification when an approve action exists.
-- `r`: reject the selected notification when a reject action exists.
-- `d`: dismiss the selected notification.
-- `n`: open the text response editor for note-required actions.
-- `c`: clear the selected channel.
+- `Tab`: cycle focus between servers, sources, requests, and detail.
+- `Enter`: open the selected request detail or submit the active form.
+- `a`: approve the selected request when an approve option exists.
+- `r`: reject the selected request when a reject option exists.
+- `d`: dismiss the selected request.
+- `n`: open the text response editor for note-required options.
+- `c`: clear the selected source.
 - `R`: refresh from the server.
-- `/`: filter visible notifications.
+- `/`: filter visible requests.
 - `s`: focus the server list.
 - `,`: open settings.
 - `m`: mute or unmute terminal alerts.
@@ -46,7 +46,7 @@ the local core config file instead.
 
 ## Settings
 
-Settings include channel subscriptions, notification sound preference, device
+Settings include source subscriptions, notification sound preference, device
 listing, device rename, device revoke, forget server, and the TUI-local alert
 mute toggle. The alert mute is intentionally local to the terminal session and
 does not change the server notification preference.
@@ -55,7 +55,7 @@ does not change the server notification preference.
 
 New `notification_candidate` runtime events ring the terminal bell, briefly
 highlight the status bar, and update pending counts. The initial server snapshot
-does not ring. When the server removes or resolves a notification, the active
+does not ring. When the server removes or resolves a request, the active
 alert marker clears.
 
 In tmux, bell behavior follows tmux and terminal settings such as `bell-action`,

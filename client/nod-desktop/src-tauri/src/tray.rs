@@ -15,17 +15,17 @@ pub(crate) fn install_tray(app: &mut App) -> tauri::Result<()> {
         .tooltip("Nod")
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| match event.id().as_ref() {
+        .on_menu_event(|app, request| match request.id().as_ref() {
             "show" => focus_main_window(app),
             "quit" => app.exit(0),
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
+        .on_tray_icon_event(|tray, request| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
-            } = event
+            } = request
             {
                 focus_main_window(tray.app_handle());
             }

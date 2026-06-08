@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::{
-    ActionTextForm, AppState, Modal, RenameDeviceForm, SettingsState, SettingsTab, SOUND_OPTIONS,
+    AppState, Modal, OptionTextForm, RenameDeviceForm, SettingsState, SettingsTab, SOUND_OPTIONS,
 };
 
 use super::{
@@ -18,7 +18,7 @@ use super::{
 pub(super) fn render_modal(frame: &mut Frame<'_>, area: Rect, app: &AppState, modal: &Modal) {
     match modal {
         Modal::Enrollment(_) => {}
-        Modal::ActionText(form) => render_action_text_modal(frame, area, form),
+        Modal::OptionText(form) => render_option_text_modal(frame, area, form),
         Modal::Settings(settings) => render_settings_modal(frame, area, app, settings),
         Modal::RenameDevice(form) => render_rename_modal(frame, area, form),
         Modal::Filter(input) => render_text_modal(frame, area, "Filter", input.value()),
@@ -26,7 +26,7 @@ pub(super) fn render_modal(frame: &mut Frame<'_>, area: Rect, app: &AppState, mo
     }
 }
 
-fn render_action_text_modal(frame: &mut Frame<'_>, area: Rect, form: &ActionTextForm) {
+fn render_option_text_modal(frame: &mut Frame<'_>, area: Rect, form: &OptionTextForm) {
     let title = format!("{} notes", form.label());
     let hint = form.placeholder().unwrap_or("Text");
     let body = vec![
@@ -88,7 +88,7 @@ fn render_settings_modal(
 
 fn render_settings_tabs(frame: &mut Frame<'_>, area: Rect, settings: &SettingsState) {
     let labels = [
-        tab_label("Channels", settings.tab() == SettingsTab::Channels),
+        tab_label("Sources", settings.tab() == SettingsTab::Sources),
         tab_label("Sound", settings.tab() == SettingsTab::Sound),
         tab_label("Devices", settings.tab() == SettingsTab::Devices),
     ];
@@ -105,13 +105,13 @@ fn render_settings_body(
     settings: &SettingsState,
 ) {
     match settings.tab() {
-        SettingsTab::Channels => render_settings_channels(frame, area, app, settings),
+        SettingsTab::Sources => render_settings_sources(frame, area, app, settings),
         SettingsTab::Sound => render_settings_sound(frame, area, app, settings),
         SettingsTab::Devices => render_settings_devices(frame, area, app.devices(), settings),
     }
 }
 
-fn render_settings_channels(
+fn render_settings_sources(
     frame: &mut Frame<'_>,
     area: Rect,
     app: &AppState,
@@ -119,13 +119,13 @@ fn render_settings_channels(
 ) {
     let items: Vec<_> = app
         .client_state()
-        .channels
+        .sources
         .iter()
         .enumerate()
-        .map(|(index, channel)| {
+        .map(|(index, source)| {
             let marker = selected_marker(settings.selected_index() == index);
-            let checked = checkbox(channel.subscribed);
-            ListItem::new(format!("{marker}{checked} {}", channel.name))
+            let checked = checkbox(source.subscribed);
+            ListItem::new(format!("{marker}{checked} {}", source.name))
         })
         .collect();
     frame.render_widget(List::new(items), area);
@@ -184,7 +184,7 @@ fn render_help_modal(frame: &mut Frame<'_>, area: Rect) {
         Line::from("Tab changes focus"),
         Line::from("Enter opens detail or submits form"),
         Line::from("a approve, r reject, d dismiss, n notes"),
-        Line::from("c clear channel, R refresh, / filter"),
+        Line::from("c clear source, R refresh, / filter"),
         Line::from("s server focus, , settings, m mute alerts"),
         Line::from("q quit or close modal"),
     ];

@@ -39,15 +39,15 @@ extension NodStore {
     if let notificationDelivery = envelope.notificationDelivery {
       apply(notificationDelivery: notificationDelivery)
     }
-    if let channel = envelope.channel {
-      if let index = channels.firstIndex(where: { $0.id == channel.id }) {
-        channels[index] = channel
+    if let source = envelope.source {
+      if let index = sources.firstIndex(where: { $0.id == source.id }) {
+        sources[index] = source
       } else {
-        channels.append(channel)
+        sources.append(source)
       }
     }
-    if let event = envelope.event {
-      await applySyncedEvent(event, envelopeKind: envelope.kind)
+    if let request = envelope.request {
+      await applySyncedRequest(request, envelopeKind: envelope.kind)
     }
     if envelope.kind == "cleared" || envelope.kind == "subscription_updated" {
       await refresh()
@@ -98,22 +98,22 @@ extension NodStore {
     clearServerConnectionIssues(for: [serverId])
   }
 
-  private func applySyncedEvent(_ event: NodEvent, envelopeKind: String) async {
-    if event.status == .pending {
-      pendingCountsByChannel[event.channelId, default: 0] += envelopeKind == "created" ? 1 : 0
-      knownPendingEventIds.insert(event.id)
+  private func applySyncedRequest(_ request: NodRequest, envelopeKind: String) async {
+    if request.status == .pending {
+      pendingCountsBySource[request.sourceId, default: 0] += envelopeKind == "created" ? 1 : 0
+      knownPendingRequestIds.insert(request.id)
     } else {
-      pendingCountsByChannel[event.channelId] = max(
+      pendingCountsBySource[request.sourceId] = max(
         0,
-        (pendingCountsByChannel[event.channelId] ?? 1) - 1
+        (pendingCountsBySource[request.sourceId] ?? 1) - 1
       )
-      knownPendingEventIds.remove(event.id)
+      knownPendingRequestIds.remove(request.id)
     }
-    if selectedChannelId == nil || selectedChannelId == event.channelId {
-      upsert(event)
+    if selectedSourceId == nil || selectedSourceId == request.sourceId {
+      upsert(request)
     }
     if envelopeKind == "created", shouldPresentLocalNotificationFromSync() {
-      await presentLocalNotification(for: event)
+      await presentLocalNotification(for: request)
     }
   }
 

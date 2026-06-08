@@ -1,16 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  ChannelParams,
   ClientState,
   EnrollParams,
-  NodEvent,
+  NodRequest,
   NotificationPreferenceParams,
   RenameDeviceParams,
   RevokeDeviceParams,
-  SelectEventParams,
+  SelectRequestParams,
   SelectServerParams,
   SetSubscriptionParams,
-  SubmitActionParams,
+  SourceParams,
+  SubmitOptionParams,
   UserDevice,
 } from "./types";
 
@@ -34,20 +34,20 @@ export function forgetServer(params: SelectServerParams): Promise<ClientState> {
   return invoke<ClientState>("forget_server", { params });
 }
 
-export function selectChannel(params: ChannelParams): Promise<ClientState> {
-  return invoke<ClientState>("select_channel", { params });
+export function selectSource(params: SourceParams): Promise<ClientState> {
+  return invoke<ClientState>("select_source", { params });
 }
 
-export function selectEvent(params: SelectEventParams): Promise<ClientState> {
-  return invoke<ClientState>("select_event", { params });
+export function selectRequest(params: SelectRequestParams): Promise<ClientState> {
+  return invoke<ClientState>("select_request", { params });
 }
 
-export function submitAction(params: SubmitActionParams): Promise<NodEvent> {
-  return invoke<NodEvent>("submit_action", { params });
+export function submitOption(params: SubmitOptionParams): Promise<NodRequest> {
+  return invoke<NodRequest>("submit_option", { params });
 }
 
-export function clearChannel(params: ChannelParams): Promise<ClientState> {
-  return invoke<ClientState>("clear_channel", { params });
+export function clearSource(params: SourceParams): Promise<ClientState> {
+  return invoke<ClientState>("clear_source", { params });
 }
 
 export function setSubscription(params: SetSubscriptionParams): Promise<ClientState> {

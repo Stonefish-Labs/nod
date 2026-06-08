@@ -1,20 +1,20 @@
 import type {
-  Channel,
   ClientState,
   EnrollParams,
-  EventAction,
-  EventStatus,
-  NodEvent,
+  NodRequest,
+  RequestOption,
+  RequestStatus,
+  Source,
 } from "./types";
 
-const statusRank: Record<EventStatus, number> = {
+const statusRank: Record<RequestStatus, number> = {
   pending: 0,
   resolved: 1,
   expired: 1,
   cancelled: 1,
 };
 
-const defaultDismissAction: EventAction = {
+const defaultDismissOption: RequestOption = {
   id: "dismiss",
   label: "Dismiss",
   kind: "dismiss",
@@ -25,18 +25,18 @@ const defaultDismissAction: EventAction = {
 };
 
 export function totalPendingCount(state: ClientState): number {
-  return Object.values(state.pending_counts_by_channel).reduce(
+  return Object.values(state.pending_counts_by_source).reduce(
     (total, count) => total + count,
     0,
   );
 }
 
-export function pendingCountFor(channel: Channel, state: ClientState): number {
-  return state.pending_counts_by_channel[channel.id] ?? 0;
+export function pendingCountFor(source: Source, state: ClientState): number {
+  return state.pending_counts_by_source[source.id] ?? 0;
 }
 
-export function orderedEvents(events: readonly NodEvent[]): NodEvent[] {
-  return [...events].sort((left, right) => {
+export function orderedRequests(requests: readonly NodRequest[]): NodRequest[] {
+  return [...requests].sort((left, right) => {
     const rankDelta = statusRank[left.status] - statusRank[right.status];
     if (rankDelta !== 0) {
       return rankDelta;
@@ -50,30 +50,30 @@ export function orderedEvents(events: readonly NodEvent[]): NodEvent[] {
   });
 }
 
-export function selectedEvent(state: ClientState): NodEvent | undefined {
+export function selectedRequest(state: ClientState): NodRequest | undefined {
   return (
-    state.events.find((event) => event.id === state.selected_event_id) ??
-    orderedEvents(state.events)[0]
+    state.requests.find((request) => request.id === state.selected_request_id) ??
+    orderedRequests(state.requests)[0]
   );
 }
 
-export function selectedChannel(state: ClientState): Channel | undefined {
+export function selectedSource(state: ClientState): Source | undefined {
   return (
-    state.channels.find((channel) => channel.id === state.selected_channel_id) ??
-    state.channels[0]
+    state.sources.find((source) => source.id === state.selected_source_id) ??
+    state.sources[0]
   );
 }
 
-export function actionableActions(event: NodEvent): EventAction[] {
-  return event.actions.length === 0 ? [defaultDismissAction] : event.actions;
+export function submittableOptions(request: NodRequest): RequestOption[] {
+  return request.options.length === 0 ? [defaultDismissOption] : request.options;
 }
 
-export function actionRequiresText(action: EventAction): boolean {
-  return action.requires_text || action.kind.endsWith("_with_text");
+export function optionRequiresText(option: RequestOption): boolean {
+  return option.requires_text || option.kind.endsWith("_with_text");
 }
 
-export function eventPreview(event: NodEvent): string {
-  return event.summary || event.body_markdown;
+export function requestPreview(request: NodRequest): string {
+  return request.summary || request.body_markdown;
 }
 
 export function canSubmitEnrollment(

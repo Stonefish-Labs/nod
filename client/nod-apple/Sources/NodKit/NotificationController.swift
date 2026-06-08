@@ -62,17 +62,17 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
     public static let shared = NodNotificationController()
 
     private var apiProvider: (() -> NodAPI?)?
-    private var openHandler: (@MainActor (_ eventId: String?, _ channelId: String?) -> Void)?
-    private var actionHandler: (@Sendable (_ eventId: String, _ actionId: String, _ text: String?) async -> Void)?
+    private var openHandler: (@MainActor (_ requestId: String?, _ sourceId: String?) -> Void)?
+    private var optionHandler: (@Sendable (_ requestId: String, _ optionId: String, _ text: String?) async -> Void)?
 
     public func configure(
         apiProvider: @escaping () -> NodAPI?,
-        onOpen: @escaping @MainActor (_ eventId: String?, _ channelId: String?) -> Void = { _, _ in },
-        onAction: @escaping @Sendable (_ eventId: String, _ actionId: String, _ text: String?) async -> Void = { _, _, _ in }
+        onOpen: @escaping @MainActor (_ requestId: String?, _ sourceId: String?) -> Void = { _, _ in },
+        onOption: @escaping @Sendable (_ requestId: String, _ optionId: String, _ text: String?) async -> Void = { _, _, _ in }
     ) {
         self.apiProvider = apiProvider
         self.openHandler = onOpen
-        self.actionHandler = onAction
+        self.optionHandler = onOption
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         registerCategories()
@@ -133,22 +133,22 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
         ])
     }
 
-    nonisolated public func presentLocalNotification(for event: NodEvent, soundName: String) async throws {
+    nonisolated public func presentLocalNotification(for request: NodRequest, soundName: String) async throws {
         let content = UNMutableNotificationContent()
-        content.title = event.title
-        content.body = event.summary.isEmpty ? event.bodyMarkdown : event.summary
+        content.title = request.title
+        content.body = request.summary.isEmpty ? request.bodyMarkdown : request.summary
         content.sound = notificationSound(named: soundName)
-        content.threadIdentifier = event.channelId
-        content.categoryIdentifier = category(for: event)
+        content.threadIdentifier = request.sourceId
+        content.categoryIdentifier = category(for: request)
         content.userInfo = [
-            "event_id": event.id,
-            "channel_id": event.channelId
+            "request_id": request.id,
+            "source_id": request.sourceId
         ]
-        if let attachment = try? await imageAttachment(for: event) {
+        if let attachment = try? await imageAttachment(for: request) {
             content.attachments = [attachment]
         }
-        let request = UNNotificationRequest(identifier: event.id, content: content, trigger: nil)
-        try await UNUserNotificationCenter.current().add(request)
+        let notificationRequest = UNNotificationRequest(identifier: request.id, content: content, trigger: nil)
+        try await UNUserNotificationCenter.current().add(notificationRequest)
     }
 
     nonisolated public func presentTestNotification(soundName: String) async throws {
@@ -176,12 +176,12 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
         didReceive response: UNNotificationResponse
     ) async {
         let userInfo = response.notification.request.content.userInfo
-        let eventId = Self.notificationString("event_id", in: userInfo)
-        let channelId = Self.notificationString("channel_id", in: userInfo)
+        let requestId = Self.notificationString("request_id", in: userInfo)
+        let sourceId = Self.notificationString("source_id", in: userInfo)
 
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier || response.actionIdentifier == "open" {
             await MainActor.run {
-                self.openHandler?(eventId, channelId)
+                self.openHandler?(requestId, sourceId)
             }
             return
         }
@@ -191,19 +191,19 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
         }
 
         guard
-            let eventId
+            let requestId
         else {
             return
         }
-        let actionIdentifier = response.actionIdentifier
+        let optionIdentifier = response.actionIdentifier
         let text = (response as? UNTextInputNotificationResponse)?.userText
-        let handler = await MainActor.run { self.actionHandler }
-        await handler?(eventId, actionIdentifier, text)
+        let handler = await MainActor.run { self.optionHandler }
+        await handler?(requestId, optionIdentifier, text)
     }
 
     nonisolated private static func notificationString(_ key: String, in userInfo: [AnyHashable: Any]) -> String? {
         // Local notifications use flat keys, while server push payloads may nest
-        // Nod metadata under "nod"; both shapes should open the same event.
+        // Nod metadata under "nod"; both shapes should open the same request.
         if let value = userInfo[key] as? String {
             return value
         }
@@ -216,19 +216,19 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
         return nil
     }
 
-    nonisolated private func category(for event: NodEvent) -> String {
-        if event.actions.contains(where: { $0.requiresText }) {
+    nonisolated private func category(for request: NodRequest) -> String {
+        if request.options.contains(where: { $0.requiresText }) {
             return "NOD_APPROVAL_TEXT"
         }
-        if event.actions.isEmpty {
+        if request.options.isEmpty {
             return "NOD_DEFAULT"
         }
         return "NOD_APPROVAL"
     }
 
-    nonisolated private func imageAttachment(for event: NodEvent) async throws -> UNNotificationAttachment? {
+    nonisolated private func imageAttachment(for request: NodRequest) async throws -> UNNotificationAttachment? {
         guard
-            let imageUrl = event.imageUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+            let imageUrl = request.imageUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
             !imageUrl.isEmpty,
             let url = URL(string: imageUrl),
             let scheme = url.scheme?.lowercased(),
@@ -250,13 +250,13 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let fileURL = directory
-            .appendingPathComponent(Self.safeAttachmentFilename(event.id))
+            .appendingPathComponent(Self.safeAttachmentFilename(request.id))
             .appendingPathExtension(fileExtension)
         try? FileManager.default.removeItem(at: fileURL)
         try FileManager.default.copyItem(at: downloadedURL, to: fileURL)
 
         return try UNNotificationAttachment(
-            identifier: "image-\(event.id)",
+            identifier: "image-\(request.id)",
             url: fileURL,
             options: nil
         )

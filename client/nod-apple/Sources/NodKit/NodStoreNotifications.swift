@@ -36,49 +36,49 @@ extension NodStore {
     }
   }
 
-  public func openNotification(eventId: String?, channelId: String?) async {
+  public func openNotification(requestId: String?, sourceId: String?) async {
     guard isRegistered else {
       return
     }
-    if let channelId, !channelId.isEmpty {
-      selectedChannelId = channelId
+    if let sourceId, !sourceId.isEmpty {
+      selectedSourceId = sourceId
     }
     await refresh()
-    if let channelId, !channelId.isEmpty {
-      selectedChannelId = channelId
+    if let sourceId, !sourceId.isEmpty {
+      selectedSourceId = sourceId
     }
-    if let eventId, !eventId.isEmpty {
-      selectedEventId = eventId
+    if let requestId, !requestId.isEmpty {
+      selectedRequestId = requestId
     }
     notificationOpenRequest = NodNotificationOpenRequest(
-      eventId: selectedEventId,
-      channelId: selectedChannelId ?? channelId
+      requestId: selectedRequestId,
+      sourceId: selectedSourceId ?? sourceId
     )
     connectSync()
   }
 
-  func presentNotificationsForPendingEventsDiscoveredByRefresh(_ pendingEvents: [NodEvent]) async {
-    let pendingEventIds = Set(pendingEvents.map(\.id))
+  func presentNotificationsForPendingRequestsDiscoveredByRefresh(_ pendingRequests: [NodRequest]) async {
+    let pendingRequestIds = Set(pendingRequests.map(\.id))
     defer {
-      knownPendingEventIds = pendingEventIds
-      hasLoadedPendingEventSnapshot = true
+      knownPendingRequestIds = pendingRequestIds
+      hasLoadedPendingRequestSnapshot = true
     }
 
     // The first refresh seeds the snapshot so an existing backlog does not replay
     // as a burst of local notifications after launch or server switching.
-    guard hasLoadedPendingEventSnapshot, shouldPresentLocalNotificationFromSync() else {
+    guard hasLoadedPendingRequestSnapshot, shouldPresentLocalNotificationFromSync() else {
       return
     }
 
-    for event in pendingEvents where !knownPendingEventIds.contains(event.id) {
-      await presentLocalNotification(for: event)
+    for request in pendingRequests where !knownPendingRequestIds.contains(request.id) {
+      await presentLocalNotification(for: request)
     }
   }
 
-  func presentLocalNotification(for event: NodEvent) async {
+  func presentLocalNotification(for request: NodRequest) async {
     do {
       try await NodNotificationController.shared.presentLocalNotification(
-        for: event,
+        for: request,
         soundName: notificationSound
       )
     } catch {

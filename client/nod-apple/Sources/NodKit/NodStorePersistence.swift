@@ -1,6 +1,8 @@
 import Foundation
 
 extension NodStore {
+  static let clientSchemaVersion = 2
+
   func syncDevicePreferences() async {
     guard let api = api() else {
       return
@@ -59,5 +61,40 @@ extension NodStore {
 
   static func appAttestKeyAccount(for serverId: String) -> String {
     "appAttestKey.\(serverId)"
+  }
+
+  func resetLegacyClientStateIfNeeded() {
+    let schemaKey = "nod.clientSchemaVersion"
+    if defaults.integer(forKey: schemaKey) == Self.clientSchemaVersion,
+      defaults.object(forKey: schemaKey) != nil
+    {
+      return
+    }
+
+    let preservedDeviceName = defaults.string(forKey: "nod.deviceName")
+    let preservedNotificationSound = defaults.string(forKey: "nod.notificationSound")
+    let oldServers = Self.loadServers(from: defaults)
+
+    for server in oldServers {
+      try? keychain.delete(account: Self.tokenAccount(for: server.id))
+      try? signingKeys.delete(account: Self.signingKeyAccount(for: server.id))
+      try? appAttest.delete(account: Self.appAttestKeyAccount(for: server.id))
+    }
+
+    [
+      "nod.servers",
+      "nod.selectedServerId",
+      "nod.baseURL",
+      "nod.draft.baseURL",
+      "nod.deviceId",
+    ].forEach(defaults.removeObject)
+
+    if let preservedDeviceName {
+      defaults.set(preservedDeviceName, forKey: "nod.deviceName")
+    }
+    if let preservedNotificationSound {
+      defaults.set(preservedNotificationSound, forKey: "nod.notificationSound")
+    }
+    defaults.set(Self.clientSchemaVersion, forKey: schemaKey)
   }
 }

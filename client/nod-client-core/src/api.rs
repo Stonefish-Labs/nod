@@ -6,8 +6,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
 use crate::models::{
-    Channel, ChannelsResponse, CurrentUserResponse, DecisionSignature, DevicePlatform,
-    DeviceSigningKey, EnrollDeviceResponse, Event, EventResponse, EventsResponse, UserDevice,
+    CurrentUserResponse, DecisionSignature, DevicePlatform, DeviceSigningKey, EnrollDeviceResponse,
+    Request, RequestResponse, RequestsResponse, Source, SourcesResponse, UserDevice,
     UserDeviceResponse, UserDevicesResponse,
 };
 
@@ -92,26 +92,26 @@ impl NodApi {
         Ok(())
     }
 
-    pub async fn channels(&self) -> Result<Vec<Channel>> {
-        let response: ChannelsResponse = self
+    pub async fn sources(&self) -> Result<Vec<Source>> {
+        let response: SourcesResponse = self
             .request(RequestSpec::authenticated(Method::GET, "/api/v1/sources"))
             .await?;
-        Ok(response.channels)
+        Ok(response.sources)
     }
 
-    pub async fn events(
+    pub async fn requests(
         &self,
-        channel_id: Option<&str>,
+        source_id: Option<&str>,
         limit: Option<usize>,
-    ) -> Result<Vec<Event>> {
-        let path = events_path(channel_id, limit);
-        let response: EventsResponse = self
+    ) -> Result<Vec<Request>> {
+        let path = requests_path(source_id, limit);
+        let response: RequestsResponse = self
             .request(RequestSpec::authenticated(Method::GET, &path))
             .await?;
-        Ok(response.events)
+        Ok(response.requests)
     }
 
-    pub async fn submit_action(&self, request: SubmitActionRequest<'_>) -> Result<Event> {
+    pub async fn submit_option(&self, request: SubmitOptionRequest<'_>) -> Result<Request> {
         #[derive(Serialize)]
         struct Body<'a> {
             #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,9 +121,9 @@ impl NodApi {
         }
         let path = format!(
             "/api/v1/requests/{}/options/{}",
-            request.event_id, request.action_id
+            request.request_id, request.option_id
         );
-        let response: EventResponse = self
+        let response: RequestResponse = self
             .request(RequestSpec::authenticated_json(
                 Method::POST,
                 &path,
@@ -133,23 +133,23 @@ impl NodApi {
                 },
             ))
             .await?;
-        Ok(response.event)
+        Ok(response.request)
     }
 
-    pub async fn clear_channel(&self, channel_id: &str) -> Result<()> {
-        let path = format!("/api/v1/devices/me/sources/{channel_id}/clear");
+    pub async fn clear_source(&self, source_id: &str) -> Result<()> {
+        let path = format!("/api/v1/devices/me/sources/{source_id}/clear");
         let _: serde_json::Value = self
             .request(RequestSpec::authenticated(Method::POST, &path))
             .await?;
         Ok(())
     }
 
-    pub async fn set_subscription(&self, channel_id: &str, subscribed: bool) -> Result<()> {
+    pub async fn set_subscription(&self, source_id: &str, subscribed: bool) -> Result<()> {
         #[derive(Serialize)]
         struct Body {
             subscribed: bool,
         }
-        let path = format!("/api/v1/devices/me/subscriptions/{channel_id}");
+        let path = format!("/api/v1/devices/me/subscriptions/{source_id}");
         let _: serde_json::Value = self
             .request(RequestSpec::authenticated_json(
                 Method::PUT,
@@ -238,9 +238,9 @@ pub struct EnrollDeviceRequest<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct SubmitActionRequest<'a> {
-    pub event_id: &'a str,
-    pub action_id: &'a str,
+pub struct SubmitOptionRequest<'a> {
+    pub request_id: &'a str,
+    pub option_id: &'a str,
     pub text: Option<&'a str>,
     pub signature: Option<&'a DecisionSignature>,
 }
@@ -365,11 +365,11 @@ fn join_path(base: &str, path: &str) -> String {
     }
 }
 
-fn events_path(channel_id: Option<&str>, limit: Option<usize>) -> String {
+fn requests_path(source_id: Option<&str>, limit: Option<usize>) -> String {
     let mut query = url::form_urlencoded::Serializer::new(String::new());
     query.append_pair("include_cleared", "false");
-    if let Some(channel_id) = channel_id {
-        query.append_pair("source_id", channel_id);
+    if let Some(source_id) = source_id {
+        query.append_pair("source_id", source_id);
     }
     if let Some(limit) = limit {
         query.append_pair("limit", &limit.to_string());
@@ -380,7 +380,7 @@ fn events_path(channel_id: Option<&str>, limit: Option<usize>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{NotificationDeliveryMode, SyncEnvelope};
+    use crate::models::{Decision, NotificationDeliveryMode, SyncEnvelope};
 
     #[test]
     fn normalizes_local_and_remote_urls() {
@@ -403,10 +403,10 @@ mod tests {
     }
 
     #[test]
-    fn builds_events_path_with_encoded_filters() {
+    fn builds_requests_path_with_encoded_filters() {
         assert_eq!(
-            events_path(Some("ops/main channel"), Some(25)),
-            "/api/v1/requests?include_cleared=false&source_id=ops%2Fmain+channel&limit=25"
+            requests_path(Some("ops/main source"), Some(25)),
+            "/api/v1/requests?include_cleared=false&source_id=ops%2Fmain+source&limit=25"
         );
     }
 
@@ -440,65 +440,128 @@ mod tests {
     }
 
     #[test]
-    fn enrollment_response_accepts_server_sources_field() {
+    fn enrollment_response_decodes_sources_field() {
         let response: EnrollDeviceResponse = serde_json::from_value(serde_json::json!({
             "device_id": "device-1",
             "user_id": "owner",
             "user_name": "Owner",
             "token": "device-token",
             "notification_delivery": { "mode": "websocket" },
-            "sources": [channel_json("default")],
+            "sources": [source_json("default")],
             "devices": []
         }))
         .unwrap();
 
-        assert_eq!(response.channels[0].id, "default");
+        assert_eq!(response.sources[0].id, "default");
     }
 
     #[test]
-    fn channels_response_accepts_server_sources_field() {
-        let response: ChannelsResponse = serde_json::from_value(serde_json::json!({
-            "sources": [channel_json("default")]
+    fn sources_response_decodes_sources_field() {
+        let response: SourcesResponse = serde_json::from_value(serde_json::json!({
+            "sources": [source_json("default")]
         }))
         .unwrap();
 
-        assert_eq!(response.channels[0].id, "default");
+        assert_eq!(response.sources[0].id, "default");
     }
 
     #[test]
-    fn event_accepts_server_per_user_decision_field() {
-        let event: Event = serde_json::from_value(event_json("request-1", "resolved")).unwrap();
+    fn legacy_channel_fields_do_not_decode() {
+        assert!(
+            serde_json::from_value::<EnrollDeviceResponse>(serde_json::json!({
+                "device_id": "device-1",
+                "user_id": "owner",
+                "user_name": "Owner",
+                "token": "device-token",
+                "notification_delivery": { "mode": "websocket" },
+                "channels": [source_json("default")],
+                "devices": []
+            }))
+            .is_err()
+        );
 
-        assert_eq!(event.user_results[0].user_id, "owner");
-        assert_eq!(event.user_results[0].result.action_id, "approve");
+        assert!(
+            serde_json::from_value::<SourcesResponse>(serde_json::json!({
+                "channels": [source_json("default")]
+            }))
+            .is_err()
+        );
     }
 
     #[test]
-    fn sync_payload_accepts_server_request_field() {
+    fn legacy_event_and_action_fields_do_not_decode() {
+        assert!(
+            serde_json::from_value::<RequestsResponse>(serde_json::json!({
+                "events": [request_json("request-1", "pending")]
+            }))
+            .is_err()
+        );
+
+        let mut legacy_request = request_json("request-1", "pending");
+        legacy_request.as_object_mut().unwrap().remove("source_id");
+        legacy_request["channel_id"] = serde_json::json!("default");
+        assert!(serde_json::from_value::<Request>(legacy_request).is_err());
+
+        let mut legacy_options = request_json("request-1", "pending");
+        let options = legacy_options
+            .as_object_mut()
+            .unwrap()
+            .remove("options")
+            .unwrap();
+        legacy_options["actions"] = options;
+        assert!(serde_json::from_value::<Request>(legacy_options).is_err());
+    }
+
+    #[test]
+    fn legacy_decision_fields_do_not_decode() {
+        assert!(serde_json::from_value::<Decision>(serde_json::json!({
+            "event_id": "request-1",
+            "action_id": "approve",
+            "action_kind": "approve",
+            "action_label": "Approve",
+            "text": null,
+            "actor_user_id": "owner",
+            "actor_device_id": "device-1",
+            "resolved_at": "2026-06-01T00:00:02Z"
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn request_decodes_server_per_user_decision_field() {
+        let request: Request =
+            serde_json::from_value(request_json("request-1", "resolved")).unwrap();
+
+        assert_eq!(request.decisions[0].user_id, "owner");
+        assert_eq!(request.decisions[0].decision.option_id, "approve");
+    }
+
+    #[test]
+    fn sync_payload_decodes_request_field() {
         let envelope: SyncEnvelope = serde_json::from_value(serde_json::json!({
             "kind": "created",
             "at": "2026-06-01T00:00:01Z",
             "payload": {
-                "request": event_json("request-1", "pending")
+                "request": request_json("request-1", "pending")
             }
         }))
         .unwrap();
 
-        assert_eq!(envelope.payload.event.unwrap().id, "request-1");
+        assert_eq!(envelope.payload.request.unwrap().id, "request-1");
     }
 
     #[test]
-    fn sync_payload_accepts_server_source_field() {
+    fn sync_payload_decodes_source_field() {
         let envelope: SyncEnvelope = serde_json::from_value(serde_json::json!({
             "kind": "source_updated",
             "at": "2026-06-01T00:00:01Z",
             "payload": {
-                "source": channel_json("default")
+                "source": source_json("default")
             }
         }))
         .unwrap();
 
-        assert_eq!(envelope.payload.channel.unwrap().id, "default");
+        assert_eq!(envelope.payload.source.unwrap().id, "default");
     }
 
     #[test]
@@ -523,7 +586,7 @@ mod tests {
         );
     }
 
-    fn channel_json(id: &str) -> serde_json::Value {
+    fn source_json(id: &str) -> serde_json::Value {
         serde_json::json!({
             "id": id,
             "name": "Default",
@@ -536,7 +599,7 @@ mod tests {
         })
     }
 
-    fn event_json(id: &str, status: &str) -> serde_json::Value {
+    fn request_json(id: &str, status: &str) -> serde_json::Value {
         serde_json::json!({
             "id": id,
             "request_id": id,
@@ -576,9 +639,9 @@ mod tests {
         })
     }
 
-    fn decision_json(event_id: &str) -> serde_json::Value {
+    fn decision_json(request_id: &str) -> serde_json::Value {
         serde_json::json!({
-            "request_id": event_id,
+            "request_id": request_id,
             "option_id": "approve",
             "option_kind": "approve",
             "option_label": "Approve",

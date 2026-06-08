@@ -2,7 +2,7 @@
 
 The source in `clients/apple` is intentionally SwiftUI-native. It contains:
 
-- `NodKit`: shared API models, keychain token storage, HTTP client, websocket sync client, and notification action registration.
+- `NodKit`: shared API models, keychain token storage, HTTP client, websocket sync client, and notification option registration.
 - `Apps/NodMac`: macOS menu bar/window app source.
 - `Apps/NodIOS`: iOS app source.
 - `Nod.xcodeproj`: Xcode app targets for iOS and macOS, linked to the local `NodKit` package.
@@ -43,7 +43,7 @@ The Apple clients support multiple Nod servers. Pair each server with a short-li
 
 The apps do not ship with a default server URL. Enter the URL from your Nod server along with an enrollment code from the server's admin panel.
 
-Pairing codes are entered through fixed uppercase boxes to avoid autocorrect and whitespace issues. After pairing, the app shows servers first, then subscribed channels, then the message list for the selected channel. Channel visibility is controlled from the Subscriptions sheet.
+Pairing codes are entered through fixed uppercase boxes to avoid autocorrect and whitespace issues. After pairing, the app shows servers first, then subscribed sources, then the request list for the selected source. Source visibility is controlled from the Subscriptions sheet.
 
 Build the local runnable macOS app bundle with the canonical script:
 
@@ -130,7 +130,7 @@ NOD_APPLE_APNS_BUNDLE_ID=com.batteryshark.Nod
 ```
 
 When the Nod server reports `notification_delivery.mode = "websocket"`, the iOS
-client presents WebSocket `created` events as local notifications while the app
+client presents WebSocket `created` requests as local notifications while the app
 is active and connected. This is a foreground fallback only; background and
 lock-screen delivery still require APNs. Direct APNs and notification relay
 routes are transparent to Apple clients and both appear as `mode = "push"`.
@@ -143,11 +143,11 @@ The clients register:
 - `NOD_APPROVAL`
 - `NOD_APPROVAL_TEXT`
 
-These categories map APNs notifications back to the server action endpoints.
+These categories map APNs notifications back to the server option endpoints.
 
 ## Notification Sounds
 
-Notification sounds are a client preference, not a webhook/event field. Change the sound in the Apple client's Subscriptions sheet. The setting is synced to each paired server as a device preference because APNs requires the provider to include the sound filename in the per-device push payload.
+Notification sounds are a client preference, not a request field. Change the sound in the Apple client's Subscriptions sheet. The setting is synced to each paired server as a device preference because APNs requires the provider to include the sound filename in the per-device push payload.
 
 Bundled options:
 

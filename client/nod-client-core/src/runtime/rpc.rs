@@ -74,13 +74,13 @@ impl NodClientRuntime {
                 Ok(json!(self.forget_server(&params.server_id).await?))
             }
             "refresh" => Ok(json!(self.refresh().await?)),
-            "submit_action" => {
-                let params: SubmitActionParams = serde_json::from_value(params)?;
-                Ok(json!({ "event": self.submit_action(params).await? }))
+            "submit_option" => {
+                let params: SubmitOptionParams = serde_json::from_value(params)?;
+                Ok(json!({ "request": self.submit_option(params).await? }))
             }
-            "clear_channel" => {
-                let params: ChannelParams = serde_json::from_value(params)?;
-                Ok(json!(self.clear_channel(params).await?))
+            "clear_source" => {
+                let params: SourceParams = serde_json::from_value(params)?;
+                Ok(json!(self.clear_source(params).await?))
             }
             "set_subscription" => {
                 let params: SetSubscriptionParams = serde_json::from_value(params)?;
@@ -110,13 +110,13 @@ impl NodClientRuntime {
                 self.disconnect_sync().await;
                 Ok(json!({ "connected": false }))
             }
-            "select_channel" => {
-                let params: ChannelParams = serde_json::from_value(params)?;
-                Ok(json!(self.select_channel(params).await?))
+            "select_source" => {
+                let params: SourceParams = serde_json::from_value(params)?;
+                Ok(json!(self.select_source(params).await?))
             }
-            "select_event" => {
-                let params: SelectEventParams = serde_json::from_value(params)?;
-                Ok(json!(self.select_event(params).await?))
+            "select_request" => {
+                let params: SelectRequestParams = serde_json::from_value(params)?;
+                Ok(json!(self.select_request(params).await?))
             }
             _ => Err(anyhow!("unknown method: {method}")),
         }
@@ -140,21 +140,21 @@ pub struct SelectServerParams {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SubmitActionParams {
-    pub event_id: String,
-    pub action_id: String,
+pub struct SubmitOptionParams {
+    pub request_id: String,
+    pub option_id: String,
     #[serde(default)]
     pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ChannelParams {
-    pub channel_id: String,
+pub struct SourceParams {
+    pub source_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetSubscriptionParams {
-    pub channel_id: String,
+    pub source_id: String,
     pub subscribed: bool,
 }
 
@@ -175,8 +175,8 @@ pub struct RevokeDeviceParams {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SelectEventParams {
-    pub event_id: String,
+pub struct SelectRequestParams {
+    pub request_id: String,
 }
 
 #[cfg(test)]

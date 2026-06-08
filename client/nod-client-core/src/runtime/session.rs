@@ -2,15 +2,15 @@ use anyhow::{anyhow, Result};
 
 use crate::{
     api::NodApi,
-    models::{DecisionSignature, Event, ServerProfile},
+    models::{DecisionSignature, Request, ServerProfile},
     signing::{DecisionSigningRequest, StoredSigningKey},
 };
 
 use super::NodClientRuntime;
 
 pub(super) struct DecisionSignatureInput<'a> {
-    pub event_id: &'a str,
-    pub action_id: &'a str,
+    pub request_id: &'a str,
+    pub option_id: &'a str,
     pub text: Option<&'a str>,
 }
 
@@ -36,7 +36,7 @@ impl NodClientRuntime {
         let Some(signing_key) = selected_server.signing_key else {
             return Ok(None);
         };
-        let event = self.loaded_event(input.event_id).await?;
+        let request = self.loaded_request(input.request_id).await?;
         let user_id = selected_server
             .profile
             .user_id
@@ -50,8 +50,8 @@ impl NodClientRuntime {
 
         signing_key
             .sign_decision(DecisionSigningRequest {
-                event: &event,
-                action_id: input.action_id,
+                request: &request,
+                option_id: input.option_id,
                 text: input.text,
                 user_id,
                 device_id,
@@ -79,15 +79,15 @@ impl NodClientRuntime {
             .ok_or_else(|| anyhow!("no selected server"))
     }
 
-    async fn loaded_event(&self, event_id: &str) -> Result<Event> {
+    async fn loaded_request(&self, request_id: &str) -> Result<Request> {
         self.reducer
             .lock()
             .await
             .state
-            .events
+            .requests
             .iter()
-            .find(|event| event.id == event_id)
+            .find(|request| request.id == request_id)
             .cloned()
-            .ok_or_else(|| anyhow!("event {event_id} is not loaded"))
+            .ok_or_else(|| anyhow!("request {request_id} is not loaded"))
     }
 }

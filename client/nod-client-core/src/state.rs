@@ -1,17 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::models::{
-    Channel, ClientState, Event, EventStatus, NotificationDeliveryMode, ServerProfile,
+    ClientState, NotificationDeliveryMode, Request, RequestStatus, ServerProfile, Source,
     SyncEnvelope, User, UserDevice,
 };
 
-const HANDLED_EVENT_DISPLAY_LIMIT: usize = 500;
+const HANDLED_REQUEST_DISPLAY_LIMIT: usize = 500;
 const SYNC_KIND_CREATED: &str = "created";
 
 #[derive(Debug, Clone)]
 pub struct StateReducer {
     pub state: ClientState,
-    known_pending_event_channels: BTreeMap<String, String>,
+    known_pending_request_sources: BTreeMap<String, String>,
     has_loaded_pending_snapshot: bool,
 }
 
@@ -28,18 +28,18 @@ impl StateReducer {
                 selected_server_id,
                 current_user: None,
                 devices: Vec::new(),
-                channels: Vec::new(),
-                pending_counts_by_channel: BTreeMap::new(),
-                events: Vec::new(),
-                selected_channel_id: None,
-                selected_event_id: None,
+                sources: Vec::new(),
+                pending_counts_by_source: BTreeMap::new(),
+                requests: Vec::new(),
+                selected_source_id: None,
+                selected_request_id: None,
                 notification_sound,
                 notification_delivery_mode: NotificationDeliveryMode::Websocket,
                 is_registered,
                 is_sync_connected: false,
                 last_error: None,
             },
-            known_pending_event_channels: BTreeMap::new(),
+            known_pending_request_sources: BTreeMap::new(),
             has_loaded_pending_snapshot: false,
         }
     }
@@ -85,95 +85,95 @@ impl StateReducer {
         &mut self,
         current_user: Option<User>,
         devices: Vec<UserDevice>,
-        channels: Vec<Channel>,
-        events: Vec<Event>,
-    ) -> Vec<Event> {
+        sources: Vec<Source>,
+        requests: Vec<Request>,
+    ) -> Vec<Request> {
         self.state.current_user = current_user;
         self.state.devices = devices;
-        self.state.channels = channels;
-        self.ensure_selected_channel();
+        self.state.sources = sources;
+        self.ensure_selected_source();
 
-        let pending_events = pending_events(&events);
-        self.state.pending_counts_by_channel = count_pending_by_channel(&pending_events);
-        let notification_candidates = self.notification_candidates_after_refresh(&pending_events);
-        self.remember_pending_events(&pending_events);
+        let pending_requests = pending_requests(&requests);
+        self.state.pending_counts_by_source = count_pending_by_source(&pending_requests);
+        let notification_candidates = self.notification_candidates_after_refresh(&pending_requests);
+        self.remember_pending_requests(&pending_requests);
 
-        self.state.events = self.visible_events_for_selected_channel(events);
-        self.ensure_selected_event();
+        self.state.requests = self.visible_requests_for_selected_source(requests);
+        self.ensure_selected_request();
         self.state.last_error = None;
         notification_candidates
     }
 
-    pub fn apply_sync_envelope(&mut self, envelope: SyncEnvelope) -> Vec<Event> {
+    pub fn apply_sync_envelope(&mut self, envelope: SyncEnvelope) -> Vec<Request> {
         self.state.is_sync_connected = true;
         let mut notification_candidates = Vec::new();
-        if let Some(channel) = envelope.payload.channel {
-            self.upsert_channel(channel);
+        if let Some(source) = envelope.payload.source {
+            self.upsert_source(source);
         }
-        if let Some(event) = envelope.payload.event {
+        if let Some(request) = envelope.payload.request {
             let should_notify =
-                envelope.kind == SYNC_KIND_CREATED && self.apply_event_update(event.clone());
+                envelope.kind == SYNC_KIND_CREATED && self.apply_request_update(request.clone());
             if should_notify {
-                notification_candidates.push(event);
+                notification_candidates.push(request);
             }
         }
         notification_candidates
     }
 
-    pub fn apply_event_update(&mut self, event: Event) -> bool {
-        let is_new_pending = self.update_pending_tracking(&event);
-        if self.state.selected_channel_id.as_deref() == Some(event.channel_id.as_str())
-            || self.state.selected_channel_id.is_none()
+    pub fn apply_request_update(&mut self, request: Request) -> bool {
+        let is_new_pending = self.update_pending_tracking(&request);
+        if self.state.selected_source_id.as_deref() == Some(request.source_id.as_str())
+            || self.state.selected_source_id.is_none()
         {
-            self.upsert_visible_event(event);
+            self.upsert_visible_request(request);
         }
         is_new_pending
     }
 
-    fn upsert_visible_event(&mut self, event: Event) {
+    fn upsert_visible_request(&mut self, request: Request) {
         if let Some(existing) = self
             .state
-            .events
+            .requests
             .iter_mut()
-            .find(|existing| existing.id == event.id)
+            .find(|existing| existing.id == request.id)
         {
-            *existing = event;
+            *existing = request;
         } else {
-            self.state.events.insert(0, event);
+            self.state.requests.insert(0, request);
         }
-        let events = std::mem::take(&mut self.state.events);
-        self.state.events = visible_events(events);
-        self.ensure_selected_event();
+        let requests = std::mem::take(&mut self.state.requests);
+        self.state.requests = visible_requests(requests);
+        self.ensure_selected_request();
     }
 
-    fn upsert_channel(&mut self, channel: Channel) {
+    fn upsert_source(&mut self, source: Source) {
         if let Some(existing) = self
             .state
-            .channels
+            .sources
             .iter_mut()
-            .find(|existing| existing.id == channel.id)
+            .find(|existing| existing.id == source.id)
         {
-            *existing = channel;
+            *existing = source;
         } else {
-            self.state.channels.push(channel);
+            self.state.sources.push(source);
         }
     }
 
-    fn update_pending_tracking(&mut self, event: &Event) -> bool {
-        let previous_channel_id = self.previous_pending_channel(event).map(str::to_string);
-        let is_pending = event.status == EventStatus::Pending;
+    fn update_pending_tracking(&mut self, request: &Request) -> bool {
+        let previous_source_id = self.previous_pending_source(request).map(str::to_string);
+        let is_pending = request.status == RequestStatus::Pending;
 
-        match (previous_channel_id, is_pending) {
+        match (previous_source_id, is_pending) {
             (None, true) => {
-                self.mark_pending(event);
+                self.mark_pending(request);
                 true
             }
-            (Some(previous_channel_id), false) => {
-                self.clear_pending(&event.id, &previous_channel_id);
+            (Some(previous_source_id), false) => {
+                self.clear_pending(&request.id, &previous_source_id);
                 false
             }
-            (Some(previous_channel_id), true) => {
-                self.update_pending_channel(&previous_channel_id, event);
+            (Some(previous_source_id), true) => {
+                self.update_pending_source(&previous_source_id, request);
                 false
             }
             (None, false) => false,
@@ -195,103 +195,100 @@ impl StateReducer {
     pub fn clear_loaded_data(&mut self) {
         self.state.current_user = None;
         self.state.devices.clear();
-        self.state.channels.clear();
-        self.state.pending_counts_by_channel.clear();
-        self.state.events.clear();
-        self.state.selected_channel_id = None;
-        self.state.selected_event_id = None;
-        self.known_pending_event_channels.clear();
+        self.state.sources.clear();
+        self.state.pending_counts_by_source.clear();
+        self.state.requests.clear();
+        self.state.selected_source_id = None;
+        self.state.selected_request_id = None;
+        self.known_pending_request_sources.clear();
         self.has_loaded_pending_snapshot = false;
     }
 
-    fn ensure_selected_channel(&mut self) {
-        let visible_channel_ids: BTreeSet<_> = self
+    fn ensure_selected_source(&mut self) {
+        let visible_source_ids: BTreeSet<_> = self
             .state
-            .channels
+            .sources
             .iter()
-            .filter(|channel| channel.subscribed)
-            .map(|channel| channel.id.as_str())
+            .filter(|source| source.subscribed)
+            .map(|source| source.id.as_str())
             .collect();
         let selection_is_visible = self
             .state
-            .selected_channel_id
+            .selected_source_id
             .as_deref()
-            .map(|id| visible_channel_ids.contains(id))
+            .map(|id| visible_source_ids.contains(id))
             .unwrap_or(false);
 
         if !selection_is_visible {
-            self.state.selected_channel_id = self
+            self.state.selected_source_id = self
                 .state
-                .channels
+                .sources
                 .iter()
-                .find(|channel| channel.subscribed)
-                .map(|channel| channel.id.clone());
+                .find(|source| source.subscribed)
+                .map(|source| source.id.clone());
         }
     }
 
-    fn notification_candidates_after_refresh(&self, pending_events: &[Event]) -> Vec<Event> {
+    fn notification_candidates_after_refresh(&self, pending_requests: &[Request]) -> Vec<Request> {
         // The first refresh is a baseline snapshot. Only later refreshes should
-        // generate local notifications for newly observed pending events.
+        // generate local notifications for newly observed pending requests.
         if !self.has_loaded_pending_snapshot {
             return Vec::new();
         }
 
-        pending_events
+        pending_requests
             .iter()
-            .filter(|event| !self.known_pending_event_channels.contains_key(&event.id))
+            .filter(|request| !self.known_pending_request_sources.contains_key(&request.id))
             .cloned()
             .collect()
     }
 
-    fn remember_pending_events(&mut self, pending_events: &[Event]) {
-        self.known_pending_event_channels = pending_event_channels(pending_events);
+    fn remember_pending_requests(&mut self, pending_requests: &[Request]) {
+        self.known_pending_request_sources = pending_request_sources(pending_requests);
         self.has_loaded_pending_snapshot = true;
     }
 
-    fn previous_pending_channel(&self, event: &Event) -> Option<&str> {
-        self.known_pending_event_channels
-            .get(&event.id)
+    fn previous_pending_source(&self, request: &Request) -> Option<&str> {
+        self.known_pending_request_sources
+            .get(&request.id)
             .map(String::as_str)
             .or_else(|| {
                 self.state
-                    .events
+                    .requests
                     .iter()
                     .find(|existing| {
-                        existing.id == event.id && existing.status == EventStatus::Pending
+                        existing.id == request.id && existing.status == RequestStatus::Pending
                     })
-                    .map(|existing| existing.channel_id.as_str())
+                    .map(|existing| existing.source_id.as_str())
             })
     }
 
-    fn mark_pending(&mut self, event: &Event) {
-        increment_pending_count(&mut self.state.pending_counts_by_channel, &event.channel_id);
-        self.known_pending_event_channels
-            .insert(event.id.clone(), event.channel_id.clone());
+    fn mark_pending(&mut self, request: &Request) {
+        increment_pending_count(&mut self.state.pending_counts_by_source, &request.source_id);
+        self.known_pending_request_sources
+            .insert(request.id.clone(), request.source_id.clone());
     }
 
-    fn clear_pending(&mut self, event_id: &str, channel_id: &str) {
-        decrement_pending_count(&mut self.state.pending_counts_by_channel, channel_id);
-        self.known_pending_event_channels.remove(event_id);
+    fn clear_pending(&mut self, request_id: &str, source_id: &str) {
+        decrement_pending_count(&mut self.state.pending_counts_by_source, source_id);
+        self.known_pending_request_sources.remove(request_id);
     }
 
-    fn update_pending_channel(&mut self, previous_channel_id: &str, event: &Event) {
-        if previous_channel_id != event.channel_id {
-            decrement_pending_count(
-                &mut self.state.pending_counts_by_channel,
-                previous_channel_id,
-            );
-            increment_pending_count(&mut self.state.pending_counts_by_channel, &event.channel_id);
+    fn update_pending_source(&mut self, previous_source_id: &str, request: &Request) {
+        if previous_source_id != request.source_id {
+            decrement_pending_count(&mut self.state.pending_counts_by_source, previous_source_id);
+            increment_pending_count(&mut self.state.pending_counts_by_source, &request.source_id);
         }
-        self.known_pending_event_channels
-            .insert(event.id.clone(), event.channel_id.clone());
+        self.known_pending_request_sources
+            .insert(request.id.clone(), request.source_id.clone());
     }
 
-    fn visible_events_for_selected_channel(&self, events: Vec<Event>) -> Vec<Event> {
-        if let Some(channel_id) = self.state.selected_channel_id.as_deref() {
-            visible_events(
-                events
+    fn visible_requests_for_selected_source(&self, requests: Vec<Request>) -> Vec<Request> {
+        if let Some(source_id) = self.state.selected_source_id.as_deref() {
+            visible_requests(
+                requests
                     .into_iter()
-                    .filter(|event| event.channel_id == channel_id)
+                    .filter(|request| request.source_id == source_id)
                     .collect(),
             )
         } else {
@@ -299,78 +296,82 @@ impl StateReducer {
         }
     }
 
-    fn ensure_selected_event(&mut self) {
+    fn ensure_selected_request(&mut self) {
         if self
             .state
-            .selected_event_id
+            .selected_request_id
             .as_deref()
-            .map(|id| self.state.events.iter().any(|event| event.id == id))
+            .map(|id| self.state.requests.iter().any(|request| request.id == id))
             .unwrap_or(false)
         {
             return;
         }
-        self.state.selected_event_id = self.state.events.first().map(|event| event.id.clone());
+        self.state.selected_request_id = self
+            .state
+            .requests
+            .first()
+            .map(|request| request.id.clone());
     }
 }
 
-fn pending_events(events: &[Event]) -> Vec<Event> {
-    events
+fn pending_requests(requests: &[Request]) -> Vec<Request> {
+    requests
         .iter()
-        .filter(|event| event.status == EventStatus::Pending)
+        .filter(|request| request.status == RequestStatus::Pending)
         .cloned()
         .collect()
 }
 
-fn count_pending_by_channel(events: &[Event]) -> BTreeMap<String, usize> {
+fn count_pending_by_source(requests: &[Request]) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
-    for event in events {
-        increment_pending_count(&mut counts, &event.channel_id);
+    for request in requests {
+        increment_pending_count(&mut counts, &request.source_id);
     }
     counts
 }
 
-fn pending_event_channels(events: &[Event]) -> BTreeMap<String, String> {
-    events
+fn pending_request_sources(requests: &[Request]) -> BTreeMap<String, String> {
+    requests
         .iter()
-        .map(|event| (event.id.clone(), event.channel_id.clone()))
+        .map(|request| (request.id.clone(), request.source_id.clone()))
         .collect()
 }
 
-fn increment_pending_count(counts: &mut BTreeMap<String, usize>, channel_id: &str) {
-    *counts.entry(channel_id.to_string()).or_insert(0) += 1;
+fn increment_pending_count(counts: &mut BTreeMap<String, usize>, source_id: &str) {
+    *counts.entry(source_id.to_string()).or_insert(0) += 1;
 }
 
-fn decrement_pending_count(counts: &mut BTreeMap<String, usize>, channel_id: &str) {
-    if let Some(count) = counts.get_mut(channel_id) {
+fn decrement_pending_count(counts: &mut BTreeMap<String, usize>, source_id: &str) {
+    if let Some(count) = counts.get_mut(source_id) {
         *count = count.saturating_sub(1);
     }
     counts.retain(|_, count| *count > 0);
 }
 
-fn visible_events(mut events: Vec<Event>) -> Vec<Event> {
-    events.sort_by(|lhs, rhs| {
-        event_status_rank(&lhs.status)
-            .cmp(&event_status_rank(&rhs.status))
+fn visible_requests(mut requests: Vec<Request>) -> Vec<Request> {
+    requests.sort_by(|lhs, rhs| {
+        request_status_rank(&lhs.status)
+            .cmp(&request_status_rank(&rhs.status))
             .then_with(|| rhs.created_at.cmp(&lhs.created_at))
             .then_with(|| rhs.id.cmp(&lhs.id))
     });
     let mut handled = 0;
-    events
+    requests
         .into_iter()
-        .filter(|event| {
-            if event.status == EventStatus::Pending {
+        .filter(|request| {
+            if request.status == RequestStatus::Pending {
                 return true;
             }
             handled += 1;
-            handled <= HANDLED_EVENT_DISPLAY_LIMIT
+            handled <= HANDLED_REQUEST_DISPLAY_LIMIT
         })
         .collect()
 }
 
-fn event_status_rank(status: &EventStatus) -> u8 {
+fn request_status_rank(status: &RequestStatus) -> u8 {
     match status {
-        EventStatus::Pending => 0,
-        EventStatus::Resolved | EventStatus::Expired | EventStatus::Cancelled => 1,
+        RequestStatus::Pending => 0,
+        RequestStatus::Resolved | RequestStatus::Expired | RequestStatus::Cancelled => 1,
     }
 }
 
@@ -379,10 +380,10 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::*;
-    use crate::models::{ActionResolution, Event};
+    use crate::models::{DecisionResolution, Request};
 
-    fn channel(id: &str, subscribed: bool) -> Channel {
-        Channel {
+    fn source(id: &str, subscribed: bool) -> Source {
+        Source {
             id: id.to_string(),
             name: id.to_string(),
             icon: String::new(),
@@ -394,12 +395,13 @@ mod tests {
         }
     }
 
-    fn event(id: &str, channel_id: &str, status: EventStatus) -> Event {
-        Event {
+    fn request(id: &str, source_id: &str, status: RequestStatus) -> Request {
+        Request {
             id: id.to_string(),
-            channel_id: channel_id.to_string(),
+            request_id: id.to_string(),
+            source_id: source_id.to_string(),
             recipients: Vec::new(),
-            action_resolution: ActionResolution::Shared,
+            decision_resolution: DecisionResolution::Shared,
             title: id.to_string(),
             summary: String::new(),
             body_markdown: String::new(),
@@ -414,10 +416,10 @@ mod tests {
             created_at: Utc.with_ymd_and_hms(2026, 5, 28, 12, 0, 0).unwrap(),
             updated_at: Utc.with_ymd_and_hms(2026, 5, 28, 12, 0, 0).unwrap(),
             resolved_at: None,
-            result: None,
-            user_results: Vec::new(),
+            decision: None,
+            decisions: Vec::new(),
             callback_url: None,
-            actions: Vec::new(),
+            options: Vec::new(),
             request_digest: None,
         }
     }
@@ -425,12 +427,12 @@ mod tests {
     #[test]
     fn refresh_suppresses_initial_notification_snapshot() {
         let mut reducer = StateReducer::new(Vec::new(), None, "default".to_string());
-        reducer.state.selected_channel_id = Some("default".to_string());
+        reducer.state.selected_source_id = Some("default".to_string());
         let candidates = reducer.apply_refresh(
             None,
             Vec::new(),
             Vec::new(),
-            vec![event("a", "default", EventStatus::Pending)],
+            vec![request("a", "default", RequestStatus::Pending)],
         );
         assert!(candidates.is_empty());
         let candidates = reducer.apply_refresh(
@@ -438,8 +440,8 @@ mod tests {
             Vec::new(),
             Vec::new(),
             vec![
-                event("a", "default", EventStatus::Pending),
-                event("b", "default", EventStatus::Pending),
+                request("a", "default", RequestStatus::Pending),
+                request("b", "default", RequestStatus::Pending),
             ],
         );
         assert_eq!(candidates.len(), 1);
@@ -447,93 +449,87 @@ mod tests {
     }
 
     #[test]
-    fn refresh_selects_first_subscribed_channel_when_selection_is_hidden() {
+    fn refresh_selects_first_subscribed_source_when_selection_is_hidden() {
         let mut reducer = StateReducer::new(Vec::new(), None, "default".to_string());
-        reducer.state.selected_channel_id = Some("hidden".to_string());
+        reducer.state.selected_source_id = Some("hidden".to_string());
 
         reducer.apply_refresh(
             None,
             Vec::new(),
-            vec![channel("hidden", false), channel("visible", true)],
-            vec![event("a", "visible", EventStatus::Pending)],
+            vec![source("hidden", false), source("visible", true)],
+            vec![request("a", "visible", RequestStatus::Pending)],
         );
 
-        assert_eq!(
-            reducer.state.selected_channel_id.as_deref(),
-            Some("visible")
-        );
-        assert_eq!(reducer.state.events[0].channel_id, "visible");
+        assert_eq!(reducer.state.selected_source_id.as_deref(), Some("visible"));
+        assert_eq!(reducer.state.requests[0].source_id, "visible");
     }
 
     #[test]
-    fn event_update_reduces_pending_count_when_resolved() {
+    fn request_update_reduces_pending_count_when_resolved() {
         let mut reducer = StateReducer::new(Vec::new(), None, "default".to_string());
-        reducer.state.selected_channel_id = Some("default".to_string());
-        let pending = event("a", "default", EventStatus::Pending);
+        reducer.state.selected_source_id = Some("default".to_string());
+        let pending = request("a", "default", RequestStatus::Pending);
         reducer.apply_refresh(None, Vec::new(), Vec::new(), vec![pending.clone()]);
         assert_eq!(
-            reducer.state.pending_counts_by_channel.get("default"),
+            reducer.state.pending_counts_by_source.get("default"),
             Some(&1)
         );
 
         let mut resolved = pending;
-        resolved.status = EventStatus::Resolved;
-        reducer.apply_event_update(resolved);
+        resolved.status = RequestStatus::Resolved;
+        reducer.apply_request_update(resolved);
 
-        assert_eq!(reducer.state.pending_counts_by_channel.get("default"), None);
-        assert_eq!(reducer.state.events[0].status, EventStatus::Resolved);
+        assert_eq!(reducer.state.pending_counts_by_source.get("default"), None);
+        assert_eq!(reducer.state.requests[0].status, RequestStatus::Resolved);
     }
 
     #[test]
-    fn event_update_reduces_pending_count_when_cancelled() {
+    fn request_update_reduces_pending_count_when_cancelled() {
         let mut reducer = StateReducer::new(Vec::new(), None, "default".to_string());
-        reducer.state.selected_channel_id = Some("default".to_string());
-        let pending = event("a", "default", EventStatus::Pending);
+        reducer.state.selected_source_id = Some("default".to_string());
+        let pending = request("a", "default", RequestStatus::Pending);
         reducer.apply_refresh(None, Vec::new(), Vec::new(), vec![pending.clone()]);
 
         let mut cancelled = pending;
-        cancelled.status = EventStatus::Cancelled;
-        reducer.apply_event_update(cancelled);
+        cancelled.status = RequestStatus::Cancelled;
+        reducer.apply_request_update(cancelled);
 
-        assert_eq!(reducer.state.pending_counts_by_channel.get("default"), None);
-        assert_eq!(reducer.state.events[0].status, EventStatus::Cancelled);
+        assert_eq!(reducer.state.pending_counts_by_source.get("default"), None);
+        assert_eq!(reducer.state.requests[0].status, RequestStatus::Cancelled);
     }
 
     #[test]
-    fn event_update_moves_pending_count_between_channels() {
+    fn request_update_moves_pending_count_between_sources() {
         let mut reducer = StateReducer::new(Vec::new(), None, "default".to_string());
-        reducer.state.selected_channel_id = Some("alpha".to_string());
-        let pending = event("a", "alpha", EventStatus::Pending);
+        reducer.state.selected_source_id = Some("alpha".to_string());
+        let pending = request("a", "alpha", RequestStatus::Pending);
         reducer.apply_refresh(None, Vec::new(), Vec::new(), vec![pending.clone()]);
 
         let mut moved = pending;
-        moved.channel_id = "beta".to_string();
-        reducer.apply_event_update(moved);
+        moved.source_id = "beta".to_string();
+        reducer.apply_request_update(moved);
 
-        assert_eq!(reducer.state.pending_counts_by_channel.get("alpha"), None);
-        assert_eq!(
-            reducer.state.pending_counts_by_channel.get("beta"),
-            Some(&1)
-        );
+        assert_eq!(reducer.state.pending_counts_by_source.get("alpha"), None);
+        assert_eq!(reducer.state.pending_counts_by_source.get("beta"), Some(&1));
     }
 
     #[test]
-    fn visible_events_keep_pending_and_limit_handled_events() {
-        let mut events: Vec<_> = (0..=HANDLED_EVENT_DISPLAY_LIMIT)
+    fn visible_requests_keep_pending_and_limit_handled_requests() {
+        let mut requests: Vec<_> = (0..=HANDLED_REQUEST_DISPLAY_LIMIT)
             .map(|index| {
                 let id = format!("resolved-{index}");
-                event(&id, "default", EventStatus::Resolved)
+                request(&id, "default", RequestStatus::Resolved)
             })
             .collect();
-        events.push(event("pending", "default", EventStatus::Pending));
+        requests.push(request("pending", "default", RequestStatus::Pending));
 
-        let visible = visible_events(events);
+        let visible = visible_requests(requests);
         let handled_count = visible
             .iter()
-            .filter(|event| event.status != EventStatus::Pending)
+            .filter(|request| request.status != RequestStatus::Pending)
             .count();
 
-        assert!(visible.iter().any(|event| event.id == "pending"));
-        assert_eq!(handled_count, HANDLED_EVENT_DISPLAY_LIMIT);
+        assert!(visible.iter().any(|request| request.id == "pending"));
+        assert_eq!(handled_count, HANDLED_REQUEST_DISPLAY_LIMIT);
     }
 }

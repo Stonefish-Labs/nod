@@ -57,8 +57,8 @@ final class NodSigningKeyStoreTests: XCTestCase {
     let store = NodSigningKeyStore(keychain: keychain, signingKeys: provider)
 
     let signature = try store.sign(NodDecisionSigningRequest(
-      event: makeEvent(),
-      action: NodAction(id: "approve", label: "Approve", kind: .approve),
+      request: makeRequest(),
+      option: NodRequestOption(id: "approve", label: "Approve", kind: .approve),
       text: " approved ",
       userId: "user-1",
       deviceId: "device-1",
@@ -144,13 +144,14 @@ private final class TestSecureEnclavePrivateKey: NodSecureEnclaveSigningPrivateK
   }
 }
 
-private func makeEvent() throws -> NodEvent {
+private func makeRequest() throws -> NodRequest {
   let data = """
     {
-      "id": "event-1",
-      "channel_id": "channel-1",
+      "id": "request-1",
+      "request_id": "request-1",
+      "source_id": "source-1",
       "recipients": [],
-      "action_resolution": "shared",
+      "decision_resolution": "shared",
       "title": "Deploy?",
       "summary": "Production deploy",
       "body_markdown": "Approve deploy",
@@ -165,14 +166,14 @@ private func makeEvent() throws -> NodEvent {
       "created_at": "2026-05-31T12:00:00.000Z",
       "updated_at": "2026-05-31T12:00:00.000Z",
       "resolved_at": null,
-      "result": null,
-      "user_results": [],
+      "decision": null,
+      "decisions": [],
       "callback_url": null,
       "request_digest": "digest-1",
-      "actions": []
+      "options": []
     }
     """.data(using: .utf8)!
-  return try JSONDecoder.nod.decode(NodEvent.self, from: data)
+  return try JSONDecoder.nod.decode(NodRequest.self, from: data)
 }
 
 private func keychainValue<Value: Encodable>(for value: Value) throws -> String {

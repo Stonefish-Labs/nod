@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use nod_client_core::{models::UserDevice, RenameDeviceParams};
 
-use super::{action_text::ModalResult, is_close_key, RuntimeCommand, TextInput};
+use super::{is_close_key, option_text::ModalResult, RuntimeCommand, TextInput};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RenameDeviceForm {

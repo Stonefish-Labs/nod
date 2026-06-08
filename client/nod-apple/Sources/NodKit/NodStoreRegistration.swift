@@ -201,13 +201,13 @@ extension NodStore {
 
     currentUser = nil
     registeredDevices = []
-    channels = []
-    pendingCountsByChannel = [:]
-    events = []
+    sources = []
+    pendingCountsBySource = [:]
+    requests = []
     notificationDeliveryMode = .push
-    resetKnownPendingEvents()
-    selectedChannelId = nil
-    selectedEventId = nil
+    resetKnownPendingRequests()
+    selectedSourceId = nil
+    selectedRequestId = nil
     sync.disconnect()
     isSyncConnected = false
     if isRegistered {
@@ -261,10 +261,10 @@ extension NodStore {
     )
     apply(notificationDelivery: response.notificationDelivery)
     registeredDevices = response.devices
-    channels = response.channels
-    resetKnownPendingEvents()
-    selectedChannelId = response.channels.first(where: \.subscribed)?.id ?? response.channels.first?.id
-    selectedEventId = nil
+    sources = response.sources
+    resetKnownPendingRequests()
+    selectedSourceId = response.sources.first(where: \.subscribed)?.id ?? response.sources.first?.id
+    selectedRequestId = nil
     defaults.set(profileId, forKey: "nod.selectedServerId")
     defaults.set(baseURLString, forKey: "nod.baseURL")
     defaults.set(deviceName, forKey: "nod.deviceName")

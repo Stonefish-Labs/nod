@@ -6,11 +6,11 @@ use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::models::{Action, ActionKind, DecisionSignature, DeviceSigningKey, Event};
+use crate::models::{DecisionSignature, DeviceSigningKey, OptionKind, Request, RequestOption};
 
 pub const DECISION_SIGNING_ALGORITHM: &str = "p256_ecdsa_sha256";
 
-const IMPLICIT_DISMISS_ACTION_ID: &str = "dismiss";
+const IMPLICIT_DISMISS_OPTION_ID: &str = "dismiss";
 const SIGNING_PAYLOAD_VERSION: &str = "nod-decision-v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -44,17 +44,17 @@ impl StoredSigningKey {
 
     pub fn sign_decision(&self, request: DecisionSigningRequest<'_>) -> Result<DecisionSignature> {
         let request_digest = request
-            .event
+            .request
             .request_digest
             .as_deref()
-            .ok_or_else(|| anyhow!("request digest is missing for {}", request.event.id))?;
-        let action = action_for(request.event, request.action_id)?;
+            .ok_or_else(|| anyhow!("request digest is missing for {}", request.request.id))?;
+        let option = option_for(request.request, request.option_id)?;
         let nonce = uuid::Uuid::new_v4().to_string();
         let signed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
         let text = request.text.and_then(trimmed_text);
         let payload = decision_signing_payload(DecisionSigningPayload {
-            event: request.event,
-            action,
+            request: request.request,
+            option,
             text,
             user_id: request.user_id,
             device_id: request.device_id,
@@ -82,16 +82,16 @@ impl StoredSigningKey {
 
 #[derive(Debug, Clone, Copy)]
 pub struct DecisionSigningRequest<'a> {
-    pub event: &'a Event,
-    pub action_id: &'a str,
+    pub request: &'a Request,
+    pub option_id: &'a str,
     pub text: Option<&'a str>,
     pub user_id: &'a str,
     pub device_id: &'a str,
 }
 
 struct DecisionSigningPayload<'a> {
-    event: &'a Event,
-    action: ActionRef<'a>,
+    request: &'a Request,
+    option: OptionRef<'a>,
     text: Option<&'a str>,
     user_id: &'a str,
     device_id: &'a str,
@@ -102,36 +102,36 @@ struct DecisionSigningPayload<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ActionRef<'a> {
+struct OptionRef<'a> {
     id: &'a str,
-    kind: &'a ActionKind,
+    kind: &'a OptionKind,
 }
 
-impl<'a> From<&'a Action> for ActionRef<'a> {
-    fn from(action: &'a Action) -> Self {
+impl<'a> From<&'a RequestOption> for OptionRef<'a> {
+    fn from(option: &'a RequestOption) -> Self {
         Self {
-            id: &action.id,
-            kind: &action.kind,
+            id: &option.id,
+            kind: &option.kind,
         }
     }
 }
 
-fn action_for<'a>(event: &'a Event, action_id: &'a str) -> Result<ActionRef<'a>> {
-    if let Some(action) = event.actions.iter().find(|action| action.id == action_id) {
-        return Ok(action.into());
+fn option_for<'a>(request: &'a Request, option_id: &'a str) -> Result<OptionRef<'a>> {
+    if let Some(option) = request.options.iter().find(|option| option.id == option_id) {
+        return Ok(option.into());
     }
 
-    // The UI can synthesize a dismiss button for actionless events. The server
+    // The UI can synthesize a dismiss button for optionless requests. The server
     // still verifies that submission against the same canonical payload shape.
-    if action_id == IMPLICIT_DISMISS_ACTION_ID {
-        return Ok(ActionRef {
-            id: IMPLICIT_DISMISS_ACTION_ID,
-            kind: &ActionKind::Dismiss,
+    if option_id == IMPLICIT_DISMISS_OPTION_ID {
+        return Ok(OptionRef {
+            id: IMPLICIT_DISMISS_OPTION_ID,
+            kind: &OptionKind::Dismiss,
         });
     }
     Err(anyhow!(
-        "action {action_id} is not available for {}",
-        event.id
+        "option {option_id} is not available for {}",
+        request.id
     ))
 }
 
@@ -140,10 +140,10 @@ fn decision_signing_payload(payload: DecisionSigningPayload<'_>) -> String {
     // trailing newline are part of the signing contract.
     [
         SIGNING_PAYLOAD_VERSION.to_string(),
-        format!("request_id:{}", payload.event.id),
+        format!("request_id:{}", payload.request.id),
         format!("request_digest:{}", payload.request_digest),
-        format!("option_id:{}", payload.action.id),
-        format!("option_kind:{}", payload.action.kind.as_str()),
+        format!("option_id:{}", payload.option.id),
+        format!("option_kind:{}", payload.option.kind.as_str()),
         format!("user_id:{}", payload.user_id),
         format!("device_id:{}", payload.device_id),
         format!("key_id:{}", payload.key_id),
@@ -176,17 +176,18 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::*;
-    use crate::models::{ActionResolution, EventStatus};
+    use crate::models::{DecisionResolution, RequestStatus};
 
     const UNCOMPRESSED_X963_PUBLIC_KEY_LENGTH: usize = 65;
     const UNCOMPRESSED_X963_PUBLIC_KEY_PREFIX: u8 = 4;
 
-    fn event() -> Event {
-        Event {
+    fn request() -> Request {
+        Request {
             id: "request-1".to_string(),
-            channel_id: "default".to_string(),
+            request_id: "request-1".to_string(),
+            source_id: "default".to_string(),
             recipients: Vec::new(),
-            action_resolution: ActionResolution::Shared,
+            decision_resolution: DecisionResolution::Shared,
             title: "Deploy".to_string(),
             summary: String::new(),
             body_markdown: String::new(),
@@ -197,17 +198,17 @@ mod tests {
             privacy: "private".to_string(),
             dedupe_key: None,
             expires_at: None,
-            status: EventStatus::Pending,
+            status: RequestStatus::Pending,
             created_at: Utc.with_ymd_and_hms(2026, 5, 28, 12, 0, 0).unwrap(),
             updated_at: Utc.with_ymd_and_hms(2026, 5, 28, 12, 0, 0).unwrap(),
             resolved_at: None,
-            result: None,
-            user_results: Vec::new(),
+            decision: None,
+            decisions: Vec::new(),
             callback_url: None,
-            actions: vec![Action {
+            options: vec![RequestOption {
                 id: "approve".to_string(),
                 label: "Approve".to_string(),
-                kind: ActionKind::Approve,
+                kind: OptionKind::Approve,
                 style: "default".to_string(),
                 requires_text: false,
                 text_placeholder: None,
@@ -220,10 +221,10 @@ mod tests {
 
     #[test]
     fn decision_payload_matches_server_contract() {
-        let event = event();
+        let request = request();
         let payload = decision_signing_payload(DecisionSigningPayload {
-            event: &event,
-            action: (&event.actions[0]).into(),
+            request: &request,
+            option: (&request.options[0]).into(),
             text: Some("ship it"),
             user_id: "user-1",
             device_id: "device-1",
@@ -252,15 +253,15 @@ mod tests {
     }
 
     #[test]
-    fn actionless_events_can_still_dismiss() {
-        let mut event = event();
-        event.actions.clear();
+    fn optionless_requests_can_still_dismiss() {
+        let mut request = request();
+        request.options.clear();
 
-        let action = action_for(&event, IMPLICIT_DISMISS_ACTION_ID)
+        let option = option_for(&request, IMPLICIT_DISMISS_OPTION_ID)
             .expect("implicit dismiss should be available");
 
-        assert_eq!(action.id, IMPLICIT_DISMISS_ACTION_ID);
-        assert_eq!(*action.kind, ActionKind::Dismiss);
+        assert_eq!(option.id, IMPLICIT_DISMISS_OPTION_ID);
+        assert_eq!(*option.kind, OptionKind::Dismiss);
     }
 
     #[test]
@@ -270,13 +271,13 @@ mod tests {
 
     #[test]
     fn signing_fails_when_request_digest_is_missing() {
-        let mut event = event();
-        event.request_digest = None;
+        let mut request = request();
+        request.request_digest = None;
         let key = StoredSigningKey::generate();
         let error = key
             .sign_decision(DecisionSigningRequest {
-                event: &event,
-                action_id: "approve",
+                request: &request,
+                option_id: "approve",
                 text: None,
                 user_id: "user-1",
                 device_id: "device-1",
@@ -287,20 +288,20 @@ mod tests {
     }
 
     #[test]
-    fn signing_fails_when_action_is_not_available() {
-        let event = event();
+    fn signing_fails_when_option_is_not_available() {
+        let request = request();
         let key = StoredSigningKey::generate();
         let error = key
             .sign_decision(DecisionSigningRequest {
-                event: &event,
-                action_id: "reject",
+                request: &request,
+                option_id: "reject",
                 text: None,
                 user_id: "user-1",
                 device_id: "device-1",
             })
-            .expect_err("unknown action should fail signing");
+            .expect_err("unknown option should fail signing");
 
-        assert!(error.to_string().contains("action reject is not available"));
+        assert!(error.to_string().contains("option reject is not available"));
     }
 
     #[test]

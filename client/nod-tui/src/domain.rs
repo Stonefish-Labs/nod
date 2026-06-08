@@ -1,27 +1,29 @@
-use nod_client_core::models::{Action, ActionKind, Channel, ClientState, Event, EventStatus};
+use nod_client_core::models::{
+    ClientState, OptionKind, Request, RequestOption, RequestStatus, Source,
+};
 
 pub fn total_pending_count(state: &ClientState) -> usize {
-    state.pending_counts_by_channel.values().sum()
+    state.pending_counts_by_source.values().sum()
 }
 
-pub fn pending_count_for(channel: &Channel, state: &ClientState) -> usize {
+pub fn pending_count_for(source: &Source, state: &ClientState) -> usize {
     state
-        .pending_counts_by_channel
-        .get(&channel.id)
+        .pending_counts_by_source
+        .get(&source.id)
         .copied()
         .unwrap_or_default()
 }
 
-pub fn subscribed_channels(state: &ClientState) -> Vec<&Channel> {
+pub fn subscribed_sources(state: &ClientState) -> Vec<&Source> {
     state
-        .channels
+        .sources
         .iter()
-        .filter(|channel| channel.subscribed)
+        .filter(|source| source.subscribed)
         .collect()
 }
 
-pub fn ordered_events(events: &[Event]) -> Vec<&Event> {
-    let mut ordered: Vec<_> = events.iter().collect();
+pub fn ordered_requests(requests: &[Request]) -> Vec<&Request> {
+    let mut ordered: Vec<_> = requests.iter().collect();
     ordered.sort_by(|left, right| {
         status_rank(&left.status)
             .cmp(&status_rank(&right.status))
@@ -31,21 +33,21 @@ pub fn ordered_events(events: &[Event]) -> Vec<&Event> {
     ordered
 }
 
-pub fn selected_channel(state: &ClientState) -> Option<&Channel> {
+pub fn selected_source(state: &ClientState) -> Option<&Source> {
     state
-        .selected_channel_id
+        .selected_source_id
         .as_deref()
-        .and_then(|id| state.channels.iter().find(|channel| channel.id == id))
-        .or_else(|| state.channels.iter().find(|channel| channel.subscribed))
-        .or_else(|| state.channels.first())
+        .and_then(|id| state.sources.iter().find(|source| source.id == id))
+        .or_else(|| state.sources.iter().find(|source| source.subscribed))
+        .or_else(|| state.sources.first())
 }
 
-pub fn selected_event(state: &ClientState) -> Option<&Event> {
+pub fn selected_request(state: &ClientState) -> Option<&Request> {
     state
-        .selected_event_id
+        .selected_request_id
         .as_deref()
-        .and_then(|id| state.events.iter().find(|event| event.id == id))
-        .or_else(|| ordered_events(&state.events).into_iter().next())
+        .and_then(|id| state.requests.iter().find(|request| request.id == id))
+        .or_else(|| ordered_requests(&state.requests).into_iter().next())
 }
 
 pub fn selected_server_id(state: &ClientState) -> Option<&str> {
@@ -55,58 +57,58 @@ pub fn selected_server_id(state: &ClientState) -> Option<&str> {
         .or_else(|| state.servers.first().map(|server| server.id.as_str()))
 }
 
-pub fn action_requires_text(action: &Action) -> bool {
-    action.requires_text
+pub fn option_requires_text(option: &RequestOption) -> bool {
+    option.requires_text
         || matches!(
-            action.kind,
-            ActionKind::ApproveWithText | ActionKind::RejectWithText
+            option.kind,
+            OptionKind::ApproveWithText | OptionKind::RejectWithText
         )
 }
 
-pub fn action_for_kind<'a>(event: &'a Event, kind: ActionKind) -> Option<ActionChoice<'a>> {
-    event
-        .actions
+pub fn option_for_kind<'a>(request: &'a Request, kind: OptionKind) -> Option<OptionChoice<'a>> {
+    request
+        .options
         .iter()
-        .find(|action| action.kind == kind)
-        .map(ActionChoice::from_action)
-        .or_else(|| default_dismiss_action(event, &kind))
+        .find(|option| option.kind == kind)
+        .map(OptionChoice::from_option)
+        .or_else(|| default_dismiss_option(request, &kind))
 }
 
-pub fn first_text_action(event: &Event) -> Option<ActionChoice<'_>> {
-    event
-        .actions
+pub fn first_text_option(request: &Request) -> Option<OptionChoice<'_>> {
+    request
+        .options
         .iter()
-        .find(|action| action_requires_text(action))
-        .map(ActionChoice::from_action)
+        .find(|option| option_requires_text(option))
+        .map(OptionChoice::from_option)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ActionChoice<'a> {
+pub struct OptionChoice<'a> {
     pub id: &'a str,
     pub label: &'a str,
     pub placeholder: Option<&'a str>,
     pub requires_text: bool,
 }
 
-impl<'a> ActionChoice<'a> {
-    fn from_action(action: &'a Action) -> Self {
+impl<'a> OptionChoice<'a> {
+    fn from_option(option: &'a RequestOption) -> Self {
         Self {
-            id: &action.id,
-            label: &action.label,
-            placeholder: action.text_placeholder.as_deref(),
-            requires_text: action_requires_text(action),
+            id: &option.id,
+            label: &option.label,
+            placeholder: option.text_placeholder.as_deref(),
+            requires_text: option_requires_text(option),
         }
     }
 }
 
-fn default_dismiss_action<'a>(event: &'a Event, kind: &ActionKind) -> Option<ActionChoice<'a>> {
-    if *kind != ActionKind::Dismiss || !event.actions.is_empty() {
+fn default_dismiss_option<'a>(request: &'a Request, kind: &OptionKind) -> Option<OptionChoice<'a>> {
+    if *kind != OptionKind::Dismiss || !request.options.is_empty() {
         return None;
     }
 
-    // The core signer recognizes this implicit action for actionless events,
+    // The core signer recognizes this implicit option for optionless requests,
     // so the TUI can offer a consistent dismiss key without server metadata.
-    Some(ActionChoice {
+    Some(OptionChoice {
         id: "dismiss",
         label: "Dismiss",
         placeholder: None,
@@ -114,42 +116,42 @@ fn default_dismiss_action<'a>(event: &'a Event, kind: &ActionKind) -> Option<Act
     })
 }
 
-fn status_rank(status: &EventStatus) -> u8 {
+fn status_rank(status: &RequestStatus) -> u8 {
     match status {
-        EventStatus::Pending => 0,
-        EventStatus::Resolved => 1,
-        EventStatus::Expired => 1,
-        EventStatus::Cancelled => 1,
+        RequestStatus::Pending => 0,
+        RequestStatus::Resolved => 1,
+        RequestStatus::Expired => 1,
+        RequestStatus::Cancelled => 1,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{client_state, event_with_status};
-    use nod_client_core::models::EventStatus;
+    use crate::test_support::{client_state, request_with_status};
+    use nod_client_core::models::RequestStatus;
 
     #[test]
-    fn ordered_events_keep_pending_before_handled() {
-        let resolved = event_with_status("resolved", "default", EventStatus::Resolved);
-        let pending = event_with_status("pending", "default", EventStatus::Pending);
-        let events = vec![resolved, pending];
+    fn ordered_requests_keep_pending_before_handled() {
+        let resolved = request_with_status("resolved", "default", RequestStatus::Resolved);
+        let pending = request_with_status("pending", "default", RequestStatus::Pending);
+        let requests = vec![resolved, pending];
 
-        let ordered = ordered_events(&events);
+        let ordered = ordered_requests(&requests);
 
         assert_eq!(ordered[0].id, "pending");
         assert_eq!(ordered[1].id, "resolved");
     }
 
     #[test]
-    fn selected_event_falls_back_to_first_ordered_event() {
+    fn selected_request_falls_back_to_first_ordered_request() {
         let mut state = client_state();
-        state.events = vec![
-            event_with_status("handled", "default", EventStatus::Resolved),
-            event_with_status("pending", "default", EventStatus::Pending),
+        state.requests = vec![
+            request_with_status("handled", "default", RequestStatus::Resolved),
+            request_with_status("pending", "default", RequestStatus::Pending),
         ];
 
-        let selected = selected_event(&state).map(|event| event.id.as_str());
+        let selected = selected_request(&state).map(|request| request.id.as_str());
 
         assert_eq!(selected, Some("pending"));
     }

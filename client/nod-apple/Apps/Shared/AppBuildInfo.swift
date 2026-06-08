@@ -7,7 +7,7 @@ import AppKit
 #endif
 
 struct StatusBadge: View {
-  let status: NodEventStatus
+  let status: NodRequestStatus
 
   var body: some View {
     Text(status.rawValue.capitalized)

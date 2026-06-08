@@ -3,8 +3,8 @@ import Foundation
 
 public struct NodNotificationOpenRequest: Identifiable, Equatable, Sendable {
   public let id = UUID()
-  public let eventId: String?
-  public let channelId: String?
+  public let requestId: String?
+  public let sourceId: String?
 }
 
 @MainActor
@@ -16,11 +16,11 @@ public final class NodStore: ObservableObject {
   @Published public var enrollmentCode: String = ""
   @Published public var currentUser: NodUser?
   @Published public var registeredDevices: [NodUserDevice] = []
-  @Published public var channels: [NodChannel] = []
-  @Published public var pendingCountsByChannel: [String: Int] = [:]
-  @Published public var events: [NodEvent] = []
-  @Published public var selectedChannelId: String?
-  @Published public var selectedEventId: String?
+  @Published public var sources: [NodSource] = []
+  @Published public var pendingCountsBySource: [String: Int] = [:]
+  @Published public var requests: [NodRequest] = []
+  @Published public var selectedSourceId: String?
+  @Published public var selectedRequestId: String?
   @Published public var notificationSound: String
   @Published public var lastError: String?
   @Published public var notificationPermissionIssue: String?
@@ -40,12 +40,12 @@ public final class NodStore: ObservableObject {
     return servers.first { $0.id == selectedServerId } ?? servers.first
   }
 
-  public var subscribedChannels: [NodChannel] {
-    channels.filter(\.subscribed)
+  public var subscribedSources: [NodSource] {
+    sources.filter(\.subscribed)
   }
 
   public var totalPendingCount: Int {
-    pendingCountsByChannel.values.reduce(0, +)
+    pendingCountsBySource.values.reduce(0, +)
   }
 
   public var alertMessage: String? {
@@ -74,8 +74,8 @@ public final class NodStore: ObservableObject {
   var pushToken: String?
   var tokenCache: [String: String] = [:]
   var loadedTokenServerIds = Set<String>()
-  var knownPendingEventIds = Set<String>()
-  var hasLoadedPendingEventSnapshot = false
+  var knownPendingRequestIds = Set<String>()
+  var hasLoadedPendingRequestSnapshot = false
   var syncReconnectTask: Task<Void, Never>?
 
   public init(
@@ -87,15 +87,10 @@ public final class NodStore: ObservableObject {
     self.platform = platform
     self.presentLocalNotifications = presentLocalNotifications
     self.appAttest = appAttest
+    resetLegacyClientStateIfNeeded()
 
     let savedDeviceName = defaults.string(forKey: "nod.deviceName") ?? defaultDeviceName
-    let savedBaseURL = NodServerAddress.normalizedBaseURL(
-      defaults.string(forKey: "nod.baseURL") ?? ""
-    )
-    let savedDraftBaseURL = defaults.string(forKey: "nod.draft.baseURL").map(
-      NodServerAddress.normalizedBaseURL
-    )
-    self.baseURLString = savedDraftBaseURL ?? savedBaseURL
+    self.baseURLString = ""
     self.deviceName = savedDeviceName
     self.notificationSound = defaults.string(forKey: "nod.notificationSound") ?? "default"
 
@@ -126,13 +121,13 @@ public final class NodStore: ObservableObject {
       apiProvider: { [weak self] in
         self?.api()
       },
-      onOpen: { [weak self] eventId, channelId in
+      onOpen: { [weak self] requestId, sourceId in
         Task { @MainActor in
-          await self?.openNotification(eventId: eventId, channelId: channelId)
+          await self?.openNotification(requestId: requestId, sourceId: sourceId)
         }
       },
-      onAction: { [weak self] eventId, actionId, text in
-        await self?.submitNotificationAction(eventId: eventId, actionId: actionId, text: text)
+      onOption: { [weak self] requestId, optionId, text in
+        await self?.submitNotificationOption(requestId: requestId, optionId: optionId, text: text)
       }
     )
   }
@@ -160,12 +155,12 @@ public final class NodStore: ObservableObject {
     defaults.set(serverId, forKey: "nod.selectedServerId")
     currentUser = nil
     registeredDevices = []
-    channels = []
-    pendingCountsByChannel = [:]
-    events = []
-    resetKnownPendingEvents()
-    selectedChannelId = nil
-    selectedEventId = nil
+    sources = []
+    pendingCountsBySource = [:]
+    requests = []
+    resetKnownPendingRequests()
+    selectedSourceId = nil
+    selectedRequestId = nil
     sync.disconnect()
     isSyncConnected = false
     connectSync()

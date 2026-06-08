@@ -1,4 +1,4 @@
-use nod_client_core::models::Event;
+use nod_client_core::models::Request;
 use tokio::sync::mpsc;
 use windows::{
     core::HSTRING,
@@ -10,15 +10,15 @@ use windows::{
 use crate::notifier::{windows_toast::windows_toast_xml, NotificationActivation};
 
 pub(crate) async fn show_notification(
-    event: &Event,
+    request: &Request,
     activations: mpsc::Sender<NotificationActivation>,
 ) -> anyhow::Result<()> {
     let document = XmlDocument::new()?;
-    document.LoadXml(&HSTRING::from(windows_toast_xml(event)))?;
+    document.LoadXml(&HSTRING::from(windows_toast_xml(request)))?;
     let toast = ToastNotification::CreateToastNotification(&document)?;
-    let event_id = event.id.clone();
+    let request_id = request.id.clone();
     toast.Activated(&TypedEventHandler::new(move |_, args| {
-        let action_id = args
+        let option_id = args
             .and_then(|args| {
                 args.cast::<windows::UI::Notifications::ToastActivatedEventArgs>()
                     .ok()
@@ -26,13 +26,13 @@ pub(crate) async fn show_notification(
             .and_then(|args| args.Arguments().ok())
             .map(|arguments| arguments.to_string_lossy())
             .filter(|arguments| !arguments.is_empty());
-        let activation = match action_id.as_deref() {
+        let activation = match option_id.as_deref() {
             Some("open") | None => NotificationActivation::Open {
-                event_id: Some(event_id.clone()),
+                request_id: Some(request_id.clone()),
             },
-            Some(action_id) => NotificationActivation::Submit {
-                event_id: event_id.clone(),
-                action_id: action_id.to_string(),
+            Some(option_id) => NotificationActivation::Submit {
+                request_id: request_id.clone(),
+                option_id: option_id.to_string(),
             },
         };
         let _ = activations.blocking_send(activation);
@@ -43,6 +43,6 @@ pub(crate) async fn show_notification(
     Ok(())
 }
 
-pub(crate) async fn remove_notification(_event_id: &str) -> anyhow::Result<()> {
+pub(crate) async fn remove_notification(_request_id: &str) -> anyhow::Result<()> {
     Ok(())
 }

@@ -1,25 +1,25 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use nod_client_core::{models::Event, SubmitActionParams};
+use nod_client_core::{models::Request, SubmitOptionParams};
 
 use super::{is_close_key, RuntimeCommand, TextInput};
-use crate::domain::ActionChoice;
+use crate::domain::OptionChoice;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ActionTextForm {
-    event_id: String,
-    action_id: String,
+pub(crate) struct OptionTextForm {
+    request_id: String,
+    option_id: String,
     label: String,
     placeholder: Option<String>,
     input: TextInput,
 }
 
-impl ActionTextForm {
-    pub(super) fn from_choice(event: &Event, action: ActionChoice<'_>) -> Self {
+impl OptionTextForm {
+    pub(super) fn from_choice(request: &Request, option: OptionChoice<'_>) -> Self {
         Self {
-            event_id: event.id.clone(),
-            action_id: action.id.to_string(),
-            label: action.label.to_string(),
-            placeholder: action.placeholder.map(ToString::to_string),
+            request_id: request.id.clone(),
+            option_id: option.id.to_string(),
+            label: option.label.to_string(),
+            placeholder: option.placeholder.map(ToString::to_string),
             input: TextInput::new(),
         }
     }
@@ -42,9 +42,9 @@ impl ActionTextForm {
         }
 
         if key.code == KeyCode::Enter {
-            return ModalResult::commands(vec![RuntimeCommand::SubmitAction(SubmitActionParams {
-                event_id: self.event_id.clone(),
-                action_id: self.action_id.clone(),
+            return ModalResult::commands(vec![RuntimeCommand::SubmitOption(SubmitOptionParams {
+                request_id: self.request_id.clone(),
+                option_id: self.option_id.clone(),
                 text: Some(self.input.value().to_string()),
             })]);
         }
@@ -86,31 +86,31 @@ impl<T> ModalResult<T> {
 #[cfg(test)]
 mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use nod_client_core::models::{Action, ActionKind};
+    use nod_client_core::models::{OptionKind, RequestOption};
 
     use super::*;
-    use crate::test_support::event;
+    use crate::test_support::request;
 
     #[test]
     fn escape_closes_without_command() {
-        let event = event("deploy", "default");
-        let action = Action {
+        let request = request("deploy", "default");
+        let option = RequestOption {
             id: "approve_notes".to_string(),
             label: "Approve".to_string(),
-            kind: ActionKind::ApproveWithText,
+            kind: OptionKind::ApproveWithText,
             style: "default".to_string(),
             requires_text: true,
             text_placeholder: None,
             destructive: false,
             foreground: false,
         };
-        let choice = ActionChoice {
-            id: &action.id,
-            label: &action.label,
-            placeholder: action.text_placeholder.as_deref(),
+        let choice = OptionChoice {
+            id: &option.id,
+            label: &option.label,
+            placeholder: option.text_placeholder.as_deref(),
             requires_text: true,
         };
-        let mut form = ActionTextForm::from_choice(&event, choice);
+        let mut form = OptionTextForm::from_choice(&request, choice);
 
         let result = form.handle_key(key(KeyCode::Esc));
 

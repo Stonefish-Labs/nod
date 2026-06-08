@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  clearChannel,
+  clearSource,
   enroll,
   forgetServer,
   getState,
@@ -9,31 +9,31 @@ import {
   refresh,
   renameDevice,
   revokeDevice,
-  selectChannel,
-  selectEvent,
+  selectSource,
+  selectRequest,
   selectServer,
   setNotificationPreference,
   setSubscription,
-  submitAction,
+  submitOption,
 } from "../commands";
-import { listenForRuntimeEvents } from "../events";
-import { selectedChannel, selectedEvent } from "../domain";
+import { listenForRuntimeMessages } from "../events";
+import { selectedSource, selectedRequest } from "../domain";
 import type {
-  Channel,
+  Source,
   ClientState,
   EnrollParams,
-  EventAction,
-  NodEvent,
-  RuntimeEvent,
+  RequestOption,
+  NodRequest,
+  RuntimeMessage,
   ServerProfile,
   UserDevice,
 } from "../types";
 import { EMPTY_CLIENT_STATE } from "./state";
 
-export interface DesktopClientActions {
+export interface DesktopClientCommands {
   clearError: () => void;
   closeSettings: () => void;
-  clearSelectedChannel: () => Promise<void>;
+  clearSelectedSource: () => Promise<void>;
   enrollDevice: (params: EnrollParams) => Promise<void>;
   forgetSelectedServer: () => Promise<void>;
   openSettings: () => void;
@@ -41,22 +41,22 @@ export interface DesktopClientActions {
   refreshState: () => Promise<void>;
   renameUserDevice: (deviceId: string, name: string) => Promise<boolean>;
   revokeUserDevice: (deviceId: string) => Promise<void>;
-  selectChannel: (channel: Channel) => Promise<void>;
-  selectEvent: (event: NodEvent) => Promise<void>;
+  selectSource: (source: Source) => Promise<void>;
+  selectRequest: (request: NodRequest) => Promise<void>;
   selectServer: (server: ServerProfile) => Promise<void>;
-  submitEventAction: (
-    event: NodEvent,
-    action: EventAction,
+  submitRequestOption: (
+    request: NodRequest,
+    option: RequestOption,
     text?: string,
   ) => Promise<void>;
-  toggleChannelSubscription: (channel: Channel) => Promise<void>;
+  toggleSourceSubscription: (source: Source) => Promise<void>;
   updateNotificationSound: (notificationSound: string) => Promise<void>;
 }
 
 export interface DesktopClient {
-  activeChannel?: Channel;
-  activeEvent?: NodEvent;
-  actions: DesktopClientActions;
+  activeSource?: Source;
+  activeRequest?: NodRequest;
+  commands: DesktopClientCommands;
   devices: UserDevice[];
   error: string | null;
   isLoading: boolean;
@@ -88,9 +88,9 @@ export function useDesktopClient(): DesktopClient {
         }
       });
 
-    listenForRuntimeEvents((runtimeEvent) => {
+    listenForRuntimeMessages((runtimeMessage) => {
       if (!cancelled) {
-        applyRuntimeEvent(runtimeEvent, setState, setError);
+        applyRuntimeMessage(runtimeMessage, setState, setError);
       }
     })
       .then((unlisten) => {
@@ -118,8 +118,8 @@ export function useDesktopClient(): DesktopClient {
       .catch((reason: unknown) => setError(String(reason)));
   }, [settingsOpen]);
 
-  const activeChannel = useMemo(() => selectedChannel(state), [state]);
-  const activeEvent = useMemo(() => selectedEvent(state), [state]);
+  const activeSource = useMemo(() => selectedSource(state), [state]);
+  const activeRequest = useMemo(() => selectedRequest(state), [state]);
 
   async function runStateCommand(work: () => Promise<ClientState>): Promise<boolean> {
     try {
@@ -144,29 +144,29 @@ export function useDesktopClient(): DesktopClient {
     await runStateCommand(() => selectServer({ server_id: server.id }));
   }
 
-  async function selectNotificationChannel(channel: Channel): Promise<void> {
-    await runStateCommand(() => selectChannel({ channel_id: channel.id }));
+  async function selectNodSource(source: Source): Promise<void> {
+    await runStateCommand(() => selectSource({ source_id: source.id }));
   }
 
-  async function selectNotificationEvent(event: NodEvent): Promise<void> {
-    await runStateCommand(() => selectEvent({ event_id: event.id }));
+  async function selectNodRequest(request: NodRequest): Promise<void> {
+    await runStateCommand(() => selectRequest({ request_id: request.id }));
   }
 
-  async function submitEventAction(
-    event: NodEvent,
-    action: EventAction,
+  async function submitRequestOption(
+    request: NodRequest,
+    option: RequestOption,
     text?: string,
   ): Promise<void> {
     try {
       setError(null);
-      const updated = await submitAction({
-        event_id: event.id,
-        action_id: action.id,
+      const updated = await submitOption({
+        request_id: request.id,
+        option_id: option.id,
         text,
       });
       setState((current) => ({
         ...current,
-        events: current.events.map((candidate) =>
+        requests: current.requests.map((candidate) =>
           candidate.id === updated.id ? updated : candidate,
         ),
       }));
@@ -190,11 +190,11 @@ export function useDesktopClient(): DesktopClient {
     );
   }
 
-  async function toggleChannelSubscription(channel: Channel): Promise<void> {
+  async function toggleSourceSubscription(source: Source): Promise<void> {
     await runStateCommand(() =>
       setSubscription({
-        channel_id: channel.id,
-        subscribed: !channel.subscribed,
+        source_id: source.id,
+        subscribed: !source.subscribed,
       }),
     );
   }
@@ -240,20 +240,20 @@ export function useDesktopClient(): DesktopClient {
     }
   }
 
-  async function clearSelectedChannel(): Promise<void> {
-    const channelId = state.selected_channel_id;
-    if (!channelId) {
+  async function clearSelectedSource(): Promise<void> {
+    const sourceId = state.selected_source_id;
+    if (!sourceId) {
       return;
     }
-    await runStateCommand(() => clearChannel({ channel_id: channelId }));
+    await runStateCommand(() => clearSource({ source_id: sourceId }));
   }
 
   return {
-    activeChannel,
-    activeEvent,
-    actions: {
+    activeSource,
+    activeRequest,
+    commands: {
       clearError: () => setError(null),
-      clearSelectedChannel,
+      clearSelectedSource,
       closeSettings: () => setSettingsOpen(false),
       enrollDevice,
       forgetSelectedServer,
@@ -262,11 +262,11 @@ export function useDesktopClient(): DesktopClient {
       refreshState,
       renameUserDevice,
       revokeUserDevice,
-      selectChannel: selectNotificationChannel,
-      selectEvent: selectNotificationEvent,
+      selectSource: selectNodSource,
+      selectRequest: selectNodRequest,
       selectServer: selectServerProfile,
-      submitEventAction,
-      toggleChannelSubscription,
+      submitRequestOption,
+      toggleSourceSubscription,
       updateNotificationSound,
     },
     devices,
@@ -277,18 +277,18 @@ export function useDesktopClient(): DesktopClient {
   };
 }
 
-function applyRuntimeEvent(
-  runtimeEvent: RuntimeEvent,
+function applyRuntimeMessage(
+  runtimeMessage: RuntimeMessage,
   setState: (state: ClientState) => void,
   setError: (message: string | null) => void,
 ): void {
-  switch (runtimeEvent.event) {
+  switch (runtimeMessage.kind) {
     case "state":
-      setState(runtimeEvent.payload);
-      setError(runtimeEvent.payload.last_error ?? null);
+      setState(runtimeMessage.payload);
+      setError(runtimeMessage.payload.last_error ?? null);
       break;
     case "transient_error":
-      setError(runtimeEvent.payload.message);
+      setError(runtimeMessage.payload.message);
       break;
     case "auth_revoked":
       setError("This device registration was revoked.");

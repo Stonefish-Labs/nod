@@ -1,14 +1,14 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 use nod_client_core::{
-    models::{ClientState, Event, UserDevice},
-    ChannelParams, EnrollParams, NotificationPreferenceParams, RenameDeviceParams,
-    RevokeDeviceParams, SelectEventParams, SelectServerParams, SetSubscriptionParams,
-    SubmitActionParams,
+    models::{ClientState, Request, UserDevice},
+    EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SubmitOptionParams,
 };
 
 use super::{execute_runtime_command, RuntimeCommand, RuntimeCommandOutcome, RuntimePort};
-use crate::test_support::{client_state, event, user_device};
+use crate::test_support::{client_state, request, user_device};
 
 #[derive(Debug, Default)]
 struct FakeRuntime {
@@ -43,26 +43,29 @@ impl RuntimePort for FakeRuntime {
         Ok(client_state())
     }
 
-    async fn select_channel(&mut self, _params: ChannelParams) -> anyhow::Result<ClientState> {
-        self.calls.push("select_channel");
+    async fn select_source(&mut self, _params: SourceParams) -> anyhow::Result<ClientState> {
+        self.calls.push("select_source");
         Ok(client_state())
     }
 
-    async fn select_event(&mut self, _params: SelectEventParams) -> anyhow::Result<ClientState> {
-        self.calls.push("select_event");
+    async fn select_request(
+        &mut self,
+        _params: SelectRequestParams,
+    ) -> anyhow::Result<ClientState> {
+        self.calls.push("select_request");
         Ok(client_state())
     }
 
-    async fn submit_action(&mut self, _params: SubmitActionParams) -> anyhow::Result<Event> {
-        self.calls.push("submit_action");
+    async fn submit_option(&mut self, _params: SubmitOptionParams) -> anyhow::Result<Request> {
+        self.calls.push("submit_option");
         if self.fail_submit {
-            return Err(anyhow!("stale event"));
+            return Err(anyhow!("stale request"));
         }
-        Ok(event("deploy", "default"))
+        Ok(request("deploy", "default"))
     }
 
-    async fn clear_channel(&mut self, _params: ChannelParams) -> anyhow::Result<ClientState> {
-        self.calls.push("clear_channel");
+    async fn clear_source(&mut self, _params: SourceParams) -> anyhow::Result<ClientState> {
+        self.calls.push("clear_source");
         Ok(client_state())
     }
 
@@ -119,7 +122,7 @@ async fn enroll_connects_sync_after_success() {
 }
 
 #[tokio::test]
-async fn submit_action_surfaces_runtime_errors() {
+async fn submit_option_surfaces_runtime_errors() {
     let mut runtime = FakeRuntime {
         fail_submit: true,
         ..FakeRuntime::default()
@@ -127,9 +130,9 @@ async fn submit_action_surfaces_runtime_errors() {
 
     let outcome = execute_runtime_command(
         &mut runtime,
-        RuntimeCommand::SubmitAction(SubmitActionParams {
-            event_id: "missing".to_string(),
-            action_id: "approve".to_string(),
+        RuntimeCommand::SubmitOption(SubmitOptionParams {
+            request_id: "missing".to_string(),
+            option_id: "approve".to_string(),
             text: None,
         }),
     )
@@ -137,7 +140,7 @@ async fn submit_action_surfaces_runtime_errors() {
 
     assert_eq!(
         outcome.err().map(|error| error.to_string()),
-        Some("stale event".to_string())
+        Some("stale request".to_string())
     );
-    assert_eq!(runtime.calls, vec!["submit_action"]);
+    assert_eq!(runtime.calls, vec!["submit_option"]);
 }

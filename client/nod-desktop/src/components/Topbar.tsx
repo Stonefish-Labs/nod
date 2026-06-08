@@ -1,15 +1,15 @@
 import { CircleAlert, X } from "lucide-react";
-import type { Channel } from "../types";
+import type { Source } from "../types";
 
 interface TopbarProps {
-  activeChannel?: Channel;
+  activeSource?: Source;
   error: string | null;
   isConnected: boolean;
   onDismissError: () => void;
 }
 
 export function Topbar({
-  activeChannel,
+  activeSource,
   error,
   isConnected,
   onDismissError,
@@ -17,7 +17,7 @@ export function Topbar({
   return (
     <header className="topbar">
       <div>
-        <p>{activeChannel?.name ?? "Notifications"}</p>
+        <p>{activeSource?.name ?? "Requests"}</p>
         <span>{isConnected ? "Connected" : "Offline"}</span>
       </div>
       {error ? (

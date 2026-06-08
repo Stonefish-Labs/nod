@@ -18,11 +18,11 @@ final class NodDateDecodingTests: XCTestCase {
     }
   }
 
-  func testUnknownActionKindDecodesAsCustom() throws {
+  func testUnknownOptionKindDecodesAsCustom() throws {
     let known = try JSONDecoder().decode(
-      NodActionKind.self, from: #""reject_with_text""#.data(using: .utf8)!)
+      NodOptionKind.self, from: #""reject_with_text""#.data(using: .utf8)!)
     let unknown = try JSONDecoder().decode(
-      NodActionKind.self, from: #""reject_reason""#.data(using: .utf8)!)
+      NodOptionKind.self, from: #""reject_reason""#.data(using: .utf8)!)
 
     XCTAssertEqual(known, .rejectWithText)
     XCTAssertEqual(unknown, .custom)

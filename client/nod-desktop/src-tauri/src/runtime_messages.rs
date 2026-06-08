@@ -3,9 +3,9 @@ use std::fmt::Display;
 use std::sync::Arc;
 
 use nod_client_core::models::ClientState;
-use nod_client_core::NodClientEvent;
+use nod_client_core::NodClientMessage;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use nod_client_core::{NodClientRuntime, SelectEventParams, SubmitActionParams};
+use nod_client_core::{NodClientRuntime, SelectRequestParams, SubmitOptionParams};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
@@ -16,19 +16,19 @@ use crate::notifier::DesktopNotifier;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::{notifier::NotificationActivation, window::focus_main_window};
 
-const RUNTIME_EVENT_NAME: &str = "nod://event";
+const RUNTIME_MESSAGE_EVENT_NAME: &str = "nod://request";
 
-pub(crate) async fn forward_runtime_events(
+pub(crate) async fn forward_runtime_messages(
     app: AppHandle,
     notifier: DesktopNotifier,
-    mut events: mpsc::Receiver<NodClientEvent>,
+    mut messages: mpsc::Receiver<NodClientMessage>,
 ) {
-    while let Some(event) = events.recv().await {
-        // Desktop side-effect failures should surface to the UI without swallowing the runtime event.
-        if let Some(error_event) = desktop_side_effect_error(&notifier, &event).await {
-            emit_runtime_event(&app, RUNTIME_EVENT_NAME, &error_event);
+    while let Some(message) = messages.recv().await {
+        // Desktop side-effect failures should surface to the UI without swallowing the runtime message.
+        if let Some(error_message) = desktop_side_effect_error(&notifier, &message).await {
+            emit_runtime_event(&app, RUNTIME_MESSAGE_EVENT_NAME, &error_message);
         }
-        emit_runtime_event(&app, RUNTIME_EVENT_NAME, &event);
+        emit_runtime_event(&app, RUNTIME_MESSAGE_EVENT_NAME, &message);
     }
 }
 
@@ -40,28 +40,28 @@ pub(crate) async fn handle_notification_activations(
 ) {
     while let Some(activation) = activations.recv().await {
         focus_main_window(&app);
-        if let Some(error_event) = handle_activation(&runtime, activation).await {
-            emit_runtime_event(&app, RUNTIME_EVENT_NAME, &error_event);
+        if let Some(error_message) = handle_activation(&runtime, activation).await {
+            emit_runtime_event(&app, RUNTIME_MESSAGE_EVENT_NAME, &error_message);
         }
     }
 }
 
 async fn desktop_side_effect_error(
     notifier: &DesktopNotifier,
-    event: &NodClientEvent,
-) -> Option<NodClientEvent> {
-    match event {
-        NodClientEvent::NotificationCandidate { event } => notifier
-            .show(event)
+    message: &NodClientMessage,
+) -> Option<NodClientMessage> {
+    match message {
+        NodClientMessage::NotificationCandidate { request } => notifier
+            .show(request)
             .await
             .err()
             .map(|error| transient_desktop_error("show desktop notification", error)),
-        NodClientEvent::NotificationRemoved { event_id } => notifier
-            .remove(event_id)
+        NodClientMessage::NotificationRemoved { request_id } => notifier
+            .remove(request_id)
             .await
             .err()
             .map(|error| transient_desktop_error("remove desktop notification", error)),
-        NodClientEvent::State(state) => notifier
+        NodClientMessage::State(state) => notifier
             .set_badge_or_tray_count(total_pending_count(state))
             .await
             .err()
@@ -74,50 +74,50 @@ async fn desktop_side_effect_error(
 async fn handle_activation(
     runtime: &Arc<Mutex<NodClientRuntime>>,
     activation: NotificationActivation,
-) -> Option<NodClientEvent> {
+) -> Option<NodClientMessage> {
     match activation {
-        NotificationActivation::Open { event_id } => {
-            let event_id = event_id?;
+        NotificationActivation::Open { request_id } => {
+            let request_id = request_id?;
             let mut runtime = runtime.lock().await;
             runtime
-                .select_event(SelectEventParams { event_id })
+                .select_request(SelectRequestParams { request_id })
                 .await
                 .err()
                 .map(|error| transient_desktop_error("open notification", error))
         }
         NotificationActivation::Submit {
-            event_id,
-            action_id,
+            request_id,
+            option_id,
         } => {
             let mut runtime = runtime.lock().await;
             runtime
-                .submit_action(SubmitActionParams {
-                    event_id,
-                    action_id,
+                .submit_option(SubmitOptionParams {
+                    request_id,
+                    option_id,
                     text: None,
                 })
                 .await
                 .err()
-                .map(|error| transient_desktop_error("submit notification action", error))
+                .map(|error| transient_desktop_error("submit notification option", error))
         }
     }
 }
 
-fn emit_runtime_event<T>(app: &AppHandle, event: &str, payload: &T)
+fn emit_runtime_event<T>(app: &AppHandle, request: &str, payload: &T)
 where
     T: Serialize + Clone,
 {
-    let _ = app.emit(event, payload.clone());
+    let _ = app.emit(request, payload.clone());
 }
 
-fn transient_desktop_error(context: &str, error: impl Display) -> NodClientEvent {
-    NodClientEvent::TransientError {
+fn transient_desktop_error(context: &str, error: impl Display) -> NodClientMessage {
+    NodClientMessage::TransientError {
         message: format!("{context}: {error}"),
     }
 }
 
 fn total_pending_count(state: &ClientState) -> usize {
-    state.pending_counts_by_channel.values().sum()
+    state.pending_counts_by_source.values().sum()
 }
 
 #[cfg(test)]
@@ -125,12 +125,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn desktop_errors_become_transient_runtime_events() {
-        let event = transient_desktop_error("show desktop notification", "unsupported");
+    fn desktop_errors_become_transient_runtime_messages() {
+        let message = transient_desktop_error("show desktop notification", "unsupported");
 
         assert!(matches!(
-            event,
-            NodClientEvent::TransientError { ref message }
+            message,
+            NodClientMessage::TransientError { ref message }
                 if message == "show desktop notification: unsupported"
         ));
     }

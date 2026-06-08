@@ -21,7 +21,7 @@
 }
 
 .brand strong,
-.channels strong {
+.sources strong {
   background: #d7f86f;
   border-radius: 999px;
   color: #111918;
@@ -46,7 +46,7 @@
 }
 
 .navGroup button,
-.sidebarActions button {
+.sidebarControls button {
   background: transparent;
   color: inherit;
   justify-content: flex-start;
@@ -58,7 +58,7 @@
 
 .navGroup button.active,
 .navGroup button:hover,
-.sidebarActions button:hover {
+.sidebarControls button:hover {
   background: #24302d;
 }
 
@@ -68,7 +68,7 @@
   white-space: nowrap;
 }
 
-.channels button {
+.sources button {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr) auto;
 }
@@ -80,7 +80,7 @@
   width: 10px;
 }
 
-.sidebarActions {
+.sidebarControls {
   border-top: 1px solid #2f3b38;
   display: grid;
   gap: 6px;

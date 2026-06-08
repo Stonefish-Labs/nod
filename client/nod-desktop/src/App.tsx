@@ -1,7 +1,7 @@
 import { useDesktopClient } from "./app/useDesktopClient";
 import { EnrollmentView } from "./components/EnrollmentView";
-import { EventDetail } from "./components/EventDetail";
-import { EventList } from "./components/EventList";
+import { RequestDetail } from "./components/RequestDetail";
+import { RequestList } from "./components/RequestList";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -17,7 +17,7 @@ export function App(): JSX.Element {
     return (
       <EnrollmentView
         error={client.error}
-        onEnroll={client.actions.enrollDevice}
+        onEnroll={client.commands.enrollDevice}
       />
     );
   }
@@ -25,36 +25,36 @@ export function App(): JSX.Element {
   return (
     <div className="shell">
       <Sidebar
-        activeChannel={client.activeChannel}
-        onOpenSettings={client.actions.openSettings}
-        onRefresh={client.actions.refreshState}
-        onSelectChannel={client.actions.selectChannel}
-        onSelectServer={client.actions.selectServer}
+        activeSource={client.activeSource}
+        onOpenSettings={client.commands.openSettings}
+        onRefresh={client.commands.refreshState}
+        onSelectSource={client.commands.selectSource}
+        onSelectServer={client.commands.selectServer}
         state={client.state}
       />
       <main className="workbench">
         <Topbar
-          activeChannel={client.activeChannel}
+          activeSource={client.activeSource}
           error={client.error}
           isConnected={client.state.is_sync_connected}
-          onDismissError={client.actions.clearError}
+          onDismissError={client.commands.clearError}
         />
         <section className="columns">
-          <EventList
-            events={client.state.events}
-            selectedEventId={client.activeEvent?.id ?? null}
-            onSelect={client.actions.selectEvent}
+          <RequestList
+            requests={client.state.requests}
+            selectedRequestId={client.activeRequest?.id ?? null}
+            onSelect={client.commands.selectRequest}
           />
-          <EventDetail
-            event={client.activeEvent}
-            onAction={client.actions.submitEventAction}
-            onOpenUrl={client.actions.openUrl}
+          <RequestDetail
+            request={client.activeRequest}
+            onOption={client.commands.submitRequestOption}
+            onOpenUrl={client.commands.openUrl}
           />
         </section>
       </main>
       {client.settingsOpen ? (
         <SettingsDialog
-          actions={client.actions}
+          commands={client.commands}
           devices={client.devices}
           state={client.state}
         />

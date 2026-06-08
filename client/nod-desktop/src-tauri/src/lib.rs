@@ -2,24 +2,24 @@ mod commands;
 mod desktop_state;
 mod external_url;
 mod notifier;
-mod runtime_events;
+mod runtime_messages;
 mod tray;
 mod window;
 
 use std::{error::Error, sync::Arc};
 
-use nod_client_core::{NodClientEvent, NodClientRuntime};
+use nod_client_core::{NodClientMessage, NodClientRuntime};
 use tauri::{App, AppHandle, Manager};
 use tokio::sync::{mpsc, Mutex};
 
 use crate::{
-    desktop_state::DesktopState, notifier::DesktopNotifier, runtime_events::forward_runtime_events,
-    tray::install_tray, window::focus_main_window,
+    desktop_state::DesktopState, notifier::DesktopNotifier,
+    runtime_messages::forward_runtime_messages, tray::install_tray, window::focus_main_window,
 };
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::{notifier::NotificationActivation, runtime_events::handle_notification_activations};
+use crate::{notifier::NotificationActivation, runtime_messages::handle_notification_activations};
 
-const RUNTIME_EVENT_BUFFER: usize = 128;
+const RUNTIME_MESSAGE_BUFFER: usize = 128;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 const NOTIFICATION_ACTIVATION_BUFFER: usize = 32;
 
@@ -40,10 +40,10 @@ pub fn run() {
             commands::refresh,
             commands::select_server,
             commands::forget_server,
-            commands::select_channel,
-            commands::select_event,
-            commands::submit_action,
-            commands::clear_channel,
+            commands::select_source,
+            commands::select_request,
+            commands::submit_option,
+            commands::clear_source,
             commands::set_subscription,
             commands::set_notification_preference,
             commands::list_devices,
@@ -59,17 +59,17 @@ fn setup_desktop(app: &mut App) -> Result<(), Box<dyn Error>> {
     install_tray(app)?;
 
     let app_handle = app.handle().clone();
-    let (event_tx, event_rx) = mpsc::channel::<NodClientEvent>(RUNTIME_EVENT_BUFFER);
-    let runtime = tauri::async_runtime::block_on(NodClientRuntime::new(event_tx))?;
+    let (message_tx, message_rx) = mpsc::channel::<NodClientMessage>(RUNTIME_MESSAGE_BUFFER);
+    let runtime = tauri::async_runtime::block_on(NodClientRuntime::new(message_tx))?;
     let runtime = Arc::new(Mutex::new(runtime));
     let notifier = desktop_notifier(app_handle.clone(), runtime.clone());
 
     app.manage(DesktopState::new(runtime.clone()));
 
-    tauri::async_runtime::spawn(forward_runtime_events(
+    tauri::async_runtime::spawn(forward_runtime_messages(
         app_handle.clone(),
         notifier,
-        event_rx,
+        message_rx,
     ));
     tauri::async_runtime::spawn(async move {
         let runtime = runtime.lock().await;

@@ -1,8 +1,8 @@
 use nod_client_core::models::ClientState;
 use nod_client_core::{
-    ChannelParams, EnrollParams, NotificationPreferenceParams, RenameDeviceParams,
-    RevokeDeviceParams, SelectEventParams, SelectServerParams, SetSubscriptionParams,
-    SubmitActionParams,
+    EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SubmitOptionParams,
 };
 use tauri::State;
 
@@ -57,35 +57,35 @@ pub(crate) async fn forget_server(
 }
 
 #[tauri::command]
-pub(crate) async fn select_channel(
+pub(crate) async fn select_source(
     state: State<'_, DesktopState>,
-    params: ChannelParams,
+    params: SourceParams,
 ) -> Result<ClientState, String> {
-    command_result(state.runtime.lock().await.select_channel(params).await)
+    command_result(state.runtime.lock().await.select_source(params).await)
 }
 
 #[tauri::command]
-pub(crate) async fn select_event(
+pub(crate) async fn select_request(
     state: State<'_, DesktopState>,
-    params: SelectEventParams,
+    params: SelectRequestParams,
 ) -> Result<ClientState, String> {
-    command_result(state.runtime.lock().await.select_event(params).await)
+    command_result(state.runtime.lock().await.select_request(params).await)
 }
 
 #[tauri::command]
-pub(crate) async fn submit_action(
+pub(crate) async fn submit_option(
     state: State<'_, DesktopState>,
-    params: SubmitActionParams,
-) -> Result<nod_client_core::models::Event, String> {
-    command_result(state.runtime.lock().await.submit_action(params).await)
+    params: SubmitOptionParams,
+) -> Result<nod_client_core::models::Request, String> {
+    command_result(state.runtime.lock().await.submit_option(params).await)
 }
 
 #[tauri::command]
-pub(crate) async fn clear_channel(
+pub(crate) async fn clear_source(
     state: State<'_, DesktopState>,
-    params: ChannelParams,
+    params: SourceParams,
 ) -> Result<ClientState, String> {
-    command_result(state.runtime.lock().await.clear_channel(params).await)
+    command_result(state.runtime.lock().await.clear_source(params).await)
 }
 
 #[tauri::command]

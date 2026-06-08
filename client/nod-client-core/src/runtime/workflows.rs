@@ -3,16 +3,16 @@ use anyhow::{anyhow, Result};
 use crate::{
     api::{
         display_name_for, normalize_base_url, profile_id_for, EnrollDeviceRequest,
-        SubmitActionRequest,
+        SubmitOptionRequest,
     },
-    models::{ClientState, DevicePlatform, Event, EventStatus, ServerProfile, UserDevice},
+    models::{ClientState, DevicePlatform, Request, RequestStatus, ServerProfile, UserDevice},
     signing::StoredSigningKey,
 };
 
 use super::{
-    session::DecisionSignatureInput, ChannelParams, EnrollParams, NodClientEvent, NodClientRuntime,
-    RenameDeviceParams, RevokeDeviceParams, SelectEventParams, SetSubscriptionParams,
-    SubmitActionParams,
+    session::DecisionSignatureInput, EnrollParams, NodClientMessage, NodClientRuntime,
+    RenameDeviceParams, RevokeDeviceParams, SelectRequestParams, SetSubscriptionParams,
+    SourceParams, SubmitOptionParams,
 };
 
 const REFRESH_EVENT_LIMIT: usize = 500;
@@ -64,7 +64,7 @@ impl NodClientRuntime {
             let mut reducer = self.reducer.lock().await;
             reducer.upsert_server(profile);
             reducer.set_selected_server(profile_id);
-            reducer.state.channels = response.channels;
+            reducer.state.sources = response.sources;
             reducer.state.devices = response.devices;
             reducer.state.is_registered = true;
             reducer.set_notification_delivery_mode(response.notification_delivery.mode);
@@ -126,57 +126,60 @@ impl NodClientRuntime {
             devices.insert(0, current_user.current_device.clone());
         }
 
-        let channels = api.channels().await?;
-        let events = api.events(None, Some(REFRESH_EVENT_LIMIT)).await?;
+        let sources = api.sources().await?;
+        let requests = api.requests(None, Some(REFRESH_EVENT_LIMIT)).await?;
         let candidates = {
             let mut reducer = self.reducer.lock().await;
             reducer.set_notification_delivery_mode(current_user.notification_delivery.mode);
-            reducer.apply_refresh(Some(current_user.user), devices, channels, events)
+            reducer.apply_refresh(Some(current_user.user), devices, sources, requests)
         };
         self.emit_notifications(candidates).await;
         self.emit_state().await;
         Ok(self.state().await)
     }
 
-    pub async fn submit_action(&mut self, params: SubmitActionParams) -> Result<Event> {
+    pub async fn submit_option(&mut self, params: SubmitOptionParams) -> Result<Request> {
         let text = params.text.as_deref().and_then(trimmed_text);
         let signature = self
             .decision_signature(DecisionSignatureInput {
-                event_id: &params.event_id,
-                action_id: &params.action_id,
+                request_id: &params.request_id,
+                option_id: &params.option_id,
                 text,
             })
             .await?;
-        let event = self
+        let request = self
             .api()
             .await?
-            .submit_action(SubmitActionRequest {
-                event_id: &params.event_id,
-                action_id: &params.action_id,
+            .submit_option(SubmitOptionRequest {
+                request_id: &params.request_id,
+                option_id: &params.option_id,
                 text,
                 signature: signature.as_ref(),
             })
             .await?;
-        self.reducer.lock().await.apply_event_update(event.clone());
-        if event.status != EventStatus::Pending {
-            self.emit_event(NodClientEvent::NotificationRemoved {
-                event_id: event.id.clone(),
+        self.reducer
+            .lock()
+            .await
+            .apply_request_update(request.clone());
+        if request.status != RequestStatus::Pending {
+            self.emit_message(NodClientMessage::NotificationRemoved {
+                request_id: request.id.clone(),
             })
             .await;
         }
         self.emit_state().await;
-        Ok(event)
+        Ok(request)
     }
 
-    pub async fn clear_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
-        self.api().await?.clear_channel(&params.channel_id).await?;
+    pub async fn clear_source(&mut self, params: SourceParams) -> Result<ClientState> {
+        self.api().await?.clear_source(&params.source_id).await?;
         self.refresh().await
     }
 
     pub async fn set_subscription(&mut self, params: SetSubscriptionParams) -> Result<ClientState> {
         self.api()
             .await?
-            .set_subscription(&params.channel_id, params.subscribed)
+            .set_subscription(&params.source_id, params.subscribed)
             .await?;
         self.refresh().await
     }
@@ -231,13 +234,13 @@ impl NodClientRuntime {
         self.refresh_or_forget_current(&params.device_id).await
     }
 
-    pub async fn select_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
-        self.reducer.lock().await.state.selected_channel_id = Some(params.channel_id);
+    pub async fn select_source(&mut self, params: SourceParams) -> Result<ClientState> {
+        self.reducer.lock().await.state.selected_source_id = Some(params.source_id);
         self.refresh().await
     }
 
-    pub async fn select_event(&mut self, params: SelectEventParams) -> Result<ClientState> {
-        self.reducer.lock().await.state.selected_event_id = Some(params.event_id);
+    pub async fn select_request(&mut self, params: SelectRequestParams) -> Result<ClientState> {
+        self.reducer.lock().await.state.selected_request_id = Some(params.request_id);
         self.emit_state().await;
         Ok(self.state().await)
     }

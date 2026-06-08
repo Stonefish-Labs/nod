@@ -1,4 +1,4 @@
-use nod_client_core::models::{Channel, Event, EventStatus};
+use nod_client_core::models::{Request, RequestStatus, Source};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    format::{action_key_hint, event_status_label, form_line, selected_marker, status_label},
+    format::{form_line, option_key_hint, request_status_label, selected_marker, status_label},
     layout::{centered_inner, centered_rect, focused_block},
 };
 
@@ -32,7 +32,7 @@ pub(super) fn render_main(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
         .split(vertical[0]);
 
     render_sidebar(frame, columns[0], app);
-    render_event_list(frame, columns[1], app);
+    render_request_list(frame, columns[1], app);
     render_detail(frame, columns[2], app);
     render_status(frame, vertical[1], app);
 }
@@ -56,7 +56,7 @@ fn render_sidebar(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
         .constraints([Constraint::Length(8), Constraint::Min(8)])
         .split(area);
     render_servers(frame, sections[0], app);
-    render_channels(frame, sections[1], app);
+    render_sources(frame, sections[1], app);
 }
 
 fn render_servers(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
@@ -79,60 +79,60 @@ fn render_servers(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
     );
 }
 
-fn render_channels(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
-    let selected_id =
-        domain::selected_channel(app.client_state()).map(|channel| channel.id.as_str());
-    let items: Vec<ListItem<'_>> = domain::subscribed_channels(app.client_state())
+fn render_sources(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
+    let selected_id = domain::selected_source(app.client_state()).map(|source| source.id.as_str());
+    let items: Vec<ListItem<'_>> = domain::subscribed_sources(app.client_state())
         .iter()
-        .map(|channel| channel_item(channel, selected_id, app))
+        .map(|source| source_item(source, selected_id, app))
         .collect();
 
     frame.render_widget(
-        List::new(items).block(focused_block("Channels", app.focus() == Focus::Channels)),
+        List::new(items).block(focused_block("Sources", app.focus() == Focus::Sources)),
         area,
     );
 }
 
-fn channel_item<'a>(channel: &Channel, selected_id: Option<&str>, app: &AppState) -> ListItem<'a> {
-    let marker = selected_marker(selected_id == Some(channel.id.as_str()));
-    let count = domain::pending_count_for(channel, app.client_state());
-    ListItem::new(Line::from(format!("{marker}{} ({count})", channel.name)))
+fn source_item<'a>(source: &Source, selected_id: Option<&str>, app: &AppState) -> ListItem<'a> {
+    let marker = selected_marker(selected_id == Some(source.id.as_str()));
+    let count = domain::pending_count_for(source, app.client_state());
+    ListItem::new(Line::from(format!("{marker}{} ({count})", source.name)))
 }
 
-fn render_event_list(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
-    let selected_id = domain::selected_event(app.client_state()).map(|event| event.id.as_str());
+fn render_request_list(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
+    let selected_id =
+        domain::selected_request(app.client_state()).map(|request| request.id.as_str());
     let items: Vec<ListItem<'_>> = app
-        .visible_events()
+        .visible_requests()
         .into_iter()
-        .map(|event| event_item(event, selected_id))
+        .map(|request| request_item(request, selected_id))
         .collect();
     let title = if app.filter().is_empty() {
-        "Notifications".to_string()
+        "Requests".to_string()
     } else {
-        format!("Notifications /{}", app.filter())
+        format!("Requests /{}", app.filter())
     };
 
     let empty = if items.is_empty() {
-        vec![ListItem::new("No notifications")]
+        vec![ListItem::new("No requests")]
     } else {
         items
     };
     frame.render_widget(
-        List::new(empty).block(focused_block(&title, app.focus() == Focus::Events)),
+        List::new(empty).block(focused_block(&title, app.focus() == Focus::Requests)),
         area,
     );
 }
 
-fn event_item<'a>(event: &Event, selected_id: Option<&str>) -> ListItem<'a> {
-    let marker = selected_marker(selected_id == Some(event.id.as_str()));
-    let status = event_status_label(&event.status);
-    let summary = if event.summary.is_empty() {
-        event.body_markdown.as_str()
+fn request_item<'a>(request: &Request, selected_id: Option<&str>) -> ListItem<'a> {
+    let marker = selected_marker(selected_id == Some(request.id.as_str()));
+    let status = request_status_label(&request.status);
+    let summary = if request.summary.is_empty() {
+        request.body_markdown.as_str()
     } else {
-        event.summary.as_str()
+        request.summary.as_str()
     };
     ListItem::new(vec![
-        Line::from(format!("{marker}{} [{status}]", event.title)),
+        Line::from(format!("{marker}{} [{status}]", request.title)),
         Line::from(Span::styled(
             format!("  {summary}"),
             Style::default().fg(Color::DarkGray),
@@ -141,9 +141,9 @@ fn event_item<'a>(event: &Event, selected_id: Option<&str>) -> ListItem<'a> {
 }
 
 fn render_detail(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
-    let Some(event) = domain::selected_event(app.client_state()) else {
+    let Some(request) = domain::selected_request(app.client_state()) else {
         frame.render_widget(
-            Paragraph::new("Select a notification")
+            Paragraph::new("Select a request")
                 .block(focused_block("Detail", app.focus() == Focus::Detail)),
             area,
         );
@@ -152,37 +152,40 @@ fn render_detail(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
 
     let mut lines = vec![
         Line::from(vec![
-            Span::styled(&event.title, Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(format!("  {}", status_label(event))),
+            Span::styled(
+                &request.title,
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(format!("  {}", status_label(request))),
         ]),
-        Line::from(event.summary.clone()),
+        Line::from(request.summary.clone()),
         Line::from(""),
     ];
-    if !event.body_markdown.is_empty() {
-        lines.push(Line::from(event.body_markdown.clone()));
+    if !request.body_markdown.is_empty() {
+        lines.push(Line::from(request.body_markdown.clone()));
         lines.push(Line::from(""));
     }
-    for field in &event.fields {
+    for field in &request.fields {
         lines.push(Line::from(format!("{}: {}", field.label, field.value)));
     }
-    if !event.links.is_empty() {
+    if !request.links.is_empty() {
         lines.push(Line::from(""));
         lines.push(Line::from("Links"));
-        for link in &event.links {
+        for link in &request.links {
             lines.push(Line::from(format!("{} - {}", link.label, link.url)));
         }
     }
-    if event.status == EventStatus::Pending {
+    if request.status == RequestStatus::Pending {
         lines.push(Line::from(""));
-        lines.push(Line::from("Actions"));
-        if event.actions.is_empty() {
+        lines.push(Line::from("Options"));
+        if request.options.is_empty() {
             lines.push(Line::from("d dismiss"));
         } else {
-            for action in &event.actions {
+            for option in &request.options {
                 lines.push(Line::from(format!(
                     "{}  {}",
-                    action_key_hint(action.kind.as_str()),
-                    action.label
+                    option_key_hint(option.kind.as_str()),
+                    option.label
                 )));
             }
         }

@@ -1,28 +1,28 @@
 import { X } from "lucide-react";
 import { NOTIFICATION_SOUND_OPTIONS } from "../app/state";
-import type { Channel, ClientState, UserDevice } from "../types";
-import { ChannelSubscriptions } from "./settings/ChannelSubscriptions";
-import { DestructiveSettingsActions } from "./settings/DestructiveSettingsActions";
+import type { Source, ClientState, UserDevice } from "../types";
+import { SourceSubscriptions } from "./settings/SourceSubscriptions";
+import { DestructiveSettingsControls } from "./settings/DestructiveSettingsControls";
 import { DeviceList } from "./settings/DeviceList";
 
-export interface SettingsDialogActions {
-  clearSelectedChannel: () => Promise<void>;
+export interface SettingsDialogCommands {
+  clearSelectedSource: () => Promise<void>;
   closeSettings: () => void;
   forgetSelectedServer: () => Promise<void>;
   renameUserDevice: (deviceId: string, name: string) => Promise<boolean>;
   revokeUserDevice: (deviceId: string) => Promise<void>;
-  toggleChannelSubscription: (channel: Channel) => Promise<void>;
+  toggleSourceSubscription: (source: Source) => Promise<void>;
   updateNotificationSound: (notificationSound: string) => Promise<void>;
 }
 
 interface SettingsDialogProps {
-  actions: SettingsDialogActions;
+  commands: SettingsDialogCommands;
   devices: UserDevice[];
   state: ClientState;
 }
 
 export function SettingsDialog({
-  actions,
+  commands,
   devices,
   state,
 }: SettingsDialogProps): JSX.Element {
@@ -31,7 +31,7 @@ export function SettingsDialog({
       <section className="dialog">
         <header>
           <h2>Settings</h2>
-          <button type="button" onClick={actions.closeSettings}>
+          <button type="button" onClick={commands.closeSettings}>
             <X size={16} />
           </button>
         </header>
@@ -40,7 +40,7 @@ export function SettingsDialog({
           <select
             value={state.notification_sound}
             onChange={(event) =>
-              void actions.updateNotificationSound(event.currentTarget.value)
+              void commands.updateNotificationSound(event.currentTarget.value)
             }
           >
             {NOTIFICATION_SOUND_OPTIONS.map((option) => (
@@ -50,19 +50,19 @@ export function SettingsDialog({
             ))}
           </select>
         </label>
-        <ChannelSubscriptions
-          channels={state.channels}
-          onToggleChannel={actions.toggleChannelSubscription}
+        <SourceSubscriptions
+          sources={state.sources}
+          onToggleSource={commands.toggleSourceSubscription}
         />
         <DeviceList
           devices={devices}
-          onRenameDevice={actions.renameUserDevice}
-          onRevokeDevice={actions.revokeUserDevice}
+          onRenameDevice={commands.renameUserDevice}
+          onRevokeDevice={commands.revokeUserDevice}
         />
-        <DestructiveSettingsActions
-          canClearChannel={Boolean(state.selected_channel_id)}
-          onClearSelectedChannel={actions.clearSelectedChannel}
-          onForgetSelectedServer={actions.forgetSelectedServer}
+        <DestructiveSettingsControls
+          canClearSource={Boolean(state.selected_source_id)}
+          onClearSelectedSource={commands.clearSelectedSource}
+          onForgetSelectedServer={commands.forgetSelectedServer}
         />
       </section>
     </div>

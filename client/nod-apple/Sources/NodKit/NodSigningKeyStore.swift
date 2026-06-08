@@ -61,7 +61,7 @@ public final class NodSigningKeyStore {
     }
 
     public func sign(_ request: NodDecisionSigningRequest) throws -> NodDecisionSignature {
-        guard let requestDigest = request.event.requestDigest else {
+        guard let requestDigest = request.request.requestDigest else {
             throw NodSigningError.missingRequestDigest
         }
         guard let userId = request.userId, let deviceId = request.deviceId else {
@@ -75,8 +75,8 @@ public final class NodSigningKeyStore {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nilIfEmpty
         let payload = Self.decisionSigningPayload(
-            event: request.event,
-            action: request.action,
+            request: request.request,
+            option: request.option,
             text: normalizedText,
             userId: userId,
             deviceId: deviceId,
@@ -135,8 +135,8 @@ public final class NodSigningKeyStore {
     }
 
     private static func decisionSigningPayload(
-        event: NodEvent,
-        action: NodAction,
+        request: NodRequest,
+        option: NodRequestOption,
         text: String?,
         userId: String,
         deviceId: String,
@@ -147,10 +147,10 @@ public final class NodSigningKeyStore {
     ) -> String {
         [
             "nod-decision-v1",
-            "request_id:\(event.id)",
+            "request_id:\(request.id)",
             "request_digest:\(requestDigest)",
-            "option_id:\(action.id)",
-            "option_kind:\(action.kind.rawValue)",
+            "option_id:\(option.id)",
+            "option_kind:\(option.kind.rawValue)",
             "user_id:\(userId)",
             "device_id:\(deviceId)",
             "key_id:\(keyId)",

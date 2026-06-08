@@ -13,33 +13,33 @@ use tokio::{
 };
 
 use crate::{
-    models::{ClientState, Event, EventStatus},
+    models::{ClientState, Request, RequestStatus},
     state::StateReducer,
     store::{PersistedConfig, Store},
 };
 
 pub use rpc::{
-    ChannelParams, EnrollParams, NotificationPreferenceParams, RenameDeviceParams,
-    RevokeDeviceParams, RpcRequest, RpcResponse, SelectEventParams, SelectServerParams,
-    SetSubscriptionParams, SubmitActionParams,
+    EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams, RpcRequest,
+    RpcResponse, SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SubmitOptionParams,
 };
 
 const DEFAULT_NOTIFICATION_SOUND: &str = "default";
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", content = "payload", rename_all = "snake_case")]
-pub enum NodClientEvent {
+#[serde(tag = "kind", content = "payload", rename_all = "snake_case")]
+pub enum NodClientMessage {
     Ready { state_path: String },
     State(Box<ClientState>),
-    NotificationCandidate { event: Box<Event> },
-    NotificationRemoved { event_id: String },
+    NotificationCandidate { request: Box<Request> },
+    NotificationRemoved { request_id: String },
     SyncStatus { connected: bool },
     AuthRevoked {},
     ResyncRequired {},
     TransientError { message: String },
 }
 
-type Outbox = mpsc::Sender<NodClientEvent>;
+type Outbox = mpsc::Sender<NodClientMessage>;
 
 pub struct NodClientRuntime {
     store: Store,
@@ -73,7 +73,7 @@ impl NodClientRuntime {
     }
 
     pub async fn emit_ready(&self) {
-        self.emit_event(NodClientEvent::Ready {
+        self.emit_message(NodClientMessage::Ready {
             state_path: self.store.path().display().to_string(),
         })
         .await;
@@ -84,28 +84,28 @@ impl NodClientRuntime {
     }
 
     pub async fn emit_state(&self) {
-        self.emit_event(NodClientEvent::State(Box::new(self.state().await)))
+        self.emit_message(NodClientMessage::State(Box::new(self.state().await)))
             .await;
     }
 
-    async fn emit_notifications(&self, events: Vec<Event>) {
-        for event in events {
-            if event.status == EventStatus::Pending {
-                self.emit_event(NodClientEvent::NotificationCandidate {
-                    event: Box::new(event),
+    async fn emit_notifications(&self, requests: Vec<Request>) {
+        for request in requests {
+            if request.status == RequestStatus::Pending {
+                self.emit_message(NodClientMessage::NotificationCandidate {
+                    request: Box::new(request),
                 })
                 .await;
             }
         }
     }
 
-    async fn emit_event(&self, event: NodClientEvent) {
-        emit_to(&self.tx, event).await;
+    async fn emit_message(&self, message: NodClientMessage) {
+        emit_to(&self.tx, message).await;
     }
 }
 
-async fn emit_to(tx: &Outbox, event: NodClientEvent) {
-    let _ = tx.send(event).await;
+async fn emit_to(tx: &Outbox, message: NodClientMessage) {
+    let _ = tx.send(message).await;
 }
 
 fn normalize_notification_sound(config: &mut PersistedConfig) {
