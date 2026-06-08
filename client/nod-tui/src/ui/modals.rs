@@ -125,7 +125,10 @@ fn render_settings_sources(
         .map(|(index, source)| {
             let marker = selected_marker(settings.selected_index() == index);
             let checked = checkbox(source.subscribed);
-            ListItem::new(format!("{marker}{checked} {}", source.name))
+            ListItem::new(format!(
+                "{marker}{checked} {} {}",
+                source.emoji, source.name
+            ))
         })
         .collect();
     frame.render_widget(List::new(items), area);

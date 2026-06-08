@@ -109,6 +109,11 @@ curl -sS -X POST http://127.0.0.1:8767/api/v1/requests \
     "title":"Approve deploy",
     "summary":"Production deploy is waiting",
     "body_markdown":"**Production** deploy needs approval.",
+    "notification":{
+      "redact":true,
+      "title":"Nod",
+      "body":"Open Nod to review this request."
+    },
     "dedupe_key":"deploy:prod:42",
     "options":[
       {"id":"approve","label":"Approve","kind":"approve"},
@@ -117,6 +122,12 @@ curl -sS -X POST http://127.0.0.1:8767/api/v1/requests \
     ]
   }'
 ```
+
+`notification` is optional and only controls APNs alert presentation. Without it,
+APNs uses the request title and summary. With `"redact": true`, APNs uses the
+provided notification title/body, or safe generic defaults when they are omitted;
+the request body, fields, links, and options remain available only after the
+client opens/fetches the request.
 
 The response includes `request.request_digest`, which clients sign when recording
 a decision.

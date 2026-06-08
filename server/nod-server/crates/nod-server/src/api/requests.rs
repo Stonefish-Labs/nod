@@ -16,14 +16,15 @@ use crate::{
     auth, db,
     error::ApiError,
     models::{
-        CardField, CardLink, CreateDecisionRequest, DecisionResolution, RequestOption,
-        SubmitDecisionRequest,
+        CardField, CardLink, CreateDecisionRequest, DecisionResolution, RequestNotification,
+        RequestOption, SubmitDecisionRequest,
     },
     services,
     state::AppState,
 };
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct CreateRequestRequest {
     #[serde(default = "default_source")]
     source_id: String,
@@ -43,9 +44,7 @@ pub(super) struct CreateRequestRequest {
     #[serde(default)]
     image_url: Option<String>,
     #[serde(default)]
-    priority: Option<i64>,
-    #[serde(default)]
-    privacy: Option<String>,
+    notification: RequestNotification,
     #[serde(default)]
     dedupe_key: Option<String>,
     #[serde(default)]
@@ -80,8 +79,7 @@ impl From<CreateRequestRequest> for CreateDecisionRequest {
             fields: req.fields,
             links: req.links,
             image_url: req.image_url,
-            priority: req.priority,
-            privacy: req.privacy,
+            notification: req.notification,
             dedupe_key: req.dedupe_key,
             expires_at: req.expires_at,
             options: req.options,

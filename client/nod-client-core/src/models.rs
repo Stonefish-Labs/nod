@@ -27,13 +27,11 @@ impl DevicePlatform {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Source {
     pub id: String,
     pub name: String,
-    pub icon: String,
-    pub color: String,
-    pub default_priority: i64,
-    pub privacy: String,
+    pub emoji: String,
     #[serde(default = "default_true")]
     pub subscribed: bool,
     pub created_at: DateTime<Utc>,
@@ -148,6 +146,16 @@ pub struct RequestOption {
     pub foreground: bool,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RequestNotification {
+    #[serde(default)]
+    pub redact: bool,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub body: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RequestStatus {
@@ -186,6 +194,7 @@ pub enum DecisionResolution {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Request {
     pub id: String,
     pub request_id: String,
@@ -205,8 +214,7 @@ pub struct Request {
     pub links: Vec<Link>,
     #[serde(default)]
     pub image_url: Option<String>,
-    pub priority: i64,
-    pub privacy: String,
+    pub notification: RequestNotification,
     #[serde(default)]
     pub dedupe_key: Option<String>,
     #[serde(default)]

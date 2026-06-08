@@ -78,6 +78,17 @@ fn default_option_style() -> String {
     "default".to_string()
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RequestNotification {
+    #[serde(default)]
+    pub redact: bool,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub body: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RequestStatus {
@@ -168,8 +179,7 @@ pub struct DecisionRequest {
     pub fields: Vec<CardField>,
     pub links: Vec<CardLink>,
     pub image_url: Option<String>,
-    pub priority: i64,
-    pub privacy: String,
+    pub notification: RequestNotification,
     pub dedupe_key: Option<String>,
     pub expires_at: Option<DateTime<Utc>>,
     pub status: RequestStatus,
@@ -184,6 +194,7 @@ pub struct DecisionRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateDecisionRequest {
     #[serde(default = "default_source")]
     pub source_id: String,
@@ -203,9 +214,7 @@ pub struct CreateDecisionRequest {
     #[serde(default)]
     pub image_url: Option<String>,
     #[serde(default)]
-    pub priority: Option<i64>,
-    #[serde(default)]
-    pub privacy: Option<String>,
+    pub notification: RequestNotification,
     #[serde(default)]
     pub dedupe_key: Option<String>,
     #[serde(default)]

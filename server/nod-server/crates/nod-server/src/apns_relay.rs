@@ -147,8 +147,8 @@ impl ApnsRelayRequest {
                 token: token.to_string(),
             },
             notification: RelayNotification {
-                title: request.title.clone(),
-                body: request.summary.clone(),
+                title: apns_title(request),
+                body: apns_body(request),
                 sound: device.notification_sound.clone(),
                 thread_id: request.source_id.clone(),
                 category: PushCategory::for_request(request).as_str().to_string(),
@@ -159,6 +159,40 @@ impl ApnsRelayRequest {
             },
         })
     }
+}
+
+fn apns_title(request: &DecisionRequest) -> String {
+    request
+        .notification
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| {
+            if request.notification.redact {
+                "Nod".to_string()
+            } else {
+                request.title.clone()
+            }
+        })
+}
+
+fn apns_body(request: &DecisionRequest) -> String {
+    request
+        .notification
+        .body
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| {
+            if request.notification.redact {
+                "Open Nod to review this request.".to_string()
+            } else {
+                request.summary.clone()
+            }
+        })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -232,8 +266,7 @@ mod tests {
             fields: vec![],
             links: vec![],
             image_url: None,
-            priority: 5,
-            privacy: "private".to_string(),
+            notification: Default::default(),
             dedupe_key: None,
             expires_at: None,
             status: RequestStatus::Pending,
@@ -261,6 +294,66 @@ mod tests {
         assert_eq!(value["notification"]["category"], "NOD_DEFAULT");
         assert_eq!(value["metadata"]["request_id"], "request-1");
         assert!(value["body_markdown"].is_null());
+    }
+
+    #[test]
+    fn apns_relay_request_uses_redacted_notification_text() {
+        let now = Utc::now();
+        let device = Device {
+            id: "device-1".to_string(),
+            user_id: "owner".to_string(),
+            name: "Phone".to_string(),
+            platform: DevicePlatform::Ios,
+            native_app_id: Some("com.example.NodTests".to_string()),
+            push_provider: Some("apple_apns".to_string()),
+            push_token: Some("push-token".to_string()),
+            signing_key_id: None,
+            signing_key_algorithm: None,
+            signing_public_key: None,
+            notification_sound: "default".to_string(),
+            last_seen_at: now,
+            created_at: now,
+        };
+        let mut request = DecisionRequest {
+            id: "request-1".to_string(),
+            source_id: "default".to_string(),
+            recipients: vec!["owner".to_string()],
+            decision_resolution: DecisionResolution::Shared,
+            title: "Secret deploy".to_string(),
+            summary: "Sensitive production details".to_string(),
+            body_markdown: "secret details".to_string(),
+            fields: vec![],
+            links: vec![],
+            image_url: None,
+            notification: crate::models::RequestNotification {
+                redact: true,
+                title: Some("Nod".to_string()),
+                body: Some("Open Nod to review.".to_string()),
+            },
+            dedupe_key: None,
+            expires_at: None,
+            status: RequestStatus::Pending,
+            created_at: now,
+            updated_at: now,
+            resolved_at: None,
+            decision: None,
+            user_decisions: vec![],
+            callback_url: None,
+            options: vec![],
+        };
+
+        let relay_request = ApnsRelayRequest::from_device_request(&device, &request).unwrap();
+        assert_eq!(relay_request.notification.title, "Nod");
+        assert_eq!(relay_request.notification.body, "Open Nod to review.");
+
+        request.notification.title = None;
+        request.notification.body = None;
+        let relay_request = ApnsRelayRequest::from_device_request(&device, &request).unwrap();
+        assert_eq!(relay_request.notification.title, "Nod");
+        assert_eq!(
+            relay_request.notification.body,
+            "Open Nod to review this request."
+        );
     }
 
     #[test]

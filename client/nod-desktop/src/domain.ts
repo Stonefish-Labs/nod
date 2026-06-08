@@ -35,6 +35,24 @@ export function pendingCountFor(source: Source, state: ClientState): number {
   return state.pending_counts_by_source[source.id] ?? 0;
 }
 
+export function sourceColor(source: Source): string {
+  const palette = [
+    "#2563EB",
+    "#059669",
+    "#D97706",
+    "#DC2626",
+    "#7C3AED",
+    "#0891B2",
+    "#4F46E5",
+    "#DB2777",
+  ];
+  let hash = 0;
+  for (const char of source.id) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return palette[hash % palette.length];
+}
+
 export function orderedRequests(requests: readonly NodRequest[]): NodRequest[] {
   return [...requests].sort((left, right) => {
     const rankDelta = statusRank[left.status] - statusRank[right.status];

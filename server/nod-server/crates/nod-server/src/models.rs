@@ -27,8 +27,8 @@ pub use issuer::{
 };
 pub use request::{
     CardField, CardLink, CreateDecisionRequest, CreatedDecisionRequest, Decision, DecisionRequest,
-    DecisionResolution, DecisionSignatureRecord, OptionKind, RequestOption, RequestStatus,
-    SubmitDecisionRequest, SubmitDecisionSignature, UserDecision,
+    DecisionResolution, DecisionSignatureRecord, OptionKind, RequestNotification, RequestOption,
+    RequestStatus, SubmitDecisionRequest, SubmitDecisionSignature, UserDecision,
 };
 pub use source::{CreateSourceRequest, Source};
 pub use sync::SyncEnvelope;

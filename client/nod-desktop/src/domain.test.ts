@@ -7,6 +7,7 @@ import {
   orderedRequests,
   selectedSource,
   selectedRequest,
+  sourceColor,
   totalPendingCount,
 } from "./domain";
 import type { Source, ClientState, RequestOption, NodRequest } from "./types";
@@ -23,8 +24,11 @@ const baseRequest: NodRequest = {
   fields: [],
   links: [],
   image_url: null,
-  priority: 5,
-  privacy: "private",
+  notification: {
+    redact: false,
+    title: null,
+    body: null,
+  },
   dedupe_key: null,
   expires_at: null,
   status: "pending",
@@ -58,10 +62,7 @@ const baseState: ClientState = {
 const baseSource: Source = {
   id: "default",
   name: "Default",
-  icon: "bell",
-  color: "#d7f86f",
-  default_priority: 5,
-  privacy: "private",
+  emoji: "🔔",
   subscribed: true,
   created_at: "2026-05-31T12:00:00.000Z",
 };
@@ -85,6 +86,10 @@ describe("domain helpers", () => {
         pending_counts_by_source: { a: 2, b: 3 },
       }),
     ).toBe(5);
+  });
+
+  it("generates stable display colors from source identity", () => {
+    expect(sourceColor(baseSource)).toBe(sourceColor({ ...baseSource }));
   });
 
   it("orders pending requests before handled requests", () => {

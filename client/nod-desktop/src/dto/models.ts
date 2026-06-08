@@ -52,10 +52,7 @@ export interface UserDevice {
 export interface Source {
   id: string;
   name: string;
-  icon: string;
-  color: string;
-  default_priority: number;
-  privacy: string;
+  emoji: string;
   subscribed: boolean;
   created_at: string;
 }
@@ -110,8 +107,7 @@ export interface NodRequest {
   fields: RequestField[];
   links: RequestLink[];
   image_url?: string | null;
-  priority: number;
-  privacy: string;
+  notification: RequestNotification;
   dedupe_key?: string | null;
   expires_at?: string | null;
   status: RequestStatus;
@@ -123,6 +119,12 @@ export interface NodRequest {
   callback_url?: string | null;
   options: RequestOption[];
   request_digest?: string | null;
+}
+
+export interface RequestNotification {
+  redact: boolean;
+  title?: string | null;
+  body?: string | null;
 }
 
 export interface ClientState {

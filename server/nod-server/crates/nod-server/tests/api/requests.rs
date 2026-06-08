@@ -109,8 +109,7 @@ async fn admin_can_delete_source_and_related_request_history() {
             Some(json!({
                 "id": "accidental",
                 "name": "Accidental",
-                "icon": "bell",
-                "color": "#ff5500"
+                "emoji": "🧯"
             })),
         )
         .await;

@@ -19,6 +19,7 @@ export function SourceSubscriptions({
             checked={source.subscribed}
             onChange={() => void onToggleSource(source)}
           />
+          <span aria-hidden="true">{source.emoji || "🔔"}</span>
           <span>{source.name}</span>
         </label>
       ))}

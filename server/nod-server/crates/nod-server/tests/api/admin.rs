@@ -359,10 +359,7 @@ async fn admin_can_manage_subscriptions_on_users() {
             Some(json!({
                 "id": "alerts",
                 "name": "Alerts",
-                "icon": "bell",
-                "color": "#AA336A",
-                "default_priority": 7,
-                "privacy": "private"
+                "emoji": "🚨"
             })),
         )
         .await;

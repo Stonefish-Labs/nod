@@ -17,6 +17,8 @@ pub(super) fn validate_request(req: &CreateDecisionRequest) -> Result<(), ApiErr
             "request title is too long".to_string(),
         ));
     }
+    validate_notification_text(req.notification.title.as_deref(), "notification title", 200)?;
+    validate_notification_text(req.notification.body.as_deref(), "notification body", 500)?;
     if let Some(callback_url) = req.callback_url.as_deref() {
         let url = Url::parse(callback_url).map_err(|_| {
             ApiError::BadRequest("callback_url must be an absolute URL".to_string())
@@ -28,6 +30,20 @@ pub(super) fn validate_request(req: &CreateDecisionRequest) -> Result<(), ApiErr
         }
     }
     validate_id(&req.source_id, "source id")
+}
+
+fn validate_notification_text(
+    value: Option<&str>,
+    label: &str,
+    max_chars: usize,
+) -> Result<(), ApiError> {
+    if value
+        .map(|value| value.trim().chars().count() > max_chars)
+        .unwrap_or(false)
+    {
+        return Err(ApiError::BadRequest(format!("{label} is too long")));
+    }
+    Ok(())
 }
 
 pub(super) fn validate_id(value: &str, label: &str) -> Result<(), ApiError> {

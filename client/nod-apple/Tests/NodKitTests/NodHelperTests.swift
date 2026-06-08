@@ -55,6 +55,14 @@ final class NodHelperTests: XCTestCase {
     )
   }
 
+  func testRequestRequiresNotificationContractField() throws {
+    let data = try requestDataWithoutNotification()
+
+    XCTAssertThrowsError(
+      try JSONDecoder.nod.decode(NodRequest.self, from: data)
+    )
+  }
+
   func testMarkdownParserBuildsReadableBlocks() {
     let markdown = """
       # Deploy
@@ -101,8 +109,11 @@ final class NodHelperTests: XCTestCase {
         "fields": [],
         "links": [],
         "image_url": null,
-        "priority": 1,
-        "privacy": "normal",
+        "notification": {
+          "redact": false,
+          "title": null,
+          "body": null
+        },
         "dedupe_key": null,
         "expires_at": null,
         "status": "\(status.rawValue)",
@@ -133,8 +144,11 @@ final class NodHelperTests: XCTestCase {
         "fields": [],
         "links": [],
         "image_url": null,
-        "priority": 1,
-        "privacy": "normal",
+        "notification": {
+          "redact": false,
+          "title": null,
+          "body": null
+        },
         "dedupe_key": null,
         "expires_at": null,
         "status": "pending",
@@ -148,5 +162,13 @@ final class NodHelperTests: XCTestCase {
         "\(optionsKey)": []
       }
       """.data(using: .utf8)!
+  }
+
+  private func requestDataWithoutNotification() throws -> Data {
+    var payload = try JSONSerialization.jsonObject(
+      with: legacyRequestData(sourceKey: "source_id", optionsKey: "options")
+    ) as! [String: Any]
+    payload.removeValue(forKey: "notification")
+    return try JSONSerialization.data(withJSONObject: payload)
   }
 }

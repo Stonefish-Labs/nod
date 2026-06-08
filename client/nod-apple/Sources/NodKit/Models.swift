@@ -12,16 +12,12 @@ public enum NodDevicePlatform: String, Codable, Sendable {
 public struct NodSource: Codable, Identifiable, Hashable, Sendable {
   public var id: String
   public var name: String
-  public var icon: String
-  public var color: String
-  public var defaultPriority: Int
-  public var privacy: String
+  public var emoji: String
   public var subscribed: Bool
   public var createdAt: Date
 
   enum CodingKeys: String, CodingKey {
-    case id, name, icon, color, privacy, subscribed
-    case defaultPriority = "default_priority"
+    case id, name, emoji, subscribed
     case createdAt = "created_at"
   }
 
@@ -29,10 +25,7 @@ public struct NodSource: Codable, Identifiable, Hashable, Sendable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     id = try container.decode(String.self, forKey: .id)
     name = try container.decode(String.self, forKey: .name)
-    icon = try container.decode(String.self, forKey: .icon)
-    color = try container.decode(String.self, forKey: .color)
-    defaultPriority = try container.decode(Int.self, forKey: .defaultPriority)
-    privacy = try container.decode(String.self, forKey: .privacy)
+    emoji = try container.decode(String.self, forKey: .emoji)
     subscribed = try container.decodeIfPresent(Bool.self, forKey: .subscribed) ?? true
     createdAt = try container.decode(Date.self, forKey: .createdAt)
   }
@@ -285,6 +278,29 @@ public enum NodDecisionResolution: String, Codable, Sendable {
   case perUser = "per_user"
 }
 
+public struct NodRequestNotification: Codable, Hashable, Sendable {
+  public let redact: Bool
+  public let title: String?
+  public let body: String?
+
+  enum CodingKeys: String, CodingKey {
+    case redact, title, body
+  }
+
+  public init(redact: Bool = false, title: String? = nil, body: String? = nil) {
+    self.redact = redact
+    self.title = title
+    self.body = body
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    redact = try container.decodeIfPresent(Bool.self, forKey: .redact) ?? false
+    title = try container.decodeIfPresent(String.self, forKey: .title)
+    body = try container.decodeIfPresent(String.self, forKey: .body)
+  }
+}
+
 public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   public let id: String
   public let requestId: String
@@ -297,8 +313,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   public let fields: [NodField]
   public let links: [NodLink]
   public let imageUrl: String?
-  public let priority: Int
-  public let privacy: String
+  public let notification: NodRequestNotification
   public let dedupeKey: String?
   public let expiresAt: Date?
   public let status: NodRequestStatus
@@ -312,7 +327,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   public let requestDigest: String?
 
   enum CodingKeys: String, CodingKey {
-    case id, title, summary, fields, links, priority, privacy, status, decision, decisions, options
+    case id, title, summary, fields, links, notification, status, decision, decisions, options
     case requestId = "request_id"
     case sourceId = "source_id"
     case recipients
@@ -344,8 +359,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
     fields = try container.decodeIfPresent([NodField].self, forKey: .fields) ?? []
     links = try container.decodeIfPresent([NodLink].self, forKey: .links) ?? []
     imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
-    priority = try container.decode(Int.self, forKey: .priority)
-    privacy = try container.decode(String.self, forKey: .privacy)
+    notification = try container.decode(NodRequestNotification.self, forKey: .notification)
     dedupeKey = try container.decodeIfPresent(String.self, forKey: .dedupeKey)
     expiresAt = try container.decodeIfPresent(Date.self, forKey: .expiresAt)
     status = try container.decode(NodRequestStatus.self, forKey: .status)

@@ -8,7 +8,7 @@ use crate::{
 
 pub async fn list_sources(pool: &SqlitePool) -> Result<Vec<Source>, ApiError> {
     let rows = sqlx::query(
-        "SELECT id, name, icon, color, default_priority, privacy, 1 AS subscribed, created_at FROM sources ORDER BY name",
+        "SELECT id, name, emoji, 1 AS subscribed, created_at FROM sources ORDER BY name",
     )
     .fetch_all(pool)
     .await?;
@@ -32,10 +32,7 @@ pub async fn list_sources_for_user(
         SELECT
             c.id,
             c.name,
-            c.icon,
-            c.color,
-            c.default_priority,
-            c.privacy,
+            c.emoji,
             COALESCE(us.subscribed, 0) AS subscribed,
             c.created_at
         FROM sources c
@@ -62,22 +59,16 @@ pub async fn create_source(
     let now = now_string();
     sqlx::query(
         r#"
-        INSERT INTO sources (id, name, icon, color, default_priority, privacy, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sources (id, name, emoji, created_at)
+        VALUES (?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
-            icon = excluded.icon,
-            color = excluded.color,
-            default_priority = excluded.default_priority,
-            privacy = excluded.privacy
+            emoji = excluded.emoji
         "#,
     )
     .bind(&req.id)
     .bind(req.name.trim())
-    .bind(req.icon.trim())
-    .bind(req.color.trim())
-    .bind(req.default_priority.unwrap_or(5))
-    .bind(req.privacy.unwrap_or_else(|| "private".to_string()))
+    .bind(normalized_emoji(&req.emoji))
     .bind(now)
     .execute(pool)
     .await?;
@@ -98,13 +89,22 @@ pub async fn create_source(
 
 pub async fn get_source(pool: &SqlitePool, source_id: &str) -> Result<Source, ApiError> {
     let row = sqlx::query(
-        "SELECT id, name, icon, color, default_priority, privacy, 1 AS subscribed, created_at FROM sources WHERE id = ?",
+        "SELECT id, name, emoji, 1 AS subscribed, created_at FROM sources WHERE id = ?",
     )
     .bind(source_id)
     .fetch_optional(pool)
     .await?
     .ok_or(ApiError::NotFound)?;
     row_to_source(row)
+}
+
+fn normalized_emoji(value: &str) -> String {
+    let emoji = value.trim();
+    if emoji.is_empty() {
+        "🔔".to_string()
+    } else {
+        emoji.chars().take(8).collect()
+    }
 }
 
 pub async fn delete_source(pool: &SqlitePool, source_id: &str) -> Result<(), ApiError> {

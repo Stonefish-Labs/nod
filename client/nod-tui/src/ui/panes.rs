@@ -95,7 +95,10 @@ fn render_sources(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
 fn source_item<'a>(source: &Source, selected_id: Option<&str>, app: &AppState) -> ListItem<'a> {
     let marker = selected_marker(selected_id == Some(source.id.as_str()));
     let count = domain::pending_count_for(source, app.client_state());
-    ListItem::new(Line::from(format!("{marker}{} ({count})", source.name)))
+    ListItem::new(Line::from(format!(
+        "{marker}{} {} ({count})",
+        source.emoji, source.name
+    )))
 }
 
 fn render_request_list(frame: &mut Frame<'_>, area: Rect, app: &AppState) {

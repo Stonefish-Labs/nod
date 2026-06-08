@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Source {
     pub id: String,
     pub name: String,
-    pub icon: String,
-    pub color: String,
-    pub default_priority: i64,
-    pub privacy: String,
+    pub emoji: String,
     #[serde(default = "default_subscribed")]
     pub subscribed: bool,
     pub created_at: DateTime<Utc>,
@@ -19,23 +16,14 @@ fn default_subscribed() -> bool {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateSourceRequest {
     pub id: String,
     pub name: String,
-    #[serde(default = "default_icon")]
-    pub icon: String,
-    #[serde(default = "default_color")]
-    pub color: String,
-    #[serde(default)]
-    pub default_priority: Option<i64>,
-    #[serde(default)]
-    pub privacy: Option<String>,
+    #[serde(default = "default_emoji")]
+    pub emoji: String,
 }
 
-fn default_icon() -> String {
-    "bell".to_string()
-}
-
-fn default_color() -> String {
-    "#3B82F6".to_string()
+fn default_emoji() -> String {
+    "🔔".to_string()
 }

@@ -80,16 +80,3 @@ enum AppBuildInfo {
     Bundle.main.object(forInfoDictionaryKey: key) as? String ?? fallback
   }
 }
-
-func iconName(_ icon: String) -> String {
-  switch icon {
-  case "agent":
-    return "cpu"
-  case "deploy":
-    return "shippingbox"
-  case "security":
-    return "lock.shield"
-  default:
-    return icon.isEmpty ? "bell" : icon
-  }
-}

@@ -23,7 +23,7 @@ pub async fn list_requests_for_device(
     let device = get_device(pool, query.device_id).await?;
     let cutoff = (Utc::now() - Duration::days(query.retention_days.max(1)))
         .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    // Pending work stays unbounded so a history limit cannot hide actions still waiting on this device.
+    // Pending work stays unbounded so a history limit cannot hide requests still waiting on this device.
     let pending_rows = sqlx::query(
         r#"
         SELECT e.id
@@ -120,7 +120,7 @@ pub async fn get_request(pool: &SqlitePool, request_id: &str) -> Result<Decision
     let row = sqlx::query(
         r#"
         SELECT id, source_id, title, summary, body_markdown, fields_json, links_json,
-            image_url, priority, privacy, dedupe_key, expires_at, status, created_at,
+            image_url, notification_json, dedupe_key, expires_at, status, created_at,
             updated_at, resolved_at, decision_json, callback_url, decision_resolution
         FROM requests
         WHERE id = ?

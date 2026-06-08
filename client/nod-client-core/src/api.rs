@@ -513,6 +513,37 @@ mod tests {
     }
 
     #[test]
+    fn retired_source_and_request_presentation_fields_do_not_decode() {
+        let legacy_source = serde_json::json!({
+            "id": "default",
+            "name": "Default",
+            "icon": "bell",
+            "color": "#3B82F6",
+            "default_priority": 5,
+            "privacy": "private",
+            "subscribed": true,
+            "created_at": "2026-06-01T00:00:00Z"
+        });
+        assert!(serde_json::from_value::<Source>(legacy_source).is_err());
+
+        let mut legacy_request = request_json("request-1", "pending");
+        legacy_request["priority"] = serde_json::json!(8);
+        legacy_request["privacy"] = serde_json::json!("private");
+        assert!(serde_json::from_value::<Request>(legacy_request).is_err());
+    }
+
+    #[test]
+    fn request_requires_notification_contract_field() {
+        let mut missing_notification = request_json("request-1", "pending");
+        missing_notification
+            .as_object_mut()
+            .unwrap()
+            .remove("notification");
+
+        assert!(serde_json::from_value::<Request>(missing_notification).is_err());
+    }
+
+    #[test]
     fn legacy_decision_fields_do_not_decode() {
         assert!(serde_json::from_value::<Decision>(serde_json::json!({
             "event_id": "request-1",
@@ -590,10 +621,7 @@ mod tests {
         serde_json::json!({
             "id": id,
             "name": "Default",
-            "icon": "bell",
-            "color": "#3B82F6",
-            "default_priority": 5,
-            "privacy": "private",
+            "emoji": "🔔",
             "subscribed": true,
             "created_at": "2026-06-01T00:00:00Z"
         })
@@ -612,8 +640,11 @@ mod tests {
             "fields": [],
             "links": [],
             "image_url": null,
-            "priority": 8,
-            "privacy": "private",
+            "notification": {
+                "redact": true,
+                "title": "Nod",
+                "body": "Open Nod to review this request."
+            },
             "dedupe_key": null,
             "expires_at": null,
             "status": status,

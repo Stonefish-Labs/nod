@@ -20,7 +20,7 @@ pub async fn create_request(
     created_by_issuer_token_id: Option<&str>,
 ) -> Result<CreatedDecisionRequest, ApiError> {
     validate_request(&req)?;
-    let source = get_source(pool, &req.source_id).await?;
+    get_source(pool, &req.source_id).await?;
     let recipients =
         resolve_request_recipients(pool, &req.source_id, req.recipients.as_ref()).await?;
     // The dedupe key is part of the issuer contract: retried creates must return the pending request.
@@ -40,8 +40,6 @@ pub async fn create_request(
     let decision_resolution = req
         .decision_resolution
         .unwrap_or(DecisionResolution::Shared);
-    let priority = req.priority.unwrap_or(source.default_priority).clamp(0, 10);
-    let privacy = req.privacy.unwrap_or(source.privacy);
     let summary = if req.summary.trim().is_empty() {
         req.body_markdown
             .lines()
@@ -53,16 +51,17 @@ pub async fn create_request(
     } else {
         req.summary
     };
+    let notification = normalized_notification(req.notification);
     let options = normalize_options(req.options);
 
     sqlx::query(
         r#"
         INSERT INTO requests (
             id, source_id, title, summary, body_markdown, fields_json, links_json,
-            image_url, priority, privacy, dedupe_key, expires_at, status,
+            image_url, notification_json, dedupe_key, expires_at, status,
             created_at, updated_at, callback_url, decision_resolution, created_by_issuer_token_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&id)
@@ -73,8 +72,7 @@ pub async fn create_request(
     .bind(serde_json::to_string(&req.fields)?)
     .bind(serde_json::to_string(&req.links)?)
     .bind(req.image_url)
-    .bind(priority)
-    .bind(privacy)
+    .bind(serde_json::to_string(&notification)?)
     .bind(req.dedupe_key)
     .bind(
         req.expires_at
@@ -102,6 +100,20 @@ pub async fn create_request(
         deduped: false,
         request,
     })
+}
+
+fn normalized_notification(
+    mut notification: crate::models::RequestNotification,
+) -> crate::models::RequestNotification {
+    notification.title = normalized_optional_text(notification.title);
+    notification.body = normalized_optional_text(notification.body);
+    notification
+}
+
+fn normalized_optional_text(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }
 
 async fn insert_option(

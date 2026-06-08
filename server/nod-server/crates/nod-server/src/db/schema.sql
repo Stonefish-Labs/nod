@@ -3,10 +3,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS sources (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    icon TEXT NOT NULL DEFAULT 'bell',
-    color TEXT NOT NULL DEFAULT '#3B82F6',
-    default_priority INTEGER NOT NULL DEFAULT 5,
-    privacy TEXT NOT NULL DEFAULT 'private',
+    emoji TEXT NOT NULL DEFAULT '🔔',
     created_at TEXT NOT NULL
 );
 
@@ -109,8 +106,7 @@ CREATE TABLE IF NOT EXISTS requests (
     fields_json TEXT NOT NULL,
     links_json TEXT NOT NULL,
     image_url TEXT,
-    priority INTEGER NOT NULL,
-    privacy TEXT NOT NULL,
+    notification_json TEXT NOT NULL DEFAULT '{}',
     dedupe_key TEXT,
     expires_at TEXT,
     status TEXT NOT NULL,
@@ -178,17 +174,3 @@ CREATE TABLE IF NOT EXISTS decision_nonces (
     used_at TEXT NOT NULL,
     PRIMARY KEY (device_id, key_id, nonce)
 );
-
-INSERT OR IGNORE INTO sources (id, name, icon, color, default_priority, privacy, created_at)
-VALUES ('default', 'Default', 'bell', '#3B82F6', 5, 'private', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
-
-INSERT OR IGNORE INTO users (id, name, created_at, updated_at)
-VALUES (
-    'owner',
-    'Owner',
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-    strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-);
-
-INSERT OR IGNORE INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
-VALUES ('owner', 'default', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

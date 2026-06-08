@@ -1,5 +1,5 @@
 import { Bell, RefreshCw, Server, Settings } from "lucide-react";
-import { pendingCountFor, totalPendingCount } from "../domain";
+import { pendingCountFor, sourceColor, totalPendingCount } from "../domain";
 import type { Source, ClientState, ServerProfile } from "../types";
 
 interface SidebarProps {
@@ -103,7 +103,8 @@ function SourceList({
           className={source.id === activeSource?.id ? "active" : ""}
           onClick={() => void onSelect(source)}
         >
-          <span className="swatch" style={{ backgroundColor: source.color }} />
+          <span className="swatch" style={{ backgroundColor: sourceColor(source) }} />
+          <span className="sourceEmoji" aria-hidden="true">{source.emoji || "🔔"}</span>
           <span>{source.name}</span>
           <strong>{pendingCountFor(source, state)}</strong>
         </button>

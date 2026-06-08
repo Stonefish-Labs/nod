@@ -10,10 +10,7 @@ pub(super) fn row_to_source(row: sqlx::sqlite::SqliteRow) -> Result<Source, ApiE
     Ok(Source {
         id: row.get("id"),
         name: row.get("name"),
-        icon: row.get("icon"),
-        color: row.get("color"),
-        default_priority: row.get("default_priority"),
-        privacy: row.get("privacy"),
+        emoji: row.get("emoji"),
         subscribed: row.get::<i64, _>("subscribed") != 0,
         created_at: parse_time(row.get("created_at"))?,
     })

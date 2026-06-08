@@ -4,8 +4,8 @@ use super::super::validation::{parse_optional_time, parse_time};
 use crate::{
     error::ApiError,
     models::{
-        CardField, CardLink, Decision, DecisionRequest, DecisionResolution, RequestOption,
-        RequestStatus, UserDecision,
+        CardField, CardLink, Decision, DecisionRequest, DecisionResolution, RequestNotification,
+        RequestOption, RequestStatus, UserDecision,
     },
 };
 
@@ -76,6 +76,7 @@ pub(super) async fn row_to_request(
 
     let fields_json: String = row.get("fields_json");
     let links_json: String = row.get("links_json");
+    let notification_json: String = row.get("notification_json");
     let decision_json: Option<String> = row.get("decision_json");
 
     Ok(DecisionRequest {
@@ -91,8 +92,8 @@ pub(super) async fn row_to_request(
         fields: serde_json::from_str::<Vec<CardField>>(&fields_json)?,
         links: serde_json::from_str::<Vec<CardLink>>(&links_json)?,
         image_url: row.get("image_url"),
-        priority: row.get("priority"),
-        privacy: row.get("privacy"),
+        notification: serde_json::from_str::<RequestNotification>(&notification_json)
+            .unwrap_or_default(),
         dedupe_key: row.get("dedupe_key"),
         expires_at: parse_optional_time(row.get("expires_at"))?,
         status: RequestStatus::from(row.get::<String, _>("status").as_str()),

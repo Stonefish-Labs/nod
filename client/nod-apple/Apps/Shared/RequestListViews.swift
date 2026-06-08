@@ -230,7 +230,10 @@ struct SourceLabel: View {
   let source: NodSource
 
   var body: some View {
-    Label(source.name, systemImage: iconName(source.icon))
+    HStack(spacing: 6) {
+      Text(source.emoji.isEmpty ? "🔔" : source.emoji)
+      Text(source.name)
+    }
   }
 }
 

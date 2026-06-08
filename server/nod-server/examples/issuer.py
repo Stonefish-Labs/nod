@@ -38,7 +38,9 @@ def main():
     parser.add_argument("--token", default=first_env("NOD_ISSUER_TOKEN", "NOD_TOKEN"))
     parser.add_argument("--source", default=first_env("NOD_SOURCE_ID") or "default")
     parser.add_argument("--summary", default="")
-    parser.add_argument("--priority", type=int)
+    parser.add_argument("--redact-apns", action="store_true", help="send generic APNs alert text")
+    parser.add_argument("--apns-title", default="", help="custom APNs alert title")
+    parser.add_argument("--apns-body", default="", help="custom APNs alert body")
     parser.add_argument("--dedupe-key", default="")
     parser.add_argument("--informational", action="store_true", help="send without approval options")
     args = parser.parse_args()
@@ -57,8 +59,15 @@ def main():
         payload["summary"] = args.summary
     if body:
         payload["body_markdown"] = body
-    if args.priority is not None:
-        payload["priority"] = args.priority
+    notification = {}
+    if args.redact_apns:
+        notification["redact"] = True
+    if args.apns_title:
+        notification["title"] = args.apns_title
+    if args.apns_body:
+        notification["body"] = args.apns_body
+    if notification:
+        payload["notification"] = notification
     if args.dedupe_key:
         payload["dedupe_key"] = args.dedupe_key
     if not args.informational:

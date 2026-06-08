@@ -158,8 +158,11 @@ private func makeRequest() throws -> NodRequest {
       "fields": [],
       "links": [],
       "image_url": null,
-      "priority": 1,
-      "privacy": "normal",
+      "notification": {
+        "redact": false,
+        "title": null,
+        "body": null
+      },
       "dedupe_key": null,
       "expires_at": null,
       "status": "pending",

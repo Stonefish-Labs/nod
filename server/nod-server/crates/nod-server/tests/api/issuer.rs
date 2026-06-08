@@ -150,8 +150,7 @@ async fn issuer_token_can_be_scoped_to_one_source() {
             Some(json!({
                 "id": "steam-wishlist-notifier",
                 "name": "Steam Wishlist Notifier",
-                "icon": "gamecontroller",
-                "color": "#66C0F4"
+                "emoji": "🎮"
             })),
         )
         .await;

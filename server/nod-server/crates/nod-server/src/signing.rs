@@ -116,8 +116,6 @@ pub fn request_digest(request: &DecisionRequest) -> Result<String, ApiError> {
             "fields_sha256:{fields}\n",
             "links_sha256:{links}\n",
             "image_url:{image_url}\n",
-            "priority:{priority}\n",
-            "privacy:{privacy}\n",
             "dedupe_key:{dedupe_key}\n",
             "expires_at:{expires_at}\n",
             "created_at:{created_at}\n",
@@ -133,8 +131,6 @@ pub fn request_digest(request: &DecisionRequest) -> Result<String, ApiError> {
         fields = sha256_hex(fields.as_bytes()),
         links = sha256_hex(links.as_bytes()),
         image_url = request.image_url.as_deref().unwrap_or(""),
-        priority = request.priority,
-        privacy = request.privacy,
         dedupe_key = request.dedupe_key.as_deref().unwrap_or(""),
         expires_at = request
             .expires_at

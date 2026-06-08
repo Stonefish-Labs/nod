@@ -386,10 +386,7 @@ mod tests {
         Source {
             id: id.to_string(),
             name: id.to_string(),
-            icon: String::new(),
-            color: "#000000".to_string(),
-            default_priority: 5,
-            privacy: "private".to_string(),
+            emoji: "🔔".to_string(),
             subscribed,
             created_at: Utc.with_ymd_and_hms(2026, 5, 28, 12, 0, 0).unwrap(),
         }
@@ -408,8 +405,7 @@ mod tests {
             fields: Vec::new(),
             links: Vec::new(),
             image_url: None,
-            priority: 5,
-            privacy: "private".to_string(),
+            notification: Default::default(),
             dedupe_key: None,
             expires_at: None,
             status,

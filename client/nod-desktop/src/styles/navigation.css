@@ -70,7 +70,7 @@
 
 .sources button {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-columns: 14px 22px minmax(0, 1fr) auto;
 }
 
 .swatch {
@@ -78,6 +78,10 @@
   display: inline-block;
   height: 10px;
   width: 10px;
+}
+
+.sourceEmoji {
+  text-align: center;
 }
 
 .sidebarControls {

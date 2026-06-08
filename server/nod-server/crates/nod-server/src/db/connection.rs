@@ -2,7 +2,7 @@ use std::{path::Path, str::FromStr};
 
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
-    SqlitePool,
+    Row, SqlitePool,
 };
 use url::Url;
 
@@ -29,7 +29,95 @@ async fn create_greenfield_schema(pool: &SqlitePool) -> anyhow::Result<()> {
     sqlx::raw_sql(include_str!("schema.sql"))
         .execute(pool)
         .await?;
+    ensure_column(
+        pool,
+        "sources",
+        "emoji",
+        "ALTER TABLE sources ADD COLUMN emoji TEXT NOT NULL DEFAULT '🔔'",
+    )
+    .await?;
+    sqlx::query("UPDATE sources SET emoji = COALESCE(NULLIF(TRIM(emoji), ''), '🔔')")
+        .execute(pool)
+        .await?;
+    ensure_column(
+        pool,
+        "requests",
+        "notification_json",
+        "ALTER TABLE requests ADD COLUMN notification_json TEXT NOT NULL DEFAULT '{}'",
+    )
+    .await?;
+    remove_column_if_exists(pool, "sources", "icon").await?;
+    remove_column_if_exists(pool, "sources", "color").await?;
+    remove_column_if_exists(pool, "sources", "default_priority").await?;
+    remove_column_if_exists(pool, "sources", "privacy").await?;
+    remove_column_if_exists(pool, "requests", "priority").await?;
+    remove_column_if_exists(pool, "requests", "privacy").await?;
+    seed_defaults(pool).await?;
     Ok(())
+}
+
+async fn seed_defaults(pool: &SqlitePool) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT OR IGNORE INTO sources (id, name, emoji, created_at) VALUES ('default', 'Default', '🔔', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO users (id, name, created_at, updated_at)
+        VALUES (
+            'owner',
+            'Owner',
+            strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+            strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
+        VALUES ('owner', 'default', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        "#,
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn ensure_column(
+    pool: &SqlitePool,
+    table: &str,
+    column: &str,
+    statement: &str,
+) -> anyhow::Result<()> {
+    if !column_exists(pool, table, column).await? {
+        sqlx::query(statement).execute(pool).await?;
+    }
+    Ok(())
+}
+
+async fn remove_column_if_exists(
+    pool: &SqlitePool,
+    table: &str,
+    column: &str,
+) -> anyhow::Result<()> {
+    if column_exists(pool, table, column).await? {
+        sqlx::query(&format!("ALTER TABLE {table} DROP COLUMN {column}"))
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+async fn column_exists(pool: &SqlitePool, table: &str, column: &str) -> anyhow::Result<bool> {
+    let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
+        .fetch_all(pool)
+        .await?;
+    Ok(rows
+        .iter()
+        .any(|row| row.get::<String, _>("name") == column))
 }
 
 fn ensure_sqlite_parent(database_url: &str) -> anyhow::Result<()> {
@@ -55,4 +143,88 @@ fn ensure_sqlite_parent(database_url: &str) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn connect_drops_retired_presentation_columns_from_existing_schema() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("legacy.sqlite");
+        let database_url = format!("sqlite://{}", db_path.display());
+        let options = SqliteConnectOptions::from_str(&database_url)
+            .unwrap()
+            .create_if_missing(true);
+        let legacy_pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+
+        sqlx::raw_sql(
+            r##"
+            CREATE TABLE sources (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                icon TEXT NOT NULL DEFAULT 'bell',
+                color TEXT NOT NULL DEFAULT '#3B82F6',
+                default_priority INTEGER NOT NULL DEFAULT 5,
+                privacy TEXT NOT NULL DEFAULT 'private',
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE requests (
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL REFERENCES sources(id),
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                body_markdown TEXT NOT NULL,
+                fields_json TEXT NOT NULL,
+                links_json TEXT NOT NULL,
+                image_url TEXT,
+                priority INTEGER NOT NULL,
+                privacy TEXT NOT NULL,
+                dedupe_key TEXT,
+                expires_at TEXT,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                resolved_at TEXT,
+                decision_json TEXT,
+                callback_url TEXT,
+                decision_resolution TEXT NOT NULL DEFAULT 'shared',
+                created_by_issuer_token_id TEXT REFERENCES issuer_tokens(id)
+            );
+            "##,
+        )
+        .execute(&legacy_pool)
+        .await
+        .unwrap();
+        legacy_pool.close().await;
+
+        let mut config = Config::with_admin_token("test-admin-token");
+        config.database_url = database_url;
+        config.data_dir = tmp.path().to_path_buf();
+        let pool = connect(&config).await.unwrap();
+
+        for (table, column) in [
+            ("sources", "icon"),
+            ("sources", "color"),
+            ("sources", "default_priority"),
+            ("sources", "privacy"),
+            ("requests", "priority"),
+            ("requests", "privacy"),
+        ] {
+            assert!(
+                !column_exists(&pool, table, column).await.unwrap(),
+                "{table}.{column} should be removed"
+            );
+        }
+        assert!(column_exists(&pool, "sources", "emoji").await.unwrap());
+        assert!(column_exists(&pool, "requests", "notification_json")
+            .await
+            .unwrap());
+    }
 }

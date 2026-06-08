@@ -12,7 +12,7 @@ This service lives under `server/nod-server` in the Nod monorepo. The native App
 
 - `axum` + `tokio` + `sqlx` on SQLite (WAL), with append-only JSONL audit logs
 - Admin-created users/sources, short-lived enrollment codes, device tokens, and issuer tokens
-- Request payloads with rendered message snapshots, fields, links, optional image URL, priority, dedupe key, and structured options
+- Request payloads with rendered message snapshots, fields, links, optional image URL, APNs notification redaction metadata, dedupe key, and structured options
 - Agent-friendly decision API, wait API, and optional callback URL
 - Signed device decisions using P-256 ECDSA/SHA-256 keys registered during enrollment
 - User-targeted delivery with shared or per-user decision resolution
