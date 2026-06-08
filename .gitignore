@@ -68,3 +68,4 @@ server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.crt
 server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.key
 server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.csr
 server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.srl
+/ext-docs
