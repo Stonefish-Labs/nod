@@ -1,6 +1,13 @@
 import Darwin
 import Foundation
 
+enum NodAuthenticatedRequestErrorAction: Equatable, Sendable {
+  case serverRejectedSession
+  case missingLocalToken
+  case requestDenied
+  case connectionIssue
+}
+
 extension NodStore {
   public func connectSync() {
     syncReconnectTask?.cancel()
@@ -69,26 +76,82 @@ extension NodStore {
       scheduleSyncReconnect()
       return
     }
-    lastError = error.localizedDescription
+    reportConnectionError(error)
+    scheduleSyncReconnect()
   }
 
   func reportConnectionError(_ error: Error, serverId: String? = nil) {
-    guard Self.isTransientConnectionError(error) else {
-      lastError = error.localizedDescription
-      return
-    }
     markServerConnectionIssue(error.localizedDescription, serverId: serverId ?? selectedServer?.id)
   }
 
   func handleAuthenticatedRequestError(_ error: Error) {
-    if case NodAPIError.badStatus(let status, _) = error, status == 401 || status == 403 {
-      if let serverId = selectedServer?.id {
-        removeServersLocally([serverId])
-      }
-      lastError = "This device registration was revoked."
-      return
+    switch Self.authenticatedRequestErrorAction(for: error) {
+    case .serverRejectedSession:
+      reportSelectedServerSessionInvalid()
+    case .missingLocalToken:
+      reportSelectedServerTokenMissing()
+    case .requestDenied:
+      reportDeniedAuthenticatedRequest(error)
+    case .connectionIssue:
+      reportConnectionError(error)
     }
-    reportConnectionError(error)
+  }
+
+  nonisolated static func authenticatedRequestErrorAction(
+    for error: Error
+  ) -> NodAuthenticatedRequestErrorAction {
+    if case NodAPIError.badStatus(let status, _) = error {
+      if status == 401 {
+        return .serverRejectedSession
+      }
+      if status == 403 {
+        return .requestDenied
+      }
+      return .connectionIssue
+    }
+    if case NodAPIError.missingToken = error {
+      return .missingLocalToken
+    }
+    return .connectionIssue
+  }
+
+  private func reportSelectedServerSessionInvalid() {
+    let message: String
+    if let server = selectedServer {
+      message =
+        "Your Nod session with \(server.name) is no longer valid. Re-enroll this device to continue."
+      reEnrollmentServerId = server.id
+      tokenCache[server.id] = nil
+      loadedTokenServerIds.remove(server.id)
+      markServerConnectionIssue(message, serverId: server.id)
+    } else {
+      message = "Your Nod session is no longer valid. Re-enroll this device to continue."
+      reEnrollmentServerId = nil
+    }
+    disconnectSync()
+    lastError = message
+  }
+
+  private func reportSelectedServerTokenMissing() {
+    let message: String
+    if let server = selectedServer {
+      message =
+        "The saved Nod token for \(server.name) is missing. Re-enroll this device or forget this server."
+      reEnrollmentServerId = server.id
+      markServerConnectionIssue(message, serverId: server.id)
+    } else {
+      message = "The saved Nod token is missing. Re-enroll this device to continue."
+      reEnrollmentServerId = nil
+    }
+    disconnectSync()
+    lastError = message
+  }
+
+  private func reportDeniedAuthenticatedRequest(_ error: Error) {
+    if let serverId = selectedServer?.id {
+      markServerConnectionIssue(error.localizedDescription, serverId: serverId)
+    }
+    lastError = error.localizedDescription
   }
 
   func markServerContactSucceeded(serverId: String? = nil) {

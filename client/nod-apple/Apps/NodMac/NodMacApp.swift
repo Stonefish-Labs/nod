@@ -40,8 +40,10 @@ struct NodMacApp: App {
             Button("Refresh") {
                 Task { await store.refresh() }
             }
-            Button("Request/Test Notifications") {
-                Task { await store.requestAndTestNotifications() }
+            Divider()
+            Text("Notifications: \(notificationStatusLabel)")
+            Button("Request Notification Permission") {
+                Task { await store.requestNotifications() }
             }
             Button("Open Notification Settings") {
                 openNotificationSettings()
@@ -52,12 +54,26 @@ struct NodMacApp: App {
             }
         } label: {
             Label(menuBarTitle, systemImage: menuBarSystemImage)
-                .onAppear {
+                .task {
+                    await store.refreshNotificationAuthorizationStatus()
                     updateDockBadge()
                 }
                 .onChange(of: store.totalPendingCount) {
                     updateDockBadge()
                 }
+        }
+    }
+
+    private var notificationStatusLabel: String {
+        switch store.notificationAuthorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return "Granted"
+        case .denied:
+            return "Denied"
+        case .notDetermined:
+            return "Not Determined"
+        case .unknown:
+            return "Unknown"
         }
     }
 

@@ -24,11 +24,14 @@ public final class NodStore: ObservableObject {
   @Published public var notificationSound: String
   @Published public var lastError: String?
   @Published public var notificationPermissionIssue: String?
+  @Published public var notificationAuthorizationStatus: NodNotificationAuthorizationStatus = .notDetermined
   @Published public var isRegistered: Bool = false
   @Published public var isSyncConnected: Bool = false
   @Published public internal(set) var notificationDeliveryMode: NodNotificationDeliveryMode = .push
   @Published public internal(set) var serverConnectionIssuesById: [String: String] = [:]
   @Published public var notificationOpenRequest: NodNotificationOpenRequest?
+  @Published public var registrationPromptRequestId: UUID?
+  @Published public internal(set) var reEnrollmentServerId: String?
 
   public let platform: NodDevicePlatform
   public var presentLocalNotifications: Bool
@@ -50,6 +53,10 @@ public final class NodStore: ObservableObject {
 
   public var alertMessage: String? {
     lastError ?? notificationPermissionIssue
+  }
+
+  public var canReEnrollInvalidSession: Bool {
+    reEnrollmentServerId != nil
   }
 
   public func connectionIssue(for server: NodServerProfile) -> String? {
@@ -76,13 +83,16 @@ public final class NodStore: ObservableObject {
   var loadedTokenServerIds = Set<String>()
   var knownPendingRequestIds = Set<String>()
   var hasLoadedPendingRequestSnapshot = false
+  var locallyDismissedInformationalRequestIds = Set<String>()
+  var informationalDismissSubmissions = Set<String>()
   var syncReconnectTask: Task<Void, Never>?
 
   public init(
     platform: NodDevicePlatform,
     defaultDeviceName: String,
     presentLocalNotifications: Bool,
-    appAttest: NodAppAttestationProviding = NodAppAttestationStore()
+    appAttest: NodAppAttestationProviding = NodAppAttestationStore(),
+    configureNotificationController: Bool = true
   ) {
     self.platform = platform
     self.presentLocalNotifications = presentLocalNotifications
@@ -92,6 +102,9 @@ public final class NodStore: ObservableObject {
     self.baseURLString = ""
     self.deviceName = savedDeviceName
     self.notificationSound = defaults.string(forKey: "nod.notificationSound") ?? "default"
+    self.locallyDismissedInformationalRequestIds = Set(
+      defaults.stringArray(forKey: "nod.dismissedInformationalRequestIds") ?? []
+    )
     resetLegacyClientStateIfNeeded()
 
     self.servers = Self.loadServers(from: defaults)
@@ -117,19 +130,21 @@ public final class NodStore: ObservableObject {
       }
     }
 
-    NodNotificationController.shared.configure(
-      apiProvider: { [weak self] in
-        self?.api()
-      },
-      onOpen: { [weak self] requestId, sourceId in
-        Task { @MainActor in
-          await self?.openNotification(requestId: requestId, sourceId: sourceId)
+    if configureNotificationController {
+      NodNotificationController.shared.configure(
+        apiProvider: { [weak self] in
+          self?.api()
+        },
+        onOpen: { [weak self] requestId, sourceId in
+          Task { @MainActor in
+            await self?.openNotification(requestId: requestId, sourceId: sourceId)
+          }
+        },
+        onOption: { [weak self] requestId, optionId, text in
+          await self?.submitNotificationOption(requestId: requestId, optionId: optionId, text: text)
         }
-      },
-      onOption: { [weak self] requestId, optionId, text in
-        await self?.submitNotificationOption(requestId: requestId, optionId: optionId, text: text)
-      }
-    )
+      )
+    }
   }
 
   public func api() -> NodAPI? {
@@ -142,6 +157,7 @@ public final class NodStore: ObservableObject {
   public func dismissAlertMessage() {
     if lastError != nil {
       lastError = nil
+      reEnrollmentServerId = nil
     } else {
       notificationPermissionIssue = nil
     }

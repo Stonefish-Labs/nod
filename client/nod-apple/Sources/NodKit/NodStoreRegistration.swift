@@ -90,6 +90,28 @@ extension NodStore {
     removeServersLocally(serverIds)
   }
 
+  public func beginInvalidSessionReEnrollment() {
+    guard
+      let serverId = reEnrollmentServerId,
+      let server = servers.first(where: { $0.id == serverId })
+    else {
+      reEnrollmentServerId = nil
+      return
+    }
+
+    let shouldPromptRegistration = servers.contains { $0.id != server.id }
+    baseURLString = server.baseURLString
+    deviceName = server.deviceName
+    enrollmentCode = ""
+    lastError = nil
+    reEnrollmentServerId = nil
+    removeServersLocally([server.id])
+
+    if shouldPromptRegistration {
+      registrationPromptRequestId = UUID()
+    }
+  }
+
   public func renameDevice(_ device: NodUserDevice, name: String) async {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else {

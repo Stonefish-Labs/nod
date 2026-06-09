@@ -18,7 +18,9 @@ extension NodStore {
       sources = try await api.sources()
       selectFirstVisibleSourceIfNeeded()
 
-      let allVisibleRequests = try await api.requests(NodRequestQuery(limit: 500))
+      let allVisibleRequests = locallyVisibleRequests(
+        try await api.requests(NodRequestQuery(limit: 500))
+      )
       let pendingRequests = allVisibleRequests.filter { $0.status == .pending }
       pendingCountsBySource = NodRequestInbox.pendingCountsBySource(in: pendingRequests)
       await presentNotificationsForPendingRequestsDiscoveredByRefresh(pendingRequests)
@@ -29,8 +31,8 @@ extension NodStore {
       } else {
         requests = []
       }
-      if selectedRequestId == nil || !requests.contains(where: { $0.id == selectedRequestId }) {
-        selectedRequestId = requests.first?.id
+      if let selectedRequestId, !requests.contains(where: { $0.id == selectedRequestId }) {
+        self.selectedRequestId = nil
       }
       markServerContactSucceeded()
       lastError = nil
@@ -51,10 +53,11 @@ extension NodStore {
         text: text,
         signature: signature
       )
-      upsert(updated)
+      applySubmittedRequest(updated, replacing: request)
+      markServerContactSucceeded()
       lastError = nil
     } catch {
-      handleAuthenticatedRequestError(error)
+      await handleDecisionSubmitError(error)
     }
   }
 
@@ -62,6 +65,11 @@ extension NodStore {
     guard request.status == .pending, request.options.isEmpty else {
       return
     }
+    guard !informationalDismissSubmissions.contains(request.id) else {
+      return
+    }
+    informationalDismissSubmissions.insert(request.id)
+    dismissInformationalLocally(request)
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
@@ -73,10 +81,12 @@ extension NodStore {
         optionId: "dismiss",
         signature: signature
       )
-      upsert(updated)
+      applySubmittedRequest(updated, replacing: request)
+      markServerContactSucceeded()
       lastError = nil
     } catch {
-      handleAuthenticatedRequestError(error)
+      // Opening an informational request is a read receipt. Keep the local UI cleared
+      // even if the best-effort server acknowledgement cannot be sent immediately.
     }
   }
 
@@ -96,10 +106,11 @@ extension NodStore {
         text: text,
         signature: signature
       )
-      upsert(updated)
+      applySubmittedRequest(updated, replacing: request)
+      markServerContactSucceeded()
       lastError = nil
     } catch {
-      handleAuthenticatedRequestError(error)
+      await handleDecisionSubmitError(error)
     }
   }
 
@@ -160,9 +171,105 @@ extension NodStore {
       requests.insert(request, at: 0)
     }
     requests = NodRequestInbox.visibleRequests(requests)
-    if selectedRequestId == nil {
-      selectedRequestId = request.id
+  }
+
+  func applySubmittedRequest(_ request: NodRequest, replacing previousRequest: NodRequest) {
+    reconcilePendingCounts(updated: request, replacing: previousRequest)
+    upsert(request)
+  }
+
+  private func reconcilePendingCounts(updated request: NodRequest, replacing previousRequest: NodRequest) {
+    guard previousRequest.status == .pending, request.status != .pending else {
+      return
     }
+    pendingCountsBySource[previousRequest.sourceId] = max(
+      0,
+      (pendingCountsBySource[previousRequest.sourceId] ?? 1) - 1
+    )
+    knownPendingRequestIds.remove(previousRequest.id)
+  }
+
+  private func dismissInformationalLocally(_ request: NodRequest) {
+    locallyDismissedInformationalRequestIds.insert(request.id)
+    saveLocallyDismissedInformationalRequestIds()
+    applySubmittedRequest(localDismissedInformationalRequest(from: request), replacing: request)
+    knownPendingRequestIds.remove(request.id)
+  }
+
+  private func locallyVisibleRequests(_ requests: [NodRequest]) -> [NodRequest] {
+    requests.filter { request in
+      !isLocallyDismissedInformational(request)
+    }
+  }
+
+  private func isLocallyDismissedInformational(_ request: NodRequest) -> Bool {
+    request.status == .pending
+      && request.options.isEmpty
+      && locallyDismissedInformationalRequestIds.contains(request.id)
+  }
+
+  private func decrementPendingCount(for sourceId: String) {
+    let count = max(0, (pendingCountsBySource[sourceId] ?? 1) - 1)
+    pendingCountsBySource[sourceId] = count == 0 ? nil : count
+  }
+
+  private func localDismissedInformationalRequest(from request: NodRequest) -> NodRequest {
+    let resolvedAt = Date()
+    let decision = NodDecision(
+      requestId: request.id,
+      optionId: "dismiss",
+      optionKind: .dismiss,
+      optionLabel: "Dismiss",
+      resolvedAt: resolvedAt
+    )
+    return NodRequest(
+      id: request.id,
+      requestId: request.requestId,
+      sourceId: request.sourceId,
+      recipients: request.recipients,
+      decisionResolution: request.decisionResolution,
+      title: request.title,
+      summary: request.summary,
+      bodyMarkdown: request.bodyMarkdown,
+      fields: request.fields,
+      links: request.links,
+      imageUrl: request.imageUrl,
+      notification: request.notification,
+      dedupeKey: request.dedupeKey,
+      expiresAt: request.expiresAt,
+      status: .resolved,
+      createdAt: request.createdAt,
+      updatedAt: resolvedAt,
+      resolvedAt: resolvedAt,
+      decision: decision,
+      decisions: request.decisions,
+      callbackUrl: request.callbackUrl,
+      options: request.options,
+      requestDigest: request.requestDigest
+    )
+  }
+
+  private func saveLocallyDismissedInformationalRequestIds() {
+    defaults.set(
+      Array(locallyDismissedInformationalRequestIds).sorted(),
+      forKey: "nod.dismissedInformationalRequestIds"
+    )
+  }
+
+  private func handleDecisionSubmitError(_ error: Error) async {
+    if case NodAPIError.badStatus(let status, _) = error {
+      if status == 401 {
+        handleAuthenticatedRequestError(error)
+        return
+      }
+      lastError = error.localizedDescription
+      if status == 409 || status == 404 {
+        await refresh()
+      }
+      return
+    }
+
+    handleAuthenticatedRequestError(error)
   }
 
   private func decisionSignature(

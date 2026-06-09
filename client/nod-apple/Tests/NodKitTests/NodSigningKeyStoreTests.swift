@@ -8,7 +8,7 @@ final class NodSigningKeyStoreTests: XCTestCase {
     let keychain = TestKeychainStore()
     let key = TestSecureEnclavePrivateKey(
       dataRepresentation: Data("secure-key-1".utf8),
-      publicKeyRawRepresentation: Data("public-key-1".utf8),
+      publicKeyX963Representation: Data("public-key-1".utf8),
       signature: Data("der-signature".utf8)
     )
     let provider = TestSecureEnclaveSigningKeyProvider(generatedKeys: [key])
@@ -43,7 +43,7 @@ final class NodSigningKeyStoreTests: XCTestCase {
     let account = "decisionSigningKey.secure"
     let key = TestSecureEnclavePrivateKey(
       dataRepresentation: Data("secure-key-3".utf8),
-      publicKeyRawRepresentation: Data("public-key-3".utf8),
+      publicKeyX963Representation: Data("public-key-3".utf8),
       signature: Data("der-signature".utf8)
     )
     let keychain = TestKeychainStore()
@@ -127,14 +127,14 @@ private final class TestSecureEnclaveSigningKeyProvider: NodSecureEnclaveSigning
 
 private final class TestSecureEnclavePrivateKey: NodSecureEnclaveSigningPrivateKey {
   let dataRepresentation: Data
-  let publicKeyRawRepresentation: Data
+  let publicKeyX963Representation: Data
   private let signature: Data
 
   var signedData: [Data] = []
 
-  init(dataRepresentation: Data, publicKeyRawRepresentation: Data, signature: Data) {
+  init(dataRepresentation: Data, publicKeyX963Representation: Data, signature: Data) {
     self.dataRepresentation = dataRepresentation
-    self.publicKeyRawRepresentation = publicKeyRawRepresentation
+    self.publicKeyX963Representation = publicKeyX963Representation
     self.signature = signature
   }
 

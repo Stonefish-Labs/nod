@@ -114,6 +114,7 @@ struct RequestListView: View {
   @State private var pendingRequestsExpanded = true
   @State private var handledRequestsExpanded = false
   @State private var initializedSectionExpansion = false
+  @State private var autoDismissedRequestIds = Set<String>()
 
   var body: some View {
     Group {
@@ -147,6 +148,23 @@ struct RequestListView: View {
       initializedSectionExpansion = false
       initializeSectionExpansionIfNeeded()
     }
+    .onChange(of: store.selectedRequestId) { oldValue, newValue in
+      dismissSelectedIfInformational(newValue)
+    }
+  }
+
+  private func dismissSelectedIfInformational(_ requestId: String?) {
+    guard let requestId, !autoDismissedRequestIds.contains(requestId) else {
+      return
+    }
+    guard let request = store.requests.first(where: { $0.id == requestId }),
+      request.status == .pending,
+      request.options.isEmpty
+    else {
+      return
+    }
+    autoDismissedRequestIds.insert(requestId)
+    Task { await store.dismissIfInformational(request: request) }
   }
 
   private var selectedSourceName: String {
@@ -219,10 +237,10 @@ struct RequestDetailContainer: View {
   }
 
   private var request: NodRequest? {
-    if let requestId, let request = store.requests.first(where: { $0.id == requestId }) {
-      return request
+    guard let requestId else {
+      return nil
     }
-    return store.requests.first
+    return store.requests.first(where: { $0.id == requestId })
   }
 }
 
@@ -270,7 +288,7 @@ struct RequestRow: View {
           .font(.headline)
           .lineLimit(2)
         Spacer()
-        StatusBadge(status: request.status)
+        StatusBadge(request: request)
       }
       Text(request.summary)
         .font(.subheadline)
@@ -281,6 +299,8 @@ struct RequestRow: View {
         .foregroundStyle(.tertiary)
     }
     .padding(.vertical, 4)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
   }
 }
 

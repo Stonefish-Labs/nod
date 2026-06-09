@@ -69,3 +69,10 @@ server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.key
 server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.csr
 server/nod-server/crates/nod-server/tests/fixtures/relay-tls/*.srl
 /ext-docs
+/.agents
+client/nod-apple/PROJECT.md
+AGENTS.md
+server/PROJECT.md
+client/nod-tui/PROJECT.md
+client/nod-desktop/PROJECT.md
+client/nod-client-core/PROJECT.md

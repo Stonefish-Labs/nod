@@ -56,7 +56,7 @@ public final class NodSigningKeyStore {
         return NodDeviceSigningKey(
             keyId: stored.keyId,
             algorithm: Self.algorithm,
-            publicKey: privateKey.publicKeyRawRepresentation.base64URLEncodedString()
+            publicKey: privateKey.publicKeyX963Representation.base64URLEncodedString()
         )
     }
 
@@ -189,7 +189,7 @@ protocol NodSecureEnclaveSigningKeyProvider {
 
 protocol NodSecureEnclaveSigningPrivateKey {
     var dataRepresentation: Data { get }
-    var publicKeyRawRepresentation: Data { get }
+    var publicKeyX963Representation: Data { get }
 
     func signatureDER(for data: Data) throws -> Data
 }
@@ -221,8 +221,8 @@ private struct CryptoKitSecureEnclaveSigningPrivateKey: NodSecureEnclaveSigningP
         privateKey.dataRepresentation
     }
 
-    var publicKeyRawRepresentation: Data {
-        privateKey.publicKey.rawRepresentation
+    var publicKeyX963Representation: Data {
+        privateKey.publicKey.x963Representation
     }
 
     func signatureDER(for data: Data) throws -> Data {

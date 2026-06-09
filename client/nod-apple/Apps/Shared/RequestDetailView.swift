@@ -21,7 +21,7 @@ struct RequestDetail: View {
               .foregroundStyle(.secondary)
           }
           Spacer()
-          StatusBadge(status: request.status)
+          StatusBadge(request: request)
         }
 
         if let imageURL = resolvedImageURL(request.imageUrl) {
@@ -132,12 +132,32 @@ private struct RequestDecisionView: View {
     VStack(alignment: .leading, spacing: 8) {
       Text("Handled")
         .font(.headline)
-      Text(decision.optionLabel)
+      Text(displayLabel)
       if let text = decision.text, !text.isEmpty {
         Text(text)
           .padding(10)
           .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
       }
+    }
+  }
+
+  private var displayLabel: String {
+    guard decision.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false else {
+      return decision.optionLabel
+    }
+
+    switch decision.optionKind {
+    case .approve, .approveWithText:
+      return "Approved"
+    case .reject, .rejectWithText:
+      return "Rejected"
+    case .dismiss:
+      return "Dismissed"
+    case .open:
+      return "Opened"
+    case .custom:
+      let label = decision.optionLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+      return label.isEmpty ? "Resolved" : label
     }
   }
 }
@@ -327,11 +347,7 @@ private struct RequestOptionArea: View {
   }
 
   private func isDisabled(_ kind: NodOptionKind) -> Bool {
-    guard let option = selectedOption(for: kind) else {
-      return true
-    }
-
-    return option.requiresText && trimmedInlineText.isEmpty
+    selectedOption(for: kind) == nil
   }
 
   private func submit(_ kind: NodOptionKind) {
@@ -340,7 +356,7 @@ private struct RequestOptionArea: View {
     }
 
     let supportsInlineText = option.kind == .approveWithText || option.kind == .rejectWithText || option.requiresText
-    let text = supportsInlineText && !trimmedInlineText.isEmpty ? inlineText : nil
+    let text = supportsInlineText ? inlineText : nil
     perform(option, text)
   }
 }

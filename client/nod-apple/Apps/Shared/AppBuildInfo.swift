@@ -7,28 +7,64 @@ import AppKit
 #endif
 
 struct StatusBadge: View {
-  let status: NodRequestStatus
+  private let presentation: StatusBadgePresentation
+
+  init(status: NodRequestStatus) {
+    self.presentation = .status(status)
+  }
+
+  init(request: NodRequest) {
+    self.presentation = .request(request)
+  }
 
   var body: some View {
-    Text(status.rawValue.capitalized)
+    Text(presentation.label)
       .font(.caption)
       .fontWeight(.medium)
       .padding(.horizontal, 8)
       .padding(.vertical, 4)
-      .background(color.opacity(0.16), in: Capsule())
-      .foregroundStyle(color)
+      .background(presentation.color.opacity(0.16), in: Capsule())
+      .foregroundStyle(presentation.color)
+  }
+}
+
+private struct StatusBadgePresentation {
+  let label: String
+  let color: Color
+
+  static func request(_ request: NodRequest) -> Self {
+    guard request.status == .resolved, let decision = request.decision else {
+      return status(request.status)
+    }
+    return decisionOutcome(decision)
   }
 
-  private var color: Color {
+  static func status(_ status: NodRequestStatus) -> Self {
     switch status {
     case .pending:
-      return .blue
+      return Self(label: "Pending", color: .blue)
     case .resolved:
-      return .green
+      return Self(label: "Resolved", color: .green)
     case .expired:
-      return .orange
+      return Self(label: "Expired", color: .orange)
     case .cancelled:
-      return .secondary
+      return Self(label: "Cancelled", color: .secondary)
+    }
+  }
+
+  private static func decisionOutcome(_ decision: NodDecision) -> Self {
+    switch decision.optionKind {
+    case .approve, .approveWithText:
+      return Self(label: "Approved", color: .green)
+    case .reject, .rejectWithText:
+      return Self(label: "Rejected", color: .red)
+    case .dismiss:
+      return Self(label: "Dismissed", color: .secondary)
+    case .open:
+      return Self(label: "Opened", color: .blue)
+    case .custom:
+      let label = decision.optionLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+      return Self(label: label.isEmpty ? "Resolved" : label, color: .secondary)
     }
   }
 }

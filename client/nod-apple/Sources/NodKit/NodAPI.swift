@@ -106,7 +106,7 @@ public final class NodAPI: @unchecked Sendable {
         }
         let response: RequestResponse = try await request(
             .post,
-            path: "/api/v1/requests/\(requestId)/options/\(optionId)",
+            path: "/api/v1/requests/\(requestId.pathComponentEscaped)/options/\(optionId.pathComponentEscaped)",
             body: Body(text: text, signature: signature)
         )
         return response.request
@@ -318,6 +318,14 @@ private enum NodHTTPMethod: String {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
+}
+
+private extension String {
+    var pathComponentEscaped: String {
+        addingPercentEncoding(
+            withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
+        ) ?? self
+    }
 }
 
 public struct EmptyResponse: Codable, Sendable {

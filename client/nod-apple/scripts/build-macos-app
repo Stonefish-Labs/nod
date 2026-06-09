@@ -18,19 +18,58 @@ echo "Building Nod macOS app bundle (${CONFIGURATION})"
 echo "Output: ${APP_PATH}"
 echo
 
-xcodebuild \
-  -project "${ROOT_DIR}/Nod.xcodeproj" \
-  -target NodMac \
-  -configuration "${CONFIGURATION}" \
-  CODE_SIGNING_ALLOWED="${CODE_SIGNING_ALLOWED:-NO}" \
-  CONFIGURATION_BUILD_DIR="${CONFIGURATION_BUILD_DIR}" \
-  OBJROOT="${BUILD_DIR}/Intermediates.noindex" \
-  SYMROOT="${PRODUCTS_DIR}" \
-  build
+CODE_SIGNING_ALLOWED_VALUE="${CODE_SIGNING_ALLOWED:-YES}"
+
+build_app() {
+  local code_signing_allowed="$1"
+  local command=(xcodebuild)
+  if [[ "${ALLOW_PROVISIONING_UPDATES:-YES}" == "YES" && "${code_signing_allowed}" == "YES" ]]; then
+    command+=("-allowProvisioningUpdates")
+  fi
+  "${command[@]}" \
+    -project "${ROOT_DIR}/Nod.xcodeproj" \
+    -target NodMac \
+    -configuration "${CONFIGURATION}" \
+    CODE_SIGNING_ALLOWED="${code_signing_allowed}" \
+    CONFIGURATION_BUILD_DIR="${CONFIGURATION_BUILD_DIR}" \
+    OBJROOT="${BUILD_DIR}/Intermediates.noindex" \
+    SYMROOT="${PRODUCTS_DIR}" \
+    build
+}
+
+if ! build_app "${CODE_SIGNING_ALLOWED_VALUE}"; then
+  if [[ -z "${CODE_SIGNING_ALLOWED:-}" && "${CODE_SIGNING_ALLOWED_VALUE}" == "YES" ]]; then
+    echo
+    echo "warning: signed build failed; falling back to an unsigned local build." >&2
+    echo "warning: the fallback will be signed manually if a local Apple Development certificate is available." >&2
+    echo
+    CODE_SIGNING_ALLOWED_VALUE="NO"
+    build_app "${CODE_SIGNING_ALLOWED_VALUE}"
+  else
+    exit 1
+  fi
+fi
 
 if [[ ! -x "${APP_PATH}/Contents/MacOS/Nod" ]]; then
   echo "error: expected app executable was not produced: ${APP_PATH}/Contents/MacOS/Nod" >&2
   exit 1
+fi
+
+signing_identity() {
+  security find-identity -v -p codesigning 2>/dev/null \
+    | awk -F '"' '/Apple Development:/ { print $2; exit }'
+}
+
+if ! codesign --verify --verbose=2 "${APP_PATH}" >/dev/null 2>&1; then
+  IDENTITY="$(signing_identity)"
+  if [[ -n "${IDENTITY}" ]]; then
+    codesign --force --deep --options runtime --sign "${IDENTITY}" "${APP_PATH}" >/dev/null 2>&1 || true
+  else
+    codesign --force --deep --sign - "${APP_PATH}" >/dev/null 2>&1 || true
+  fi
+fi
+if ! codesign --verify --verbose=2 "${APP_PATH}" >/dev/null 2>&1; then
+  echo "warning: ${APP_PATH} is not signed; UNUserNotificationCenter and Keychain may reject the bundle." >&2
 fi
 
 echo

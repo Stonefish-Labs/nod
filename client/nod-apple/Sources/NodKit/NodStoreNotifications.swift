@@ -18,6 +18,11 @@ extension NodStore {
     }
   }
 
+  public func refreshNotificationAuthorizationStatus() async {
+    let settings = await NodNotificationController.shared.notificationSettings()
+    notificationAuthorizationStatus = settings.authorizationStatus
+  }
+
   public func requestAndTestNotifications() async {
     await requestNotifications()
     guard shouldPresentLocalNotificationFromSync(), notificationPermissionIssue == nil else {
@@ -102,6 +107,7 @@ extension NodStore {
 
   private func updateNotificationPermissionIssue(authorized: Bool, reportMissingGrant: Bool) async {
     let settings = await NodNotificationController.shared.notificationSettings()
+    notificationAuthorizationStatus = settings.authorizationStatus
     notificationPermissionIssue = notificationPermissionIssue(
       for: settings,
       reportMissingGrant: reportMissingGrant && !authorized

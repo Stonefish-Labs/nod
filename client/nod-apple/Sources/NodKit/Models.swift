@@ -232,6 +232,28 @@ public struct NodDecision: Codable, Hashable, Sendable {
   public let signature: NodDecisionSignatureRecord?
   public let resolvedAt: Date
 
+  public init(
+    requestId: String,
+    optionId: String,
+    optionKind: NodOptionKind,
+    optionLabel: String,
+    text: String? = nil,
+    actorUserId: String? = nil,
+    actorDeviceId: String? = nil,
+    signature: NodDecisionSignatureRecord? = nil,
+    resolvedAt: Date
+  ) {
+    self.requestId = requestId
+    self.optionId = optionId
+    self.optionKind = optionKind
+    self.optionLabel = optionLabel
+    self.text = text
+    self.actorUserId = actorUserId
+    self.actorDeviceId = actorDeviceId
+    self.signature = signature
+    self.resolvedAt = resolvedAt
+  }
+
   enum CodingKeys: String, CodingKey {
     case text, signature
     case requestId = "request_id"
@@ -325,6 +347,56 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   public let callbackUrl: String?
   public let options: [NodRequestOption]
   public let requestDigest: String?
+
+  public init(
+    id: String,
+    requestId: String,
+    sourceId: String,
+    recipients: [String],
+    decisionResolution: NodDecisionResolution,
+    title: String,
+    summary: String,
+    bodyMarkdown: String,
+    fields: [NodField],
+    links: [NodLink],
+    imageUrl: String?,
+    notification: NodRequestNotification,
+    dedupeKey: String?,
+    expiresAt: Date?,
+    status: NodRequestStatus,
+    createdAt: Date,
+    updatedAt: Date,
+    resolvedAt: Date?,
+    decision: NodDecision?,
+    decisions: [NodUserDecision],
+    callbackUrl: String?,
+    options: [NodRequestOption],
+    requestDigest: String?
+  ) {
+    self.id = id
+    self.requestId = requestId
+    self.sourceId = sourceId
+    self.recipients = recipients
+    self.decisionResolution = decisionResolution
+    self.title = title
+    self.summary = summary
+    self.bodyMarkdown = bodyMarkdown
+    self.fields = fields
+    self.links = links
+    self.imageUrl = imageUrl
+    self.notification = notification
+    self.dedupeKey = dedupeKey
+    self.expiresAt = expiresAt
+    self.status = status
+    self.createdAt = createdAt
+    self.updatedAt = updatedAt
+    self.resolvedAt = resolvedAt
+    self.decision = decision
+    self.decisions = decisions
+    self.callbackUrl = callbackUrl
+    self.options = options
+    self.requestDigest = requestDigest
+  }
 
   enum CodingKeys: String, CodingKey {
     case id, title, summary, fields, links, notification, status, decision, decisions, options

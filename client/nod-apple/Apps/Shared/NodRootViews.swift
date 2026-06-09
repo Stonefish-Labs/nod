@@ -35,6 +35,11 @@ struct NodRootView: View {
       get: { store.alertMessage != nil },
       set: { if !$0 { store.dismissAlertMessage() } }
     )) {
+      if store.canReEnrollInvalidSession {
+        Button("Re-enroll Device") {
+          store.beginInvalidSessionReEnrollment()
+        }
+      }
       Button("OK", role: .cancel) {}
     } message: {
       Text(store.alertMessage ?? "")
@@ -87,6 +92,11 @@ struct NodPhoneInbox: View {
     }
     .onChange(of: store.notificationOpenRequest) { _, request in
       applyNotificationOpenRequest(request)
+    }
+    .onChange(of: store.registrationPromptRequestId) { _, requestId in
+      if requestId != nil {
+        showingRegistration = true
+      }
     }
     .sheet(isPresented: $showingRegistration) {
       NavigationStack {
@@ -201,6 +211,11 @@ struct NodDesktopInbox: View {
     }
     .sheet(isPresented: $showingDevices) {
       DeviceManagementSheet()
+    }
+    .onChange(of: store.registrationPromptRequestId) { _, requestId in
+      if requestId != nil {
+        showingRegistration = true
+      }
     }
   }
 }
