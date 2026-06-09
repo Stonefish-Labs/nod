@@ -14,6 +14,17 @@ if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
 
+# Regenerate the embedded Rust runtime first. nod_client_ffiFFI.xcframework is a
+# prebuilt binary, so without this an edit to nod-client-core silently runs old
+# code in the app (e.g. a missing wire field that blanks the UI). cargo caches,
+# so this is cheap when nod-client-core is unchanged. Set SKIP_FFI_REBUILD=1 to
+# skip (e.g. a pure-Swift iteration).
+if [[ "${SKIP_FFI_REBUILD:-0}" != "1" ]]; then
+  echo "==> Regenerating nod_client_ffiFFI.xcframework from current Rust source"
+  "${SCRIPT_DIR}/build-nod-client-ffi.sh"
+  echo
+fi
+
 echo "Building Nod macOS app bundle (${CONFIGURATION})"
 echo "Output: ${APP_PATH}"
 echo
