@@ -100,6 +100,27 @@ public struct NodUserDevice: Codable, Identifiable, Hashable, Sendable {
     case createdAt = "created_at"
     case isCurrent = "is_current"
   }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    // Identity fields are always present.
+    id = try c.decode(String.self, forKey: .id)
+    userId = try c.decode(String.self, forKey: .userId)
+    name = try c.decode(String.self, forKey: .name)
+    platform = try c.decode(NodDevicePlatform.self, forKey: .platform)
+    lastSeenAt = try c.decode(Date.self, forKey: .lastSeenAt)
+    createdAt = try c.decode(Date.self, forKey: .createdAt)
+    // Informational/status fields decode defensively: a single missing one must
+    // not reject the whole ClientState (e.g. a runtime build that predates a
+    // newly-added field). Defaults are the safe "not set" values.
+    nativeAppId = try c.decodeIfPresent(String.self, forKey: .nativeAppId)
+    pushProvider = try c.decodeIfPresent(String.self, forKey: .pushProvider)
+    hasPushToken = try c.decodeIfPresent(Bool.self, forKey: .hasPushToken) ?? false
+    hasSigningKey = try c.decodeIfPresent(Bool.self, forKey: .hasSigningKey) ?? false
+    notificationSound = try c.decodeIfPresent(String.self, forKey: .notificationSound) ?? "default"
+    attestation = try c.decodeIfPresent(NodDeviceAttestationSummary.self, forKey: .attestation)
+    isCurrent = try c.decodeIfPresent(Bool.self, forKey: .isCurrent) ?? false
+  }
 }
 
 public enum NodDeviceAttestationStatus: String, Codable, Sendable {

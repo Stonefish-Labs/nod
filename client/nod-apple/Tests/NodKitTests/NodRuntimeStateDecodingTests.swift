@@ -150,4 +150,38 @@ final class NodRuntimeStateDecodingTests: XCTestCase {
     XCTAssertEqual(request.requestDigest, "digest-1")
     XCTAssertEqual(request.options.first?.kind, .approve)
   }
+
+  /// A device missing an informational field (e.g. a runtime build that predates
+  /// `has_signing_key`) must decode with a safe default instead of rejecting the
+  /// whole ClientState and taking the UI dark.
+  func testDeviceMissingInformationalFieldStillDecodes() throws {
+    let json = """
+      {
+        "kind": "state",
+        "payload": {
+          "servers": [], "selected_server_id": null, "current_user": null,
+          "channels": [], "pending_counts_by_channel": {}, "requests": [],
+          "selected_channel_id": null, "selected_request_id": null,
+          "notification_sound": "default", "notification_delivery_mode": "websocket",
+          "is_registered": true, "is_sync_connected": false, "last_error": null,
+          "devices": [
+            {
+              "id": "device-1", "user_id": "user-1", "name": "Studio",
+              "platform": "macos", "native_app_id": null, "push_provider": null,
+              "notification_sound": "default",
+              "last_seen_at": "2026-05-31T12:00:00.000Z",
+              "created_at": "2026-05-31T12:00:00.000Z", "is_current": true
+            }
+          ]
+        }
+      }
+      """
+    let message = try NodRuntimeMessage(from: Data(json.utf8))
+    guard case .state(let state) = message else { return XCTFail("expected state") }
+    let device = try XCTUnwrap(state.devices.first)
+    XCTAssertFalse(device.hasSigningKey)
+    XCTAssertFalse(device.hasPushToken)
+    XCTAssertNil(device.attestation)
+    XCTAssertTrue(state.isRegistered)
+  }
 }
