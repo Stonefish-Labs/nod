@@ -169,6 +169,12 @@ public final class NodStore: ObservableObject {
     do {
       try await runtime.start()
       try? await runtime.refresh()
+      // Open the realtime sync socket if a server is enrolled. Without this the
+      // app gets no push of new/resolved requests — no badge, no local
+      // notification, and a stale request list (which then 409s on submit).
+      if runtime.state?.isRegistered == true {
+        connectSync()
+      }
     } catch {
       lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
@@ -328,6 +334,9 @@ public final class NodStore: ObservableObject {
       lastError = nil
     } catch {
       mapRuntimeError(error)
+      // If the request was already resolved server-side (stale local view),
+      // refresh so the UI reconciles instead of leaving a dead pending item.
+      await reconcileIfStale(error)
     }
   }
 
@@ -337,7 +346,23 @@ public final class NodStore: ObservableObject {
     guard request.status == .pending, request.options.isEmpty else {
       return
     }
-    try? await runtime.submitOption(requestId: request.id, optionId: "dismiss", text: nil)
+    do {
+      try await runtime.submitOption(requestId: request.id, optionId: "dismiss", text: nil)
+    } catch {
+      await reconcileIfStale(error)
+    }
+  }
+
+  /// Refresh when a submit fails because the local request list is stale (the
+  /// request was resolved/expired elsewhere) — a 404/409 from the server.
+  private func reconcileIfStale(_ error: Error) async {
+    guard case NodRuntimeError.rpc(let message) = error else { return }
+    let lower = message.lowercased()
+    if lower.contains("conflict") || lower.contains("409") || lower.contains("404")
+      || lower.contains("no longer pending") || lower.contains("not found")
+    {
+      try? await runtime.refresh()
+    }
   }
 
   public func setSubscription(channelId: String, subscribed: Bool) async {
@@ -492,6 +517,9 @@ public final class NodStore: ObservableObject {
       )
       enrollmentCode = ""
       lastError = nil
+      // Start realtime sync immediately after enrolling so notifications and
+      // badge counts work without waiting for a relaunch.
+      connectSync()
     } catch {
       mapRuntimeError(error)
     }
@@ -527,6 +555,7 @@ public final class NodStore: ObservableObject {
       lastError = nil
     } catch {
       mapRuntimeError(error)
+      await reconcileIfStale(error)
     }
   }
 
