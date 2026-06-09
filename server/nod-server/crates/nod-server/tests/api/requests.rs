@@ -538,6 +538,165 @@ async fn device_can_dismiss_request_without_options() {
 }
 
 #[tokio::test]
+async fn device_can_sign_dismiss_for_request_without_options() {
+    let app = TestApp::new().await;
+    let rng = SystemRandom::new();
+    let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &rng).unwrap();
+    let key_pair =
+        EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, pkcs8.as_ref(), &rng).unwrap();
+    let key_id = "test-dismiss-signing-key";
+    let public_key = URL_SAFE_NO_PAD.encode(key_pair.public_key().as_ref());
+
+    let (status, enrollment) = app
+        .request(
+            Method::POST,
+            "/api/v1/admin/users/owner/enrollment-codes",
+            Some("admin-test-token"),
+            Some(json!({ "expires_in_seconds": 600 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{enrollment}");
+    let code = enrollment["code"].as_str().unwrap();
+    let (status, enrolled) = app
+        .request(
+            Method::POST,
+            "/api/v1/enroll",
+            None,
+            Some(json!({
+                "code": code,
+                "device_name": "Phone",
+                "platform": "ios",
+                "signing_key": {
+                    "key_id": key_id,
+                    "algorithm": "p256_ecdsa_sha256",
+                    "public_key": public_key
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{enrolled}");
+    let device_id = enrolled["device_id"].as_str().unwrap();
+    let device_token = enrolled["token"].as_str().unwrap();
+    let issuer_token = app.issuer_token().await;
+
+    let (status, created) = app
+        .request(
+            Method::POST,
+            "/api/v1/requests",
+            Some(&issuer_token),
+            Some(json!({
+                "source_id": "default",
+                "title": "FYI",
+                "summary": "No decision needed"
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    let request_id = created["request_id"].as_str().unwrap();
+    let request_digest = created["request"]["request_digest"].as_str().unwrap();
+    let nonce = "dismiss-nonce-1";
+    let signed_at = "2026-05-31T12:00:00.000Z";
+    let payload = decision_payload(DecisionPayload {
+        request_id,
+        request_digest,
+        option_id: "dismiss",
+        option_kind: "dismiss",
+        user_id: "owner",
+        device_id,
+        key_id,
+        nonce,
+        signed_at,
+        text: "",
+    });
+    let signature = URL_SAFE_NO_PAD.encode(key_pair.sign(&rng, payload.as_bytes()).unwrap());
+
+    let (status, resolved) = app
+        .request(
+            Method::POST,
+            &format!("/api/v1/requests/{request_id}/options/dismiss"),
+            Some(device_token),
+            Some(json!({
+                "signature": {
+                    "key_id": key_id,
+                    "algorithm": "p256_ecdsa_sha256",
+                    "nonce": nonce,
+                    "signed_at": signed_at,
+                    "request_digest": request_digest,
+                    "signature": signature
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{resolved}");
+    assert_eq!(resolved["request"]["status"], "resolved");
+    assert_eq!(resolved["request"]["decision"]["option_id"], "dismiss");
+    assert_eq!(
+        resolved["request"]["decision"]["signature"]["verified"],
+        true
+    );
+}
+
+#[tokio::test]
+async fn enrollment_rejects_compact_signing_public_key_without_consuming_code() {
+    let app = TestApp::new().await;
+    let rng = SystemRandom::new();
+    let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &rng).unwrap();
+    let key_pair =
+        EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, pkcs8.as_ref(), &rng).unwrap();
+    let key_id = "test-compact-signing-key";
+    let compact_public_key = URL_SAFE_NO_PAD.encode(&key_pair.public_key().as_ref()[1..]);
+
+    let (status, enrollment) = app
+        .request(
+            Method::POST,
+            "/api/v1/admin/users/owner/enrollment-codes",
+            Some("admin-test-token"),
+            Some(json!({ "expires_in_seconds": 600 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{enrollment}");
+    let code = enrollment["code"].as_str().unwrap();
+    let (status, rejected) = app
+        .request(
+            Method::POST,
+            "/api/v1/enroll",
+            None,
+            Some(json!({
+                "code": code,
+                "device_name": "Phone",
+                "platform": "ios",
+                "signing_key": {
+                    "key_id": key_id,
+                    "algorithm": "p256_ecdsa_sha256",
+                    "public_key": compact_public_key
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{rejected}");
+
+    let public_key = URL_SAFE_NO_PAD.encode(key_pair.public_key().as_ref());
+    let (status, enrolled) = app
+        .request(
+            Method::POST,
+            "/api/v1/enroll",
+            None,
+            Some(json!({
+                "code": code,
+                "device_name": "Phone",
+                "platform": "ios",
+                "signing_key": {
+                    "key_id": key_id,
+                    "algorithm": "p256_ecdsa_sha256",
+                    "public_key": public_key
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{enrolled}");
+}
+
+#[tokio::test]
 async fn request_list_limit_caps_handled_but_keeps_all_pending() {
     let app = TestApp::new().await;
     let (_device_id, device_token) = app.enroll_device("Phone", "ios").await;

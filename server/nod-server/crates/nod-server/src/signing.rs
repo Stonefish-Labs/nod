@@ -10,6 +10,8 @@ use crate::{
 };
 
 pub const DEFAULT_ALGORITHM: &str = "p256_ecdsa_sha256";
+const UNCOMPRESSED_P256_PUBLIC_KEY_LENGTH: usize = 65;
+const UNCOMPRESSED_P256_PUBLIC_KEY_PREFIX: u8 = 4;
 
 pub fn verify_decision_signature(
     request: &DecisionRequest,
@@ -67,9 +69,7 @@ pub fn verify_decision_signature(
         signed_at,
         request_digest: &request_digest,
     })?;
-    let public_key = URL_SAFE_NO_PAD.decode(public_key).map_err(|_| {
-        ApiError::BadRequest("registered signing public key is invalid".to_string())
-    })?;
+    let public_key = verifier_public_key_bytes(public_key)?;
     let signature = URL_SAFE_NO_PAD
         .decode(&provided.signature)
         .map_err(|_| ApiError::BadRequest("decision signature is invalid".to_string()))?;
@@ -80,6 +80,26 @@ pub fn verify_decision_signature(
         .verify(signing_payload.as_bytes(), &signature)
         .map_err(|_| ApiError::Forbidden)?;
     Ok((request_digest, signing_payload))
+}
+
+pub fn validate_device_public_key(public_key: &str) -> Result<(), ApiError> {
+    verifier_public_key_bytes(public_key).map(|_| ())
+}
+
+fn verifier_public_key_bytes(public_key: &str) -> Result<Vec<u8>, ApiError> {
+    let bytes = URL_SAFE_NO_PAD.decode(public_key).map_err(|_| {
+        ApiError::BadRequest("registered signing public key is invalid".to_string())
+    })?;
+    match bytes.as_slice() {
+        [UNCOMPRESSED_P256_PUBLIC_KEY_PREFIX, ..]
+            if bytes.len() == UNCOMPRESSED_P256_PUBLIC_KEY_LENGTH =>
+        {
+            Ok(bytes)
+        }
+        _ => Err(ApiError::BadRequest(
+            "registered signing public key is invalid".to_string(),
+        )),
+    }
 }
 
 pub fn request_digest(request: &DecisionRequest) -> Result<String, ApiError> {

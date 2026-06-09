@@ -74,6 +74,8 @@ pub async fn enroll_device(
     }
     let user_id: String = row.get("user_id");
     let user = get_user(pool, &user_id).await?;
+    let push = normalized_push_registration(&req)?;
+    let signing_key = normalized_signing_key(req.signing_key.as_ref())?;
 
     let consumed = sqlx::query(
         r#"
@@ -92,8 +94,6 @@ pub async fn enroll_device(
         ));
     }
 
-    let push = normalized_push_registration(&req)?;
-    let signing_key = normalized_signing_key(req.signing_key.as_ref())?;
     let token = generate_token("nod_device");
     let device_id = new_id();
     sqlx::query(
@@ -152,6 +152,7 @@ fn normalized_signing_key(
             "signing public key is required".to_string(),
         ));
     }
+    signing::validate_device_public_key(public_key)?;
     Ok(Some(DeviceSigningKeyRequest {
         key_id: signing_key.key_id.trim().to_string(),
         algorithm: signing_key.algorithm.clone(),
