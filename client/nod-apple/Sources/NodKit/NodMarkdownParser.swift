@@ -3,6 +3,7 @@ import Foundation
 public enum NodMarkdownBlock: Equatable, Sendable {
   case paragraph(String)
   case heading(level: Int, text: String)
+  case image(alt: String, url: String)
   case unorderedItem(String)
   case orderedItem(marker: String, text: String)
   case quote(String)
@@ -67,6 +68,12 @@ public enum NodMarkdownParser {
         continue
       }
 
+      if let image = image(from: trimmed) {
+        flushParagraph()
+        blocks.append(.image(alt: image.alt, url: image.url))
+        continue
+      }
+
       if let unorderedItem = unorderedItem(from: trimmed) {
         flushParagraph()
         blocks.append(.unorderedItem(unorderedItem))
@@ -107,6 +114,34 @@ public enum NodMarkdownParser {
     }
     let textStart = line.index(after: index)
     return (level, String(line[textStart...]))
+  }
+
+  private static func image(from line: String) -> (alt: String, url: String)? {
+    guard line.hasPrefix("![") else {
+      return nil
+    }
+    guard let altEnd = line.firstIndex(of: "]") else {
+      return nil
+    }
+    let urlStartMarker = line.index(after: altEnd)
+    guard urlStartMarker < line.endIndex, line[urlStartMarker] == "(" else {
+      return nil
+    }
+    guard line.last == ")" else {
+      return nil
+    }
+
+    let altStart = line.index(line.startIndex, offsetBy: 2)
+    let urlStart = line.index(after: urlStartMarker)
+    let urlEnd = line.index(before: line.endIndex)
+    guard urlStart <= urlEnd else {
+      return nil
+    }
+
+    return (
+      alt: String(line[altStart..<altEnd]),
+      url: String(line[urlStart..<urlEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+    )
   }
 
   private static func unorderedItem(from line: String) -> String? {

@@ -3,6 +3,12 @@ import SwiftUI
 
 struct MarkdownText: View {
   let markdown: String
+  let ignoredImageURLs: Set<String>
+
+  init(markdown: String, ignoredImageURLs: Set<String> = []) {
+    self.markdown = markdown
+    self.ignoredImageURLs = ignoredImageURLs
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -25,6 +31,16 @@ struct MarkdownText: View {
         .fontWeight(.semibold)
         .fixedSize(horizontal: false, vertical: true)
         .padding(.top, level <= 2 ? 4 : 0)
+    case .image(let alt, let url):
+      if let imageURL = resolvedImageURL(url) {
+        if !ignoredImageURLs.contains(imageURL.absoluteString) {
+          RequestImageView(url: imageURL)
+            .accessibilityLabel(alt.isEmpty ? "Image" : alt)
+        }
+      } else if !alt.isEmpty {
+        inlineText(alt)
+          .fixedSize(horizontal: false, vertical: true)
+      }
     case .unorderedItem(let text):
       HStack(alignment: .firstTextBaseline, spacing: 8) {
         Text("•")

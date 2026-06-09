@@ -70,6 +70,7 @@ final class NodHelperTests: XCTestCase {
       - Check metrics
       1. Approve
       > Keep an eye on latency.
+      ![Steam capsule](https://cdn.example.test/capsule.jpg)
 
       ```
       nod deploy
@@ -84,6 +85,7 @@ final class NodHelperTests: XCTestCase {
         .unorderedItem("Check metrics"),
         .orderedItem(marker: "1.", text: "Approve"),
         .quote("Keep an eye on latency."),
+        .image(alt: "Steam capsule", url: "https://cdn.example.test/capsule.jpg"),
         .code("nod deploy"),
         .divider,
       ]

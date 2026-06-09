@@ -283,12 +283,14 @@ struct RequestRow: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      HStack {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
         Text(request.title)
           .font(.headline)
           .lineLimit(2)
-        Spacer()
+          .frame(maxWidth: .infinity, alignment: .leading)
         StatusBadge(request: request)
+          .fixedSize()
+          .layoutPriority(1)
       }
       Text(request.summary)
         .font(.subheadline)

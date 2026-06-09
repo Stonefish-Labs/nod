@@ -24,12 +24,12 @@ struct RequestDetail: View {
           StatusBadge(request: request)
         }
 
-        if let imageURL = resolvedImageURL(request.imageUrl) {
+        if let imageURL = topImageURL {
           RequestImageView(url: imageURL)
         }
 
         if !request.bodyMarkdown.isEmpty {
-          MarkdownText(markdown: request.bodyMarkdown)
+          MarkdownText(markdown: request.bodyMarkdown, ignoredImageURLs: markdownIgnoredImageURLs)
             .textSelection(.enabled)
         }
 
@@ -122,6 +122,17 @@ struct RequestDetail: View {
     }
     autoDismissedRequestIds.insert(request.id)
     await store.dismissIfInformational(request: request)
+  }
+
+  private var topImageURL: URL? {
+    resolvedImageURL(request.imageUrl)
+  }
+
+  private var markdownIgnoredImageURLs: Set<String> {
+    guard let topImageURL else {
+      return []
+    }
+    return [topImageURL.absoluteString]
   }
 }
 
