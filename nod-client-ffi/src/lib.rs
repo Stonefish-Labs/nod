@@ -1,14 +1,30 @@
-//! UniFFI bindings exposing `nod-proto`'s canonical decision-signing contract to
-//! the Apple clients.
+//! UniFFI surface for the Nod client — the incremental home for moving NodKit's
+//! logic (API client, store, sync, state machine, models) into shared Rust.
 //!
-//! This crate is the **only** place the Swift app gets the request-digest /
-//! decision-payload byte construction and P-256 verification, so there is one
-//! Rust implementation of the security-critical path with no parallel Swift
-//! reimplementation to drift. The Secure Enclave still performs the actual
-//! signing in Swift; this crate decides *what* bytes get signed and verifies the
-//! result. See `ARCHITECTURE_NOTES.md`.
+//! Today the Apple apps (`NodKit`) re-implement the client that `nod-client-core`
+//! already owns (and that the TUI + Tauri desktop already use). This crate wraps
+//! `nod-client-core` for Swift via UniFFI so there is ONE client implementation,
+//! with Swift kept only for the genuinely-native adapters: Secure Enclave
+//! signing, App Attest, UserNotifications + APNs token, and SwiftUI.
+//! See `.project/decisions.md` ("Apple apps move onto nod-client-core").
+//!
+//! Shared logic exposed so far:
+//!   - the decision-signing contract (`request_digest`, `decision_signing_payload`,
+//!     `verify_payload`, `validate_public_key`) — the security-critical bytes the
+//!     Secure Enclave signs, with ONE Rust implementation and no parallel Swift
+//!     reimplementation to drift;
+//!   - server-address normalization — the canonical versions of NodKit's
+//!     hand-written `NodServerAddress`.
+//! Next: the async `NodClientRuntime` + foreign-trait callbacks for the native
+//! capabilities.
 
 uniffi::setup_scaffolding!();
+
+mod runtime;
+pub use runtime::{
+    ClientFfiError, NodClient, NodClientObserver, NodDeviceKey, NodDeviceSigner,
+    SignerCallbackError,
+};
 
 use nod_proto::{
     decision_signing_payload as proto_decision_signing_payload,
@@ -16,6 +32,16 @@ use nod_proto::{
     verify_payload as proto_verify_payload, DecisionSigningInput, OptionKind, Request,
     SigningError,
 };
+
+// ---------------------------------------------------------------------------
+// Decision-signing contract (from nod-proto).
+//
+// This is the **only** place the Swift app gets the request-digest /
+// decision-payload byte construction and P-256 verification, so there is one
+// Rust implementation of the security-critical path. The Secure Enclave still
+// performs the actual signing in Swift; this decides *what* bytes get signed and
+// verifies the result.
+// ---------------------------------------------------------------------------
 
 /// Errors surfaced across the FFI boundary to Swift.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -113,6 +139,32 @@ pub fn validate_public_key(public_key: String) -> Result<(), SigningFfiError> {
     Ok(proto_validate_public_key(&public_key)?)
 }
 
+// ---------------------------------------------------------------------------
+// Server-address helpers (from nod-client-core).
+// ---------------------------------------------------------------------------
+
+/// Normalize a user-entered server address into a base URL (adds the scheme,
+/// trims). Canonical logic shared with the TUI + desktop — replaces NodKit's
+/// `NodServerAddress.normalizedBaseURL`.
+#[uniffi::export]
+pub fn normalize_base_url(value: String) -> String {
+    nod_client_core::normalize_base_url(&value)
+}
+
+/// Stable per-server profile id derived from a base URL — replaces
+/// `NodServerAddress.profileId`.
+#[uniffi::export]
+pub fn profile_id_for(base_url: String) -> String {
+    nod_client_core::profile_id_for(&base_url)
+}
+
+/// Human-readable display name for a server base URL — replaces
+/// `NodServerAddress.displayName`.
+#[uniffi::export]
+pub fn display_name_for(base_url: String) -> String {
+    nod_client_core::display_name_for(&base_url)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,5 +249,31 @@ mod tests {
             validate_public_key("not-a-key".to_string()).unwrap_err(),
             SigningFfiError::InvalidPublicKey
         ));
+    }
+
+    /// These outputs must match NodKit's `NodServerAddress` tests exactly — that
+    /// is the contract that makes swapping the Swift impl for this one safe.
+    #[test]
+    fn matches_nodkit_server_address_vectors() {
+        assert_eq!(
+            normalize_base_url("nod.example.test".into()),
+            "https://nod.example.test"
+        );
+        assert_eq!(
+            normalize_base_url("localhost:8765".into()),
+            "http://localhost:8765"
+        );
+        assert_eq!(
+            normalize_base_url("http://127.0.0.1:8767".into()),
+            "http://127.0.0.1:8767"
+        );
+        assert_eq!(
+            profile_id_for("https://nod.example.test/team-a".into()),
+            "https-nod-example-test-team-a"
+        );
+        assert_eq!(
+            display_name_for("https://nod.example.test/team-a".into()),
+            "nod.example.test/team-a"
+        );
     }
 }

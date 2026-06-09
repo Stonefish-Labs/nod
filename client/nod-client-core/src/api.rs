@@ -175,6 +175,34 @@ impl NodApi {
         Ok(())
     }
 
+    /// Update the device's push registration after enrollment (e.g. when APNs
+    /// issues or rotates a token). Mirrors NodKit's `updatePushToken`.
+    pub async fn update_push_token(
+        &self,
+        provider: &str,
+        native_app_id: &str,
+        token: &str,
+    ) -> Result<()> {
+        #[derive(Serialize)]
+        struct Body<'a> {
+            provider: &'a str,
+            native_app_id: &'a str,
+            token: &'a str,
+        }
+        let _: serde_json::Value = self
+            .request(RequestSpec::authenticated_json(
+                Method::PUT,
+                "/api/v1/devices/me/push-token",
+                &Body {
+                    provider,
+                    native_app_id,
+                    token,
+                },
+            ))
+            .await?;
+        Ok(())
+    }
+
     async fn request<Body, Response>(
         &self,
         spec: RequestSpec<'_, Body>,
@@ -234,7 +262,17 @@ pub struct EnrollDeviceRequest<'a> {
     pub device_name: &'a str,
     pub platform: DevicePlatform,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_app_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub push_provider: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub push_token: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signing_key: Option<&'a DeviceSigningKey>,
+    // App Attest payload built by the host (Apple); nod-client-core forwards it
+    // opaquely so the canonical attestation shape stays the server's contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attestation: Option<&'a serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -421,7 +459,11 @@ mod tests {
             code: "ABC123",
             device_name: "Laptop",
             platform: DevicePlatform::Linux,
+            native_app_id: None,
+            push_provider: None,
+            push_token: None,
             signing_key: Some(&signing_key),
+            attestation: None,
         };
 
         assert_eq!(

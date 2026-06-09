@@ -62,20 +62,20 @@ extension NodStore {
     connectSync()
   }
 
-  func presentNotificationsForPendingRequestsDiscoveredByRefresh(_ pendingRequests: [NodRequest]) async {
-    let pendingRequestIds = Set(pendingRequests.map(\.id))
-    defer {
-      knownPendingRequestIds = pendingRequestIds
-      hasLoadedPendingRequestSnapshot = true
-    }
-
-    // The first refresh seeds the snapshot so an existing backlog does not replay
-    // as a burst of local notifications after launch or server switching.
-    guard hasLoadedPendingRequestSnapshot, shouldPresentLocalNotificationFromSync() else {
+  /// Present local notifications for the candidates the runtime emitted. The
+  /// runtime already de-dups against its known-pending snapshot and respects
+  /// the delivery mode; this just renders them through `UserNotifications`.
+  func presentNotificationCandidates(_ candidates: [NodRequest]) async {
+    guard shouldPresentLocalNotificationFromSync() else {
+      // Drop them silently; record so a later mode flip doesn't replay a backlog.
+      for request in candidates {
+        presentedNotificationRequestIds.insert(request.id)
+      }
       return
     }
 
-    for request in pendingRequests where !knownPendingRequestIds.contains(request.id) {
+    for request in candidates where !presentedNotificationRequestIds.contains(request.id) {
+      presentedNotificationRequestIds.insert(request.id)
       await presentLocalNotification(for: request)
     }
   }
@@ -92,10 +92,6 @@ extension NodStore {
         notificationPermissionIssue(for: settings, reportMissingGrant: true)
         ?? "Could not show Nod notification: \(error.localizedDescription)"
     }
-  }
-
-  func apply(notificationDelivery: NodNotificationDelivery) {
-    notificationDeliveryMode = notificationDelivery.mode
   }
 
   func shouldPresentLocalNotificationFromSync() -> Bool {

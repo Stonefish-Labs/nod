@@ -113,6 +113,10 @@ async fn enroll_connects_sync_after_success() {
             code: "ABCDEFGH".to_string(),
             notification_sound: Some("default".to_string()),
             platform: None,
+            native_app_id: None,
+            push_provider: None,
+            push_token: None,
+            attestation: None,
         }),
     )
     .await;

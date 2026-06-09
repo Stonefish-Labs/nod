@@ -1,6 +1,6 @@
 import CryptoKit
 import Foundation
-import NodProtoFFI
+import NodClientFFI
 
 public enum NodSigningError: Error, LocalizedError {
     case missingDeviceIdentity
@@ -97,6 +97,32 @@ public final class NodSigningKeyStore {
         )
     }
 
+    /// The existing key for `account`, or nil if none is stored. Unlike
+    /// `signingKey(account:)` this never creates a key — used to answer "is this
+    /// profile enrolled?" without provisioning.
+    public func existingSigningKey(account: String) -> NodDeviceSigningKey? {
+        guard let stored = try? load(account: account),
+              let privateKey = try? restorePrivateKey(from: stored) else {
+            return nil
+        }
+        return NodDeviceSigningKey(
+            keyId: stored.keyId,
+            algorithm: Self.algorithm,
+            publicKey: privateKey.publicKeyX963Representation.base64URLEncodedString()
+        )
+    }
+
+    /// Sign already-canonicalized payload bytes with the Secure Enclave key for
+    /// `account`. The shared Rust runtime builds the canonical decision payload
+    /// (`build_decision_signature`) and hands it here; the only thing that
+    /// happens in Swift is the hardware signature. Returns a base64url DER ECDSA
+    /// signature.
+    public func signPayload(_ payload: Data, account: String) throws -> String {
+        let stored = try load(account: account)
+        let privateKey = try restorePrivateKey(from: stored)
+        return try privateKey.signatureDER(for: payload).base64URLEncodedString()
+    }
+
     public func delete(account: String) throws {
         try keychain.delete(account: account)
     }
@@ -149,7 +175,7 @@ public final class NodSigningKeyStore {
         // The canonical signing string is constructed by nod-proto (Rust) via
         // UniFFI, so the Apple client and the server cannot drift on exactly what
         // gets signed. The Secure Enclave below still performs the signature.
-        NodProtoFFI.decisionSigningPayload(
+        NodClientFFI.decisionSigningPayload(
             requestId: request.id,
             requestDigest: requestDigest,
             optionId: option.id,

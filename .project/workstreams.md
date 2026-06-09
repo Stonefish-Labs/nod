@@ -58,3 +58,13 @@
 - Current state: Committed as `f9714dd Hard Reboot` on `main` (the ~118-file bulk), with the final #8 typeshare-resolution tweaks + the `.project/` tracker committed alongside. Not pushed (push only when asked).
 - Next action: none (push on request).
 - Related paths: whole repo.
+
+## Apple apps onto `nod-client-core` (thin Swift shell)
+
+- Status: in_progress (started)
+- Goal: Stop NodKit re-implementing client logic. Move API/store/sync/state/models into `nod-client-core`, exposed to Swift via a new `nod-client-ffi` UniFFI crate; Swift keeps only SE signing, App Attest, UserNotifications + APNs token, and SwiftUI. Keep native UI.
+- Decision: decisions.md → "Apple apps move onto nod-client-core — keep SwiftUI".
+- Incremental path: (1) API client behind the FFI; (2) sync + state store → Swift observes; (3) NodKit = SwiftUI + 3 adapters.
+- Current state: scaffolding `nod-client-ffi` (prove the UniFFI pipeline host-side). Next: expose `NodClientRuntime` (async) + capability callbacks; then Apple cross-compile (tokio/reqwest/keyring) + xcframework.
+- Hard parts to plan: UniFFI async (tokio executor), foreign-trait callbacks (SE/attest/notify), state-observer bridge, iOS lifecycle.
+- Related paths: `nod-client-ffi/` (new), `client/nod-client-core/`, `client/nod-apple/Sources/NodKit/`.

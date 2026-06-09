@@ -53,7 +53,8 @@ struct NodMacApp: App {
                 NSApp.terminate(nil)
             }
         } label: {
-            Label(menuBarTitle, systemImage: menuBarSystemImage)
+            Image(nsImage: NodMenuBarIcon.image)
+                .accessibilityLabel(menuBarTitle)
                 .task {
                     await store.refreshNotificationAuthorizationStatus()
                     updateDockBadge()
@@ -84,13 +85,6 @@ struct NodMacApp: App {
         return "Nod \(store.totalPendingCount)"
     }
 
-    private var menuBarSystemImage: String {
-        if store.totalPendingCount > 0 {
-            return "bell.badge.fill"
-        }
-        return store.isSyncConnected ? "bell" : "bell.slash"
-    }
-
     private func updateDockBadge() {
         NSApp.dockTile.badgeLabel = store.totalPendingCount > 0 ? "\(store.totalPendingCount)" : nil
     }
@@ -107,6 +101,53 @@ struct NodMacApp: App {
             return
         }
     }
+}
+
+private enum NodMenuBarIcon {
+    static let image: NSImage = {
+        let image = NSImage(size: NSSize(width: 18, height: 18))
+        image.lockFocus()
+
+        NSColor.black.setFill()
+        let headPath = NSBezierPath()
+        headPath.move(to: CGPoint(x: 2.2, y: 7.2))
+        headPath.curve(
+            to: CGPoint(x: 8.8, y: 15.0),
+            controlPoint1: CGPoint(x: 1.7, y: 12.0),
+            controlPoint2: CGPoint(x: 4.6, y: 15.5)
+        )
+        headPath.curve(
+            to: CGPoint(x: 16.4, y: 7.8),
+            controlPoint1: CGPoint(x: 13.1, y: 14.5),
+            controlPoint2: CGPoint(x: 17.0, y: 12.3)
+        )
+        headPath.curve(
+            to: CGPoint(x: 12.5, y: 1.7),
+            controlPoint1: CGPoint(x: 15.8, y: 3.9),
+            controlPoint2: CGPoint(x: 14.4, y: 2.1)
+        )
+        headPath.curve(
+            to: CGPoint(x: 5.0, y: 2.3),
+            controlPoint1: CGPoint(x: 9.0, y: 1.1),
+            controlPoint2: CGPoint(x: 6.2, y: 1.4)
+        )
+        headPath.curve(
+            to: CGPoint(x: 2.2, y: 7.2),
+            controlPoint1: CGPoint(x: 3.0, y: 3.7),
+            controlPoint2: CGPoint(x: 2.3, y: 5.4)
+        )
+        headPath.close()
+        headPath.fill()
+
+        NSGraphicsContext.current?.compositingOperation = .clear
+        NSBezierPath(roundedRect: NSRect(x: 6.8, y: 6.0, width: 2.0, height: 4.2), xRadius: 1.0, yRadius: 1.0).fill()
+        NSBezierPath(roundedRect: NSRect(x: 11.6, y: 5.5, width: 2.0, height: 4.2), xRadius: 1.0, yRadius: 1.0).fill()
+        NSGraphicsContext.current?.compositingOperation = .sourceOver
+
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
+    }()
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {

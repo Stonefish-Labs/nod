@@ -7,7 +7,7 @@
 resolver = "2"
 members = [
     "nod-proto",
-    "nod-proto-ffi",
+    "nod-client-ffi",
     "server/nod-server/crates/nod-server",
     "server/nod-apns-relay",
     "client/nod-client-core",

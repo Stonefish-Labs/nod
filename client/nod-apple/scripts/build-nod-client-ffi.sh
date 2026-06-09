@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
-# Build the nod-proto-ffi static libraries for Apple platforms, generate the
+# Build the nod-client-ffi static libraries for Apple platforms, generate the
 # UniFFI Swift bindings, and assemble:
-#   Frameworks/nod_proto_ffiFFI.xcframework   (the linked Rust crypto)
-#   Sources/NodProtoFFI/nod_proto_ffi.swift   (the generated Swift wrapper)
+#   Frameworks/nod_client_ffiFFI.xcframework   (the embedded Rust client)
+#   Sources/NodClientFFI/nod_client_ffi.swift  (the generated Swift wrapper)
 #
-# Re-run this whenever nod-proto's signing contract changes. Both outputs are
-# committed so a plain `swift build` / Xcode build works without a Rust
-# toolchain present.
+# This is the bridge that lets NodKit drop its hand-written client logic and use
+# nod-client-core (shared with the TUI + desktop). Re-run when nod-client-core's
+# exposed FFI surface changes. Both outputs are git-ignored (regenerable);
+# requires the Rust toolchain.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPLE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${APPLE_DIR}/../.." && pwd)"
 
-CRATE="nod-proto-ffi"
-LIB="libnod_proto_ffi.a"
-MODULE="nod_proto_ffiFFI"
-SWIFT="nod_proto_ffi.swift"
+CRATE="nod-client-ffi"
+LIB="libnod_client_ffi.a"
+MODULE="nod_client_ffiFFI"
+SWIFT="nod_client_ffi.swift"
 
-# Each Apple platform slice is lipo'd from its arches so the xcframework covers
-# Apple Silicon and Intel for macOS and the simulator (iOS devices are arm64).
 MAC_ARM="aarch64-apple-darwin"
 MAC_X64="x86_64-apple-darwin"
 IOS_ARM="aarch64-apple-ios"
@@ -38,7 +37,7 @@ echo "==> Generating Swift bindings"
 cargo build -p "${CRATE}" --release
 GEN_DIR="$(mktemp -d)"
 cargo run -q -p "${CRATE}" --bin uniffi-bindgen -- generate \
-  --library "${REPO_ROOT}/target/release/libnod_proto_ffi.dylib" \
+  --library "${REPO_ROOT}/target/release/libnod_client_ffi.dylib" \
   --language swift --out-dir "${GEN_DIR}"
 
 HDR_DIR="${GEN_DIR}/headers"
@@ -66,7 +65,7 @@ xcodebuild -create-xcframework \
   -output "${XCF}"
 
 echo "==> Placing generated Swift wrapper"
-DEST="${APPLE_DIR}/Sources/NodProtoFFI"
+DEST="${APPLE_DIR}/Sources/NodClientFFI"
 mkdir -p "${DEST}"
 cp "${GEN_DIR}/${SWIFT}" "${DEST}/${SWIFT}"
 

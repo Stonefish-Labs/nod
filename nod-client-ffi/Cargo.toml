@@ -1,0 +1,39 @@
+[package]
+name = "nod-client-ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# The single UniFFI surface for the Nod Apple clients. Exposes BOTH:
+#   - nod-proto's decision-signing contract (request digest / decision payload /
+#     P-256 verify) — the security-critical bytes the Secure Enclave signs;
+#   - nod-client-core's client logic (server-address helpers today; the async
+#     runtime, API, store, sync next).
+# One crate → one xcframework → one Swift module (NodClientFFI), so the Apple app
+# build never hits the two-xcframework `module.modulemap` collision. Incrementally
+# moves NodKit's logic into shared Rust so the Apple apps stop re-implementing
+# what nod-client-core already owns. See .project/decisions.md
+# ("Apple apps move onto nod-client-core — keep SwiftUI").
+#
+# `staticlib` links into the Apple .xcframework; `cdylib` is what
+# `uniffi-bindgen --library` introspects on the host; `lib` keeps it Rust-callable.
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+nod-client-core = { path = "../client/nod-client-core" }
+nod-proto = { workspace = true }
+# `tokio` feature lets `#[uniffi::export(async_runtime = "tokio")]` wrap exported
+# futures in async-compat so nod-client-core's tokio I/O (reqwest, tungstenite)
+# and background `tokio::spawn` tasks run under the foreign (Swift) async caller.
+uniffi = { version = "0.28", features = ["cli", "tokio"] }
+serde_json = "1.0"
+thiserror = "2.0"
+anyhow = "1.0"
+# mpsc outbox pump + the Mutex guarding the runtime across .await points.
+tokio = { version = "1", features = ["rt", "sync"] }
+
+# Version-locked bindings generator.
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"

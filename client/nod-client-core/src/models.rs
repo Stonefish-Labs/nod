@@ -8,8 +8,9 @@ use typeshare::typeshare;
 // truth. Re-exported here so the rest of the client keeps using `models::*`.
 pub use nod_proto::{
     CardField as Field, CardLink as Link, Decision, DecisionResolution, DecisionSignature,
-    NotificationDelivery, NotificationDeliveryMode, OptionKind, Request, RequestNotification,
-    RequestOption, RequestStatus, UserDecision,
+    DeviceAttestationStatus, DeviceAttestationSummary, NotificationDelivery,
+    NotificationDeliveryMode, OptionKind, Request, RequestNotification, RequestOption,
+    RequestStatus, UserDecision,
 };
 
 #[typeshare]
@@ -85,6 +86,10 @@ pub struct UserDevice {
     pub native_app_id: Option<String>,
     pub push_provider: Option<String>,
     pub has_push_token: bool,
+    #[serde(default)]
+    pub has_signing_key: bool,
+    #[serde(default)]
+    pub attestation: Option<DeviceAttestationSummary>,
     pub notification_sound: String,
     #[typeshare(serialized_as = "String")]
     pub last_seen_at: DateTime<Utc>,

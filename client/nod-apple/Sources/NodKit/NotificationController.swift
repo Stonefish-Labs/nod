@@ -61,16 +61,13 @@ public enum NodNotificationAlertSetting: Sendable {
 public final class NodNotificationController: NSObject, UNUserNotificationCenterDelegate {
     public static let shared = NodNotificationController()
 
-    private var apiProvider: (() -> NodAPI?)?
     private var openHandler: (@MainActor (_ requestId: String?, _ channelId: String?) -> Void)?
     private var optionHandler: (@Sendable (_ requestId: String, _ optionId: String, _ text: String?) async -> Void)?
 
     public func configure(
-        apiProvider: @escaping () -> NodAPI?,
         onOpen: @escaping @MainActor (_ requestId: String?, _ channelId: String?) -> Void = { _, _ in },
         onOption: @escaping @Sendable (_ requestId: String, _ optionId: String, _ text: String?) async -> Void = { _, _, _ in }
     ) {
-        self.apiProvider = apiProvider
         self.openHandler = onOpen
         self.optionHandler = onOption
         let center = UNUserNotificationCenter.current()

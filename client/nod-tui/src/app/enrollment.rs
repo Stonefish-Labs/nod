@@ -100,6 +100,11 @@ impl EnrollmentForm {
             code: self.code.value().trim().to_string(),
             notification_sound: Some(self.selected_sound().to_string()),
             platform: None,
+            // The TUI is a desktop client without Apple push or App Attest.
+            native_app_id: None,
+            push_provider: None,
+            push_token: None,
+            attestation: None,
         }
     }
 

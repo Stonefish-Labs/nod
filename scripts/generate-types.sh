@@ -7,7 +7,7 @@
 #
 # Swift is intentionally not generated: typeshare emits snake_case, which clashes
 # with NodKit's camelCase Codable models, and NodKit's security-critical crypto is
-# already shared from Rust via UniFFI (nod-proto-ffi). NodKit's wire types stay
+# already shared from Rust via UniFFI (nod-client-ffi). NodKit's wire types stay
 # hand-written and are verified by its build + tests; nod-proto is the contract.
 set -euo pipefail
 

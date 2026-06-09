@@ -3,20 +3,17 @@ use anyhow::{anyhow, Result};
 use crate::{
     api::NodApi,
     models::{DecisionSignature, Request, ServerProfile},
-    signing::{DecisionSigningRequest, StoredSigningKey},
+    signing::{
+        build_decision_signature, DecisionSigningRequest, DeviceSigner, ForeignDeviceSigner,
+    },
 };
 
-use super::NodClientRuntime;
+use super::{NodClientRuntime, SignerBackend};
 
 pub(super) struct DecisionSignatureInput<'a> {
     pub request_id: &'a str,
     pub option_id: &'a str,
     pub text: Option<&'a str>,
-}
-
-struct SelectedServer {
-    profile: ServerProfile,
-    signing_key: Option<StoredSigningKey>,
 }
 
 impl NodClientRuntime {
@@ -32,42 +29,58 @@ impl NodClientRuntime {
         &self,
         input: DecisionSignatureInput<'_>,
     ) -> Result<Option<DecisionSignature>> {
-        let selected_server = self.selected_server_with_signing_key().await?;
-        let Some(signing_key) = selected_server.signing_key else {
+        let profile = self.selected_server_profile().await?;
+        let Some(signer) = self.device_signer_for(&profile).await? else {
             return Ok(None);
         };
         let request = self.loaded_request(input.request_id).await?;
-        let user_id = selected_server
-            .profile
+        let user_id = profile
             .user_id
             .as_deref()
             .ok_or_else(|| anyhow!("selected server is missing user identity"))?;
-        let device_id = selected_server
-            .profile
+        let device_id = profile
             .device_id
             .as_deref()
             .ok_or_else(|| anyhow!("selected server is missing device identity"))?;
 
-        signing_key
-            .sign_decision(DecisionSigningRequest {
+        build_decision_signature(
+            signer.as_ref(),
+            DecisionSigningRequest {
                 request: &request,
                 option_id: input.option_id,
                 text: input.text,
                 user_id,
                 device_id,
-            })
-            .map(Some)
+            },
+        )
+        .map(Some)
     }
 
-    async fn selected_server_with_signing_key(&self) -> Result<SelectedServer> {
-        let profile = self.selected_server_profile().await?;
-        let persisted = self.persisted.lock().await;
-        let signing_key = self.store.load_signing_key(&persisted, &profile.id);
-
-        Ok(SelectedServer {
-            profile,
-            signing_key,
-        })
+    /// Resolve the device signer for a profile from whichever backend is active.
+    /// `None` means the profile has no key and its decisions cannot be signed.
+    pub(super) async fn device_signer_for(
+        &self,
+        profile: &ServerProfile,
+    ) -> Result<Option<Box<dyn DeviceSigner>>> {
+        match self.signer_backend() {
+            SignerBackend::Software => {
+                let persisted = self.persisted.lock().await;
+                Ok(self
+                    .store
+                    .load_signing_key(&persisted, &profile.id)
+                    .map(|key| Box::new(key) as Box<dyn DeviceSigner>))
+            }
+            SignerBackend::Foreign(backend) => {
+                let Some(key) = backend.signing_key(&profile.id)? else {
+                    return Ok(None);
+                };
+                Ok(Some(Box::new(ForeignDeviceSigner {
+                    backend: backend.clone(),
+                    profile_id: profile.id.clone(),
+                    key,
+                }) as Box<dyn DeviceSigner>))
+            }
+        }
     }
 
     async fn selected_server_profile(&self) -> Result<ServerProfile> {
