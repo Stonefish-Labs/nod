@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 
-use super::responses::{OkResponse, SourcesResponse, UserDeviceResponse, UserDevicesResponse};
+use super::responses::{ChannelsResponse, OkResponse, UserDeviceResponse, UserDevicesResponse};
 use crate::{
     auth, db,
     error::ApiError,
@@ -17,18 +17,18 @@ use crate::{
     state::AppState,
 };
 
-pub(super) async fn list_sources(
+pub(super) async fn list_channels(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<SourcesResponse>, ApiError> {
+) -> Result<Json<ChannelsResponse>, ApiError> {
     let principal = auth::authenticate(&headers, &state.pool, state.config.admin_token()).await?;
-    let sources = match principal {
+    let channels = match principal {
         auth::Principal::Device(device) => {
-            db::list_sources_for_device(&state.pool, &device.id).await?
+            db::list_channels_for_device(&state.pool, &device.id).await?
         }
-        _ => db::list_sources(&state.pool).await?,
+        _ => db::list_channels(&state.pool).await?,
     };
-    Ok(Json(SourcesResponse { sources }))
+    Ok(Json(ChannelsResponse { channels }))
 }
 
 pub(super) async fn enroll_device(
@@ -109,20 +109,20 @@ pub(super) async fn update_device_preferences(
 pub(super) async fn update_subscription(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(source_id): Path<String>,
+    Path(channel_id): Path<String>,
     Json(req): Json<UpdateSubscriptionRequest>,
 ) -> Result<Json<OkResponse>, ApiError> {
     let device = auth::require_device(&headers, &state.pool).await?;
-    services::devices::update_subscription(&state, &device, &source_id, req).await?;
+    services::devices::update_subscription(&state, &device, &channel_id, req).await?;
     Ok(Json(OkResponse::ok()))
 }
 
-pub(super) async fn clear_source(
+pub(super) async fn clear_channel(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(source_id): Path<String>,
+    Path(channel_id): Path<String>,
 ) -> Result<Json<OkResponse>, ApiError> {
     let device = auth::require_device(&headers, &state.pool).await?;
-    services::devices::clear_source(&state, &device, &source_id).await?;
+    services::devices::clear_channel(&state, &device, &channel_id).await?;
     Ok(Json(OkResponse::ok()))
 }

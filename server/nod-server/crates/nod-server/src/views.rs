@@ -43,7 +43,7 @@ impl RequestDecisionView {
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct CallbackPayload {
     pub request_id: String,
-    pub source_id: String,
+    pub channel_id: String,
     pub status: RequestStatus,
     pub decision: Option<Decision>,
     pub decisions: Vec<UserDecision>,
@@ -55,7 +55,7 @@ impl CallbackPayload {
         let decision_view = RequestDecisionView::from_request(request);
         Self {
             request_id: decision_view.request_id,
-            source_id: request.source_id.clone(),
+            channel_id: request.channel_id.clone(),
             status: decision_view.status,
             decision: decision_view.decision,
             decisions: decision_view.decisions,
@@ -106,7 +106,7 @@ mod tests {
         };
         let request = DecisionRequest {
             id: "request-1".to_string(),
-            source_id: "deploys".to_string(),
+            channel_id: "deploys".to_string(),
             recipients: vec!["owner".to_string()],
             decision_resolution: DecisionResolution::Shared,
             title: "Deploy".to_string(),

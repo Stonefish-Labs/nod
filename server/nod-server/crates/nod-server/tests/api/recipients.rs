@@ -19,7 +19,7 @@ async fn untargeted_request_goes_to_all_subscribed_users() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Everyone",
                 "summary": "No explicit recipients"
             })),
@@ -69,7 +69,7 @@ async fn targeted_request_is_visible_only_to_recipient_users() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "recipients": ["paul"],
                 "title": "Paul only",
                 "summary": "Targeted notification"
@@ -104,7 +104,7 @@ async fn targeted_request_is_visible_only_to_recipient_users() {
 }
 
 #[tokio::test]
-async fn clearing_source_is_per_user() {
+async fn clearing_channel_is_per_user() {
     let app = TestApp::new().await;
     app.create_user("paul", "Paul").await;
     app.create_user("maya", "Maya").await;
@@ -122,7 +122,7 @@ async fn clearing_source_is_per_user() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Visible",
                 "summary": "Only cleared on one device"
             })),
@@ -133,7 +133,7 @@ async fn clearing_source_is_per_user() {
     let (status, cleared) = app
         .request(
             Method::POST,
-            "/api/v1/devices/me/sources/default/clear",
+            "/api/v1/devices/me/channels/default/clear",
             Some(&mac_token),
             Some(json!({})),
         )
@@ -154,16 +154,16 @@ async fn clearing_source_is_per_user() {
 }
 
 #[tokio::test]
-async fn source_list_includes_device_subscription_state() {
+async fn channel_list_includes_device_subscription_state() {
     let app = TestApp::new().await;
     let (_device_id, device_token) = app.enroll_device("Phone", "ios").await;
 
     let (status, initial) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
     assert_eq!(status, StatusCode::OK, "{initial}");
-    assert_eq!(initial["sources"][0]["id"], "default");
-    assert_eq!(initial["sources"][0]["subscribed"], true);
+    assert_eq!(initial["channels"][0]["id"], "default");
+    assert_eq!(initial["channels"][0]["subscribed"], true);
 
     let (status, updated) = app
         .request(
@@ -175,9 +175,9 @@ async fn source_list_includes_device_subscription_state() {
         .await;
     assert_eq!(status, StatusCode::OK, "{updated}");
 
-    let (status, sources) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+    let (status, channels) = app
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
-    assert_eq!(status, StatusCode::OK, "{sources}");
-    assert_eq!(sources["sources"][0]["subscribed"], false);
+    assert_eq!(status, StatusCode::OK, "{channels}");
+    assert_eq!(channels["channels"][0]["subscribed"], false);
 }

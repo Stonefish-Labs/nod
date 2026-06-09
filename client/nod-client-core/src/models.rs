@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
-// Wire types shared with the server live in nod-proto — the single source of
+// Wire types shared with the server live in nod-proto — the single channel of
 // truth. Re-exported here so the rest of the client keeps using `models::*`.
 pub use nod_proto::{
     CardField as Field, CardLink as Link, Decision, DecisionResolution, DecisionSignature,
@@ -11,6 +12,7 @@ pub use nod_proto::{
     RequestOption, RequestStatus, UserDecision,
 };
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DevicePlatform {
@@ -34,16 +36,19 @@ impl DevicePlatform {
     }
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Source {
+pub struct Channel {
     pub id: String,
     pub name: String,
     pub emoji: String,
     #[serde(default = "default_true")]
     pub subscribed: bool,
+    #[typeshare(serialized_as = "String")]
     pub created_at: DateTime<Utc>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServerProfile {
     pub id: String,
@@ -58,14 +63,18 @@ pub struct ServerProfile {
     pub user_name: Option<String>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct User {
     pub id: String,
     pub name: String,
+    #[typeshare(serialized_as = "String")]
     pub created_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "String")]
     pub updated_at: DateTime<Utc>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserDevice {
     pub id: String,
@@ -77,7 +86,9 @@ pub struct UserDevice {
     pub push_provider: Option<String>,
     pub has_push_token: bool,
     pub notification_sound: String,
+    #[typeshare(serialized_as = "String")]
     pub last_seen_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "String")]
     pub created_at: DateTime<Utc>,
     pub is_current: bool,
 }
@@ -105,23 +116,25 @@ pub struct SyncPayload {
     #[serde(default)]
     pub request: Option<Request>,
     #[serde(default)]
-    pub source: Option<Source>,
+    pub channel: Option<Channel>,
     #[serde(default)]
     pub notification_delivery: Option<NotificationDelivery>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientState {
     pub servers: Vec<ServerProfile>,
     pub selected_server_id: Option<String>,
     pub current_user: Option<User>,
     pub devices: Vec<UserDevice>,
-    pub sources: Vec<Source>,
-    pub pending_counts_by_source: BTreeMap<String, usize>,
+    pub channels: Vec<Channel>,
+    #[typeshare(serialized_as = "HashMap<String, u32>")]
+    pub pending_counts_by_channel: BTreeMap<String, usize>,
     pub requests: Vec<Request>,
-    pub selected_source_id: Option<String>,
+    pub selected_channel_id: Option<String>,
     pub selected_request_id: Option<String>,
     pub notification_sound: String,
     #[serde(default)]
@@ -135,7 +148,7 @@ pub struct ClientState {
 pub struct EnrollDeviceResponse {
     pub device_id: String,
     pub token: String,
-    pub sources: Vec<Source>,
+    pub channels: Vec<Channel>,
     pub user_id: String,
     pub user_name: String,
     #[serde(default)]
@@ -163,8 +176,8 @@ pub struct UserDeviceResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SourcesResponse {
-    pub sources: Vec<Source>,
+pub struct ChannelsResponse {
+    pub channels: Vec<Channel>,
 }
 
 #[derive(Debug, Deserialize)]

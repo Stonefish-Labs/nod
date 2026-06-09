@@ -78,9 +78,9 @@ impl NodClientRuntime {
                 let params: SubmitOptionParams = serde_json::from_value(params)?;
                 Ok(json!({ "request": self.submit_option(params).await? }))
             }
-            "clear_source" => {
-                let params: SourceParams = serde_json::from_value(params)?;
-                Ok(json!(self.clear_source(params).await?))
+            "clear_channel" => {
+                let params: ChannelParams = serde_json::from_value(params)?;
+                Ok(json!(self.clear_channel(params).await?))
             }
             "set_subscription" => {
                 let params: SetSubscriptionParams = serde_json::from_value(params)?;
@@ -110,9 +110,9 @@ impl NodClientRuntime {
                 self.disconnect_sync().await;
                 Ok(json!({ "connected": false }))
             }
-            "select_source" => {
-                let params: SourceParams = serde_json::from_value(params)?;
-                Ok(json!(self.select_source(params).await?))
+            "select_channel" => {
+                let params: ChannelParams = serde_json::from_value(params)?;
+                Ok(json!(self.select_channel(params).await?))
             }
             "select_request" => {
                 let params: SelectRequestParams = serde_json::from_value(params)?;
@@ -148,13 +148,13 @@ pub struct SubmitOptionParams {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SourceParams {
-    pub source_id: String,
+pub struct ChannelParams {
+    pub channel_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetSubscriptionParams {
-    pub source_id: String,
+    pub channel_id: String,
     pub subscribed: bool,
 }
 

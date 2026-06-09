@@ -109,7 +109,7 @@ curl -sS -X POST http://127.0.0.1:8767/api/v1/requests \
   -H "Authorization: Bearer $NOD_ISSUER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "source_id":"default",
+    "channel_id":"default",
     "title":"Approve deploy",
     "summary":"Production deploy is waiting",
     "body_markdown":"**Production** deploy needs approval.",

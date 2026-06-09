@@ -3,7 +3,8 @@ use std::{env, fs, path::PathBuf};
 use anyhow::{bail, Context};
 
 use super::{
-    ApnsRelayConfig, AppAttestEnvironment, AppleAppAttestConfig, Config, DeviceAttestationMode,
+    ApnsDirectConfig, ApnsRelayConfig, AppAttestEnvironment, AppleAppAttestConfig, Config,
+    DeviceAttestationMode,
 };
 
 pub(super) fn optional_env(name: &str) -> Option<String> {
@@ -31,8 +32,28 @@ pub(super) fn apply_server_env(config: &mut Config) -> anyhow::Result<()> {
     if let Some(value) = injected_value("NOD_ADMIN_TOKEN")? {
         config.secrets.set_admin_token(value);
     }
+    apply_apns_direct_env(&mut config.notifications.apns_direct)?;
     apply_apns_relay_env(&mut config.notifications.apns_relay)?;
     apply_apple_app_attest_env(&mut config.device_attestation.apple_app_attest)?;
+    Ok(())
+}
+
+fn apply_apns_direct_env(config: &mut ApnsDirectConfig) -> anyhow::Result<()> {
+    if let Some(value) = raw_env("NOD_APNS_DIRECT_BUNDLE_ID") {
+        config.bundle_id = Some(value);
+    }
+    if let Some(value) = raw_env("NOD_APNS_DIRECT_TEAM_ID") {
+        config.team_id = Some(value);
+    }
+    if let Some(value) = raw_env("NOD_APNS_DIRECT_KEY_ID") {
+        config.key_id = Some(value);
+    }
+    if let Some(value) = injected_value("NOD_APNS_DIRECT_PRIVATE_KEY_PATH")? {
+        config.private_key_path = Some(PathBuf::from(value));
+    }
+    if let Some(value) = raw_env("NOD_APNS_DIRECT_ENVIRONMENT") {
+        config.environment = Some(value);
+    }
     Ok(())
 }
 

@@ -27,32 +27,14 @@ final class NodHelperTests: XCTestCase {
     XCTAssertEqual(NodRequestInbox.pendingFirst([resolved, pending]).map(\.id), ["request-1", "request-2"])
   }
 
-  func testRequestInboxCountsPendingBySource() throws {
+  func testRequestInboxCountsPendingByChannel() throws {
     let requests = [
-      try makeRequest(id: "request-1", sourceId: "deploy", status: .pending),
-      try makeRequest(id: "request-2", sourceId: "deploy", status: .resolved),
-      try makeRequest(id: "request-3", sourceId: "security", status: .pending),
+      try makeRequest(id: "request-1", channelId: "deploy", status: .pending),
+      try makeRequest(id: "request-2", channelId: "deploy", status: .resolved),
+      try makeRequest(id: "request-3", channelId: "security", status: .pending),
     ]
 
-    XCTAssertEqual(NodRequestInbox.pendingCountsBySource(in: requests), ["deploy": 1, "security": 1])
-  }
-
-  func testLegacyServerContractKeysDoNotDecode() throws {
-    XCTAssertThrowsError(
-      try JSONDecoder.nod.decode(SourcesResponse.self, from: #"{"channels":[]}"#.data(using: .utf8)!)
-    )
-    XCTAssertThrowsError(
-      try JSONDecoder.nod.decode(RequestsResponse.self, from: #"{"events":[]}"#.data(using: .utf8)!)
-    )
-    XCTAssertThrowsError(
-      try JSONDecoder.nod.decode(RequestResponse.self, from: #"{"event":{}}"#.data(using: .utf8)!)
-    )
-    XCTAssertThrowsError(
-      try JSONDecoder.nod.decode(NodRequest.self, from: legacyRequestData(sourceKey: "channel_id", optionsKey: "options"))
-    )
-    XCTAssertThrowsError(
-      try JSONDecoder.nod.decode(NodRequest.self, from: legacyRequestData(sourceKey: "source_id", optionsKey: "actions"))
-    )
+    XCTAssertEqual(NodRequestInbox.pendingCountsByChannel(in: requests), ["deploy": 1, "security": 1])
   }
 
   func testRequestRequiresNotificationContractField() throws {
@@ -94,7 +76,7 @@ final class NodHelperTests: XCTestCase {
 
   private func makeRequest(
     id: String,
-    sourceId: String = "source-1",
+    channelId: String = "channel-1",
     status: NodRequestStatus,
     createdAt: String = "2026-05-31T12:00:00.000Z"
   ) throws -> NodRequest {
@@ -102,7 +84,7 @@ final class NodHelperTests: XCTestCase {
       {
         "id": "\(id)",
         "request_id": "\(id)",
-        "source_id": "\(sourceId)",
+        "channel_id": "\(channelId)",
         "recipients": [],
         "decision_resolution": "shared",
         "title": "Deploy?",
@@ -132,12 +114,12 @@ final class NodHelperTests: XCTestCase {
     return try JSONDecoder.nod.decode(NodRequest.self, from: data)
   }
 
-  private func legacyRequestData(sourceKey: String, optionsKey: String) -> Data {
+  private func requestData(channelKey: String, optionsKey: String) -> Data {
     """
       {
         "id": "request-legacy",
         "request_id": "request-legacy",
-        "\(sourceKey)": "source-1",
+        "\(channelKey)": "channel-1",
         "recipients": [],
         "decision_resolution": "shared",
         "title": "Deploy?",
@@ -168,7 +150,7 @@ final class NodHelperTests: XCTestCase {
 
   private func requestDataWithoutNotification() throws -> Data {
     var payload = try JSONSerialization.jsonObject(
-      with: legacyRequestData(sourceKey: "source_id", optionsKey: "options")
+      with: requestData(channelKey: "channel_id", optionsKey: "options")
     ) as! [String: Any]
     payload.removeValue(forKey: "notification")
     return try JSONSerialization.data(withJSONObject: payload)

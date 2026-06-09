@@ -11,8 +11,8 @@ export interface SubmitOptionParams {
   text?: string | null;
 }
 
-export interface SourceParams {
-  source_id: string;
+export interface ChannelParams {
+  channel_id: string;
 }
 
 export interface SelectServerParams {
@@ -24,7 +24,7 @@ export interface SelectRequestParams {
 }
 
 export interface SetSubscriptionParams {
-  source_id: string;
+  channel_id: string;
   subscribed: boolean;
 }
 

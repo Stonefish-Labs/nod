@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    default_signature_algorithm, DeviceAttestationSummary, NotificationDelivery, Source, User,
+    default_signature_algorithm, Channel, DeviceAttestationSummary, NotificationDelivery, User,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -74,7 +74,7 @@ pub struct AdminDevice {
     pub attestation: Option<DeviceAttestationSummary>,
     pub last_seen_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
-    pub subscriptions: Vec<Source>,
+    pub subscriptions: Vec<Channel>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -133,7 +133,7 @@ pub struct EnrollDeviceResponse {
     pub user_name: String,
     pub token: String,
     pub notification_delivery: NotificationDelivery,
-    pub sources: Vec<Source>,
+    pub channels: Vec<Channel>,
     pub devices: Vec<UserDevice>,
 }
 

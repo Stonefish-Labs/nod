@@ -133,7 +133,7 @@ mod tests {
             },
             metadata: RelayNotificationMetadata {
                 request_id: "request-1".to_string(),
-                source_id: "default".to_string(),
+                channel_id: "default".to_string(),
             },
         }
     }

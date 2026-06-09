@@ -31,12 +31,12 @@ async fn create_greenfield_schema(pool: &SqlitePool) -> anyhow::Result<()> {
         .await?;
     ensure_column(
         pool,
-        "sources",
+        "channels",
         "emoji",
-        "ALTER TABLE sources ADD COLUMN emoji TEXT NOT NULL DEFAULT '🔔'",
+        "ALTER TABLE channels ADD COLUMN emoji TEXT NOT NULL DEFAULT '🔔'",
     )
     .await?;
-    sqlx::query("UPDATE sources SET emoji = COALESCE(NULLIF(TRIM(emoji), ''), '🔔')")
+    sqlx::query("UPDATE channels SET emoji = COALESCE(NULLIF(TRIM(emoji), ''), '🔔')")
         .execute(pool)
         .await?;
     ensure_column(
@@ -52,7 +52,7 @@ async fn create_greenfield_schema(pool: &SqlitePool) -> anyhow::Result<()> {
 
 async fn seed_defaults(pool: &SqlitePool) -> anyhow::Result<()> {
     sqlx::query(
-        "INSERT OR IGNORE INTO sources (id, name, emoji, created_at) VALUES ('default', 'Default', '🔔', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+        "INSERT OR IGNORE INTO channels (id, name, emoji, created_at) VALUES ('default', 'Default', '🔔', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
     )
     .execute(pool)
     .await?;
@@ -71,7 +71,7 @@ async fn seed_defaults(pool: &SqlitePool) -> anyhow::Result<()> {
     .await?;
     sqlx::query(
         r#"
-        INSERT OR IGNORE INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
+        INSERT OR IGNORE INTO user_channel_subscriptions (user_id, channel_id, subscribed, updated_at)
         VALUES ('owner', 'default', 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
         "#,
     )
@@ -125,4 +125,3 @@ fn ensure_sqlite_parent(database_url: &str) -> anyhow::Result<()> {
     }
     Ok(())
 }
-

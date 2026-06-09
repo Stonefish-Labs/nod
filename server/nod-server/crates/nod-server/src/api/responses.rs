@@ -2,8 +2,8 @@ use serde::Serialize;
 
 use crate::{
     models::{
-        AdminDevice, AdminIssuerToken, AdminUser, CreateIssuerTokenResponse,
-        CreatedDecisionRequest, DecisionRequest, EnrollmentCodeResponse, Source, User, UserDevice,
+        AdminDevice, AdminIssuerToken, AdminUser, Channel, CreateIssuerTokenResponse,
+        CreatedDecisionRequest, DecisionRequest, EnrollmentCodeResponse, User, UserDevice,
     },
     views::RequestDecisionView,
 };
@@ -35,13 +35,13 @@ impl OkResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub(super) struct SourcesResponse {
-    pub(super) sources: Vec<Source>,
+pub(super) struct ChannelsResponse {
+    pub(super) channels: Vec<Channel>,
 }
 
 #[derive(Debug, Serialize)]
-pub(super) struct SourceResponse {
-    pub(super) source: Source,
+pub(super) struct ChannelResponse {
+    pub(super) channel: Channel,
 }
 
 #[derive(Debug, Serialize)]

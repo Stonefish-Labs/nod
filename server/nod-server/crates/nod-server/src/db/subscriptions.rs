@@ -1,7 +1,7 @@
 use sqlx::SqlitePool;
 
 use super::{
-    enrollment::normalized_native_app_id, get_device, get_source, get_user, now_string,
+    enrollment::normalized_native_app_id, get_channel, get_device, get_user, now_string,
     validation::normalize_notification_sound,
 };
 use crate::{error::ApiError, models::UpdatePushTokenRequest};
@@ -9,32 +9,32 @@ use crate::{error::ApiError, models::UpdatePushTokenRequest};
 pub async fn set_subscription(
     pool: &SqlitePool,
     device_id: &str,
-    source_id: &str,
+    channel_id: &str,
     subscribed: bool,
 ) -> Result<(), ApiError> {
     let device = get_device(pool, device_id).await?;
-    set_user_subscription(pool, &device.user_id, source_id, subscribed).await
+    set_user_subscription(pool, &device.user_id, channel_id, subscribed).await
 }
 
 pub async fn set_user_subscription(
     pool: &SqlitePool,
     user_id: &str,
-    source_id: &str,
+    channel_id: &str,
     subscribed: bool,
 ) -> Result<(), ApiError> {
     get_user(pool, user_id).await?;
-    get_source(pool, source_id).await?;
+    get_channel(pool, channel_id).await?;
     sqlx::query(
         r#"
-        INSERT INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
+        INSERT INTO user_channel_subscriptions (user_id, channel_id, subscribed, updated_at)
         VALUES (?, ?, ?, ?)
-        ON CONFLICT(user_id, source_id) DO UPDATE SET
+        ON CONFLICT(user_id, channel_id) DO UPDATE SET
             subscribed = excluded.subscribed,
             updated_at = excluded.updated_at
         "#,
     )
     .bind(user_id)
-    .bind(source_id)
+    .bind(channel_id)
     .bind(if subscribed { 1 } else { 0 })
     .bind(now_string())
     .execute(pool)
@@ -42,23 +42,23 @@ pub async fn set_user_subscription(
     Ok(())
 }
 
-pub async fn clear_source(
+pub async fn clear_channel(
     pool: &SqlitePool,
     device_id: &str,
-    source_id: &str,
+    channel_id: &str,
 ) -> Result<(), ApiError> {
     let device = get_device(pool, device_id).await?;
-    get_source(pool, source_id).await?;
+    get_channel(pool, channel_id).await?;
     sqlx::query(
         r#"
-        INSERT INTO user_source_clears (user_id, source_id, cleared_at)
+        INSERT INTO user_channel_clears (user_id, channel_id, cleared_at)
         VALUES (?, ?, ?)
-        ON CONFLICT(user_id, source_id) DO UPDATE SET
+        ON CONFLICT(user_id, channel_id) DO UPDATE SET
             cleared_at = excluded.cleared_at
         "#,
     )
     .bind(&device.user_id)
-    .bind(source_id)
+    .bind(channel_id)
     .bind(now_string())
     .execute(pool)
     .await?;

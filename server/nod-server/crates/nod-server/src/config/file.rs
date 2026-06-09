@@ -4,8 +4,9 @@ use anyhow::Context;
 use serde::Deserialize;
 
 use super::{
-    ApnsRelayConfig, ApnsRelayTlsConfig, AppAttestEnvironment, AppleAppAttestConfig, Config,
-    DeviceAttestationConfig, DeviceAttestationMode, NotificationsConfig,
+    ApnsDirectConfig, ApnsRelayConfig, ApnsRelayTlsConfig, AppAttestEnvironment,
+    AppleAppAttestConfig, Config, DeviceAttestationConfig, DeviceAttestationMode,
+    NotificationsConfig,
 };
 
 pub(super) fn load_server_config(path: impl AsRef<Path>) -> anyhow::Result<Config> {
@@ -101,13 +102,38 @@ impl AppleAppAttestConfigFile {
 #[serde(deny_unknown_fields)]
 struct NotificationsConfigFile {
     #[serde(default)]
+    apns_direct: ApnsDirectConfigFile,
+    #[serde(default)]
     apns_relay: ApnsRelayConfigFile,
 }
 
 impl NotificationsConfigFile {
     fn into_config(self) -> NotificationsConfig {
         NotificationsConfig {
+            apns_direct: self.apns_direct.into_config(),
             apns_relay: self.apns_relay.into_config(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApnsDirectConfigFile {
+    bundle_id: Option<String>,
+    team_id: Option<String>,
+    key_id: Option<String>,
+    private_key_path: Option<std::path::PathBuf>,
+    environment: Option<String>,
+}
+
+impl ApnsDirectConfigFile {
+    fn into_config(self) -> ApnsDirectConfig {
+        ApnsDirectConfig {
+            bundle_id: self.bundle_id,
+            team_id: self.team_id,
+            key_id: self.key_id,
+            private_key_path: self.private_key_path,
+            environment: self.environment,
         }
     }
 }

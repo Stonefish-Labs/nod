@@ -1,7 +1,7 @@
 use nod_client_core::{
     models::{ClientState, Request, UserDevice},
     EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
-    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
     SubmitOptionParams,
 };
 
@@ -12,10 +12,10 @@ pub(crate) enum RuntimeCommand {
     ConnectSync,
     SelectServer(SelectServerParams),
     ForgetServer(SelectServerParams),
-    SelectSource(SourceParams),
+    SelectChannel(ChannelParams),
     SelectRequest(SelectRequestParams),
     SubmitOption(SubmitOptionParams),
-    ClearSource(SourceParams),
+    ClearChannel(ChannelParams),
     SetSubscription(SetSubscriptionParams),
     SetNotificationPreference(NotificationPreferenceParams),
     ListDevices,
@@ -31,10 +31,10 @@ impl RuntimeCommand {
             Self::ConnectSync => "Connecting sync",
             Self::SelectServer(_) => "Switching server",
             Self::ForgetServer(_) => "Forgetting server",
-            Self::SelectSource(_) => "Loading source",
+            Self::SelectChannel(_) => "Loading channel",
             Self::SelectRequest(_) => "Selecting request",
             Self::SubmitOption(_) => "Submitting option",
-            Self::ClearSource(_) => "Clearing source",
+            Self::ClearChannel(_) => "Clearing channel",
             Self::SetSubscription(_) => "Updating subscription",
             Self::SetNotificationPreference(_) => "Updating notification sound",
             Self::ListDevices => "Loading devices",
@@ -61,9 +61,9 @@ impl PartialEq for RuntimeCommand {
             | (Self::ForgetServer(left), Self::ForgetServer(right)) => {
                 left.server_id == right.server_id
             }
-            (Self::SelectSource(left), Self::SelectSource(right))
-            | (Self::ClearSource(left), Self::ClearSource(right)) => {
-                left.source_id == right.source_id
+            (Self::SelectChannel(left), Self::SelectChannel(right))
+            | (Self::ClearChannel(left), Self::ClearChannel(right)) => {
+                left.channel_id == right.channel_id
             }
             (Self::SelectRequest(left), Self::SelectRequest(right)) => {
                 left.request_id == right.request_id
@@ -74,7 +74,7 @@ impl PartialEq for RuntimeCommand {
                     && left.text == right.text
             }
             (Self::SetSubscription(left), Self::SetSubscription(right)) => {
-                left.source_id == right.source_id && left.subscribed == right.subscribed
+                left.channel_id == right.channel_id && left.subscribed == right.subscribed
             }
             (Self::SetNotificationPreference(left), Self::SetNotificationPreference(right)) => {
                 left.notification_sound == right.notification_sound

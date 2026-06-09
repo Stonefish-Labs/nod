@@ -62,12 +62,12 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
     public static let shared = NodNotificationController()
 
     private var apiProvider: (() -> NodAPI?)?
-    private var openHandler: (@MainActor (_ requestId: String?, _ sourceId: String?) -> Void)?
+    private var openHandler: (@MainActor (_ requestId: String?, _ channelId: String?) -> Void)?
     private var optionHandler: (@Sendable (_ requestId: String, _ optionId: String, _ text: String?) async -> Void)?
 
     public func configure(
         apiProvider: @escaping () -> NodAPI?,
-        onOpen: @escaping @MainActor (_ requestId: String?, _ sourceId: String?) -> Void = { _, _ in },
+        onOpen: @escaping @MainActor (_ requestId: String?, _ channelId: String?) -> Void = { _, _ in },
         onOption: @escaping @Sendable (_ requestId: String, _ optionId: String, _ text: String?) async -> Void = { _, _, _ in }
     ) {
         self.apiProvider = apiProvider
@@ -138,11 +138,11 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
         content.title = request.title
         content.body = request.summary.isEmpty ? request.bodyMarkdown : request.summary
         content.sound = notificationSound(named: soundName)
-        content.threadIdentifier = request.sourceId
+        content.threadIdentifier = request.channelId
         content.categoryIdentifier = category(for: request)
         content.userInfo = [
             "request_id": request.id,
-            "source_id": request.sourceId
+            "channel_id": request.channelId
         ]
         if let attachment = try? await imageAttachment(for: request) {
             content.attachments = [attachment]
@@ -177,11 +177,11 @@ public final class NodNotificationController: NSObject, UNUserNotificationCenter
     ) async {
         let userInfo = response.notification.request.content.userInfo
         let requestId = Self.notificationString("request_id", in: userInfo)
-        let sourceId = Self.notificationString("source_id", in: userInfo)
+        let channelId = Self.notificationString("channel_id", in: userInfo)
 
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier || response.actionIdentifier == "open" {
             await MainActor.run {
-                self.openHandler?(requestId, sourceId)
+                self.openHandler?(requestId, channelId)
             }
             return
         }

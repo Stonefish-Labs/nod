@@ -35,17 +35,17 @@ struct SubscriptionSheet: View {
           #endif
         }
 
-        Section("Sources") {
-          ForEach(store.sources) { source in
+        Section("Channels") {
+          ForEach(store.channels) { channel in
             Toggle(isOn: Binding(
-              get: { store.sources.first(where: { $0.id == source.id })?.subscribed ?? false },
+              get: { store.channels.first(where: { $0.id == channel.id })?.subscribed ?? false },
               set: { subscribed in
                 Task {
-                  await store.setSubscription(sourceId: source.id, subscribed: subscribed)
+                  await store.setSubscription(channelId: channel.id, subscribed: subscribed)
                 }
               }
             )) {
-              SourceLabel(source: source)
+              ChannelLabel(channel: channel)
             }
           }
         }

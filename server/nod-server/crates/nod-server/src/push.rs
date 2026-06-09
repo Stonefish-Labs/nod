@@ -122,14 +122,18 @@ impl PushCategory {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RemotePushRoute {
+pub enum PushRoute {
+    /// Forward to a standalone `nod-apns-relay` over mTLS (scale-out).
     ApnsRelay,
+    /// Deliver to Apple in-process, embedding the relay (co-located, no mTLS).
+    ApnsDirect,
 }
 
-impl RemotePushRoute {
+impl PushRoute {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::ApnsRelay => "apns_relay",
+            Self::ApnsDirect => "apns_direct",
         }
     }
 }
@@ -137,14 +141,12 @@ impl RemotePushRoute {
 #[derive(Clone)]
 pub struct BuiltPushRegistry {
     pub registry: PushRegistry,
-    pub remote_route: Option<RemotePushRoute>,
+    pub route: Option<PushRoute>,
 }
 
-pub fn notification_delivery_for_route(
-    remote_route: Option<RemotePushRoute>,
-) -> NotificationDelivery {
+pub fn notification_delivery_for_route(route: Option<PushRoute>) -> NotificationDelivery {
     NotificationDelivery {
-        mode: if remote_route.is_some() {
+        mode: if route.is_some() {
             NotificationDeliveryMode::Push
         } else {
             NotificationDeliveryMode::Websocket
@@ -152,28 +154,38 @@ pub fn notification_delivery_for_route(
     }
 }
 
-pub fn configured_remote_push_route(config: &NotificationsConfig) -> Option<RemotePushRoute> {
-    if config.apns_relay.client_enabled() {
-        Some(RemotePushRoute::ApnsRelay)
-    } else {
-        None
+/// Decide the active push route from configuration. In-process direct delivery
+/// and the remote relay are mutually exclusive; configuring both is a hard error
+/// rather than a silent precedence rule.
+pub fn configured_push_route(config: &NotificationsConfig) -> anyhow::Result<Option<PushRoute>> {
+    match (
+        config.apns_direct.enabled(),
+        config.apns_relay.client_enabled(),
+    ) {
+        (true, true) => anyhow::bail!(
+            "configure either in-process APNs (notifications.apns_direct / NOD_APNS_DIRECT_*) \
+             or the remote relay (notifications.apns_relay / NOD_APNS_RELAY_*), not both"
+        ),
+        (true, false) => Ok(Some(PushRoute::ApnsDirect)),
+        (false, true) => Ok(Some(PushRoute::ApnsRelay)),
+        (false, false) => Ok(None),
     }
 }
 
 pub fn build_push_registry(config: &NotificationsConfig) -> anyhow::Result<BuiltPushRegistry> {
-    match configured_remote_push_route(config) {
-        Some(RemotePushRoute::ApnsRelay) => {
+    let route = configured_push_route(config)?;
+    let registry = match route {
+        Some(PushRoute::ApnsRelay) => {
             let provider = apns_relay::ApnsRelayProvider::new(config.apns_relay.clone())?;
-            Ok(BuiltPushRegistry {
-                registry: PushRegistry::new(vec![Arc::new(provider)]),
-                remote_route: Some(RemotePushRoute::ApnsRelay),
-            })
+            PushRegistry::new(vec![Arc::new(provider)])
         }
-        None => Ok(BuiltPushRegistry {
-            registry: PushRegistry::default(),
-            remote_route: None,
-        }),
-    }
+        Some(PushRoute::ApnsDirect) => {
+            let provider = apns_relay::InProcessApnsProvider::new(&config.apns_direct)?;
+            PushRegistry::new(vec![Arc::new(provider)])
+        }
+        None => PushRegistry::default(),
+    };
+    Ok(BuiltPushRegistry { registry, route })
 }
 
 #[cfg(test)]
@@ -182,7 +194,9 @@ mod tests {
 
     use async_trait::async_trait;
 
-    use crate::config::{ApnsRelayConfig, ApnsRelayTlsConfig, NotificationsConfig};
+    use crate::config::{
+        ApnsDirectConfig, ApnsRelayConfig, ApnsRelayTlsConfig, NotificationsConfig,
+    };
 
     use super::*;
 
@@ -224,29 +238,66 @@ mod tests {
             .contains_key(&PushRouteKey::new(APPLE_APNS_PROVIDER_ID, None)));
     }
 
-    #[test]
-    fn apns_relay_is_the_only_remote_push_route() {
-        let config = NotificationsConfig {
-            apns_relay: ApnsRelayConfig {
-                url: Some("https://relay.example.com".to_string()),
-                native_app_id: Some("com.example.NodTests".to_string()),
-                tls: ApnsRelayTlsConfig {
-                    client_cert_path: Some("client.crt".into()),
-                    client_key_path: Some("client.key".into()),
-                    ca_cert_path: Some("ca.crt".into()),
-                },
+    fn relay_config() -> ApnsRelayConfig {
+        ApnsRelayConfig {
+            url: Some("https://relay.example.com".to_string()),
+            native_app_id: Some("com.example.NodTests".to_string()),
+            tls: ApnsRelayTlsConfig {
+                client_cert_path: Some("tests/fixtures/relay-tls/client.crt".into()),
+                client_key_path: Some("tests/fixtures/relay-tls/client.key".into()),
+                ca_cert_path: Some("tests/fixtures/relay-tls/server-ca.crt".into()),
             },
+        }
+    }
+
+    fn direct_config() -> ApnsDirectConfig {
+        ApnsDirectConfig {
+            bundle_id: Some("com.example.NodTests".to_string()),
+            team_id: Some("TEAMID".to_string()),
+            key_id: Some("KEYID".to_string()),
+            private_key_path: Some("tests/fixtures/mtls/apns-auth-key.p8".into()),
+            environment: Some("sandbox".to_string()),
+        }
+    }
+
+    #[test]
+    fn apns_relay_route_selected_for_relay_config() {
+        let config = NotificationsConfig {
+            apns_relay: relay_config(),
+            ..Default::default()
         };
         assert_eq!(
-            configured_remote_push_route(&config),
-            Some(RemotePushRoute::ApnsRelay)
+            configured_push_route(&config).unwrap(),
+            Some(PushRoute::ApnsRelay)
         );
+    }
+
+    #[test]
+    fn apns_direct_route_selected_for_direct_config() {
+        let config = NotificationsConfig {
+            apns_direct: direct_config(),
+            ..Default::default()
+        };
+        assert_eq!(
+            configured_push_route(&config).unwrap(),
+            Some(PushRoute::ApnsDirect)
+        );
+    }
+
+    #[test]
+    fn configuring_both_routes_is_rejected() {
+        let config = NotificationsConfig {
+            apns_direct: direct_config(),
+            apns_relay: relay_config(),
+        };
+        let err = configured_push_route(&config).unwrap_err().to_string();
+        assert!(err.contains("not both"), "{err}");
     }
 
     #[test]
     fn websocket_selected_without_configured_provider() {
         assert_eq!(
-            configured_remote_push_route(&NotificationsConfig::default()),
+            configured_push_route(&NotificationsConfig::default()).unwrap(),
             None
         );
     }
@@ -263,6 +314,7 @@ mod tests {
                     ca_cert_path: Some("missing/ca.crt".into()),
                 },
             },
+            ..Default::default()
         };
 
         let err = build_push_registry(&config).err().unwrap().to_string();
@@ -273,20 +325,13 @@ mod tests {
     #[test]
     fn build_reports_effective_push_for_valid_apns_relay() {
         let config = NotificationsConfig {
-            apns_relay: ApnsRelayConfig {
-                url: Some("https://relay.example.com".to_string()),
-                native_app_id: Some("com.example.NodTests".to_string()),
-                tls: ApnsRelayTlsConfig {
-                    client_cert_path: Some("tests/fixtures/relay-tls/client.crt".into()),
-                    client_key_path: Some("tests/fixtures/relay-tls/client.key".into()),
-                    ca_cert_path: Some("tests/fixtures/relay-tls/server-ca.crt".into()),
-                },
-            },
+            apns_relay: relay_config(),
+            ..Default::default()
         };
         let built = build_push_registry(&config).unwrap();
-        assert_eq!(built.remote_route, Some(RemotePushRoute::ApnsRelay));
+        assert_eq!(built.route, Some(PushRoute::ApnsRelay));
         assert_eq!(
-            notification_delivery_for_route(built.remote_route).mode,
+            notification_delivery_for_route(built.route).mode,
             NotificationDeliveryMode::Push
         );
     }

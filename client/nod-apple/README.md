@@ -12,7 +12,9 @@ One Swift package holds the shared `NodKit` library and both app shells. ~95% of
 
 ```
 Package.swift           NodKit library + SwiftPM NodMac executable (fast iteration)
-Sources/NodKit/        API client, store, keychain, models, notifications, sync
+Sources/NodKit/         API client, store, keychain, models, notifications, sync
+Sources/NodProtoFFI/    Generated UniFFI Swift wrapper over the Rust signing crypto
+Frameworks/             nod_proto_ffiFFI.xcframework (built from source, git-ignored)
 Apps/
   NodMac/              macOS @main, entitlements, Info.plist, resources
   NodIOS/              iOS @main, entitlements, Info.plist, resources
@@ -22,6 +24,19 @@ scripts/                Release & compliance scripts
 ```
 
 ## Build
+
+Decision signing shares one Rust implementation (`nod-proto`) with the server
+via UniFFI — the Apple client never reimplements the canonical signing bytes.
+The generated `nod_proto_ffiFFI.xcframework` and Swift wrapper are built from
+source (not committed), so generate them once before the first build, and again
+whenever nod-proto's signing contract changes:
+
+```bash
+./scripts/build-nod-proto-ffi.sh
+```
+
+This needs the Rust toolchain (`rustup`); it adds the Apple targets, builds the
+static libraries, and emits the xcframework + `Sources/NodProtoFFI`.
 
 Canonical local macOS app bundle build:
 

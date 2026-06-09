@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use nod_client_core::{
     models::{ClientState, Request, UserDevice},
     EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
-    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
     SubmitOptionParams,
 };
 
@@ -43,8 +43,8 @@ impl RuntimePort for FakeRuntime {
         Ok(client_state())
     }
 
-    async fn select_source(&mut self, _params: SourceParams) -> anyhow::Result<ClientState> {
-        self.calls.push("select_source");
+    async fn select_channel(&mut self, _params: ChannelParams) -> anyhow::Result<ClientState> {
+        self.calls.push("select_channel");
         Ok(client_state())
     }
 
@@ -64,8 +64,8 @@ impl RuntimePort for FakeRuntime {
         Ok(request("deploy", "default"))
     }
 
-    async fn clear_source(&mut self, _params: SourceParams) -> anyhow::Result<ClientState> {
-        self.calls.push("clear_source");
+    async fn clear_channel(&mut self, _params: ChannelParams) -> anyhow::Result<ClientState> {
+        self.calls.push("clear_channel");
         Ok(client_state())
     }
 

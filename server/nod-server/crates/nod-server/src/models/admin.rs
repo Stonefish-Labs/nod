@@ -3,7 +3,7 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 pub struct AdminCounts {
     pub users: i64,
-    pub sources: i64,
+    pub channels: i64,
     pub devices: i64,
     pub active_issuer_tokens: i64,
     pub pending_requests: i64,
@@ -12,19 +12,19 @@ pub struct AdminCounts {
 #[derive(Debug, Clone, Serialize)]
 pub struct AdminSummary {
     pub users: i64,
-    pub sources: i64,
+    pub channels: i64,
     pub devices: i64,
     pub active_issuer_tokens: i64,
     pub pending_requests: i64,
     pub notification_delivery_mode: String,
-    pub remote_push_route: Option<String>,
+    pub push_route: Option<String>,
     pub retention_days: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AdminSettings {
     pub notification_delivery_mode: String,
-    pub remote_push_route: Option<String>,
+    pub push_route: Option<String>,
     pub retention_days: i64,
     pub apns_relay: AdminApnsRelaySettings,
     pub device_attestation: AdminDeviceAttestationSettings,

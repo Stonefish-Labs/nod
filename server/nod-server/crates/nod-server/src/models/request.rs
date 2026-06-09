@@ -18,7 +18,7 @@ pub use nod_proto::DecisionSignature as SubmitDecisionSignature;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionRequest {
     pub id: String,
-    pub source_id: String,
+    pub channel_id: String,
     pub recipients: Vec<String>,
     pub decision_resolution: DecisionResolution,
     pub title: String,
@@ -64,7 +64,7 @@ impl From<&DecisionRequest> for nod_proto::Request {
         nod_proto::Request {
             id: request.id.clone(),
             request_id: request.id.clone(),
-            source_id: request.source_id.clone(),
+            channel_id: request.channel_id.clone(),
             recipients: request.recipients.clone(),
             decision_resolution: request.decision_resolution.clone(),
             title: request.title.clone(),

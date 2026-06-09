@@ -9,7 +9,7 @@ public enum NodDevicePlatform: String, Codable, Sendable {
   case unknown
 }
 
-public struct NodSource: Codable, Identifiable, Hashable, Sendable {
+public struct NodChannel: Codable, Identifiable, Hashable, Sendable {
   public var id: String
   public var name: String
   public var emoji: String
@@ -326,7 +326,7 @@ public struct NodRequestNotification: Codable, Hashable, Sendable {
 public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   public let id: String
   public let requestId: String
-  public let sourceId: String
+  public let channelId: String
   public let recipients: [String]
   public let decisionResolution: NodDecisionResolution
   public let title: String
@@ -351,7 +351,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   public init(
     id: String,
     requestId: String,
-    sourceId: String,
+    channelId: String,
     recipients: [String],
     decisionResolution: NodDecisionResolution,
     title: String,
@@ -375,7 +375,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   ) {
     self.id = id
     self.requestId = requestId
-    self.sourceId = sourceId
+    self.channelId = channelId
     self.recipients = recipients
     self.decisionResolution = decisionResolution
     self.title = title
@@ -401,7 +401,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
   enum CodingKeys: String, CodingKey {
     case id, title, summary, fields, links, notification, status, decision, decisions, options
     case requestId = "request_id"
-    case sourceId = "source_id"
+    case channelId = "channel_id"
     case recipients
     case decisionResolution = "decision_resolution"
     case bodyMarkdown = "body_markdown"
@@ -419,7 +419,7 @@ public struct NodRequest: Codable, Identifiable, Hashable, Sendable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     id = try container.decode(String.self, forKey: .id)
     requestId = try container.decode(String.self, forKey: .requestId)
-    sourceId = try container.decode(String.self, forKey: .sourceId)
+    channelId = try container.decode(String.self, forKey: .channelId)
     recipients = try container.decodeIfPresent([String].self, forKey: .recipients) ?? []
     decisionResolution = try container.decodeIfPresent(
       NodDecisionResolution.self,
@@ -595,7 +595,7 @@ public struct NodSyncEnvelope: Decodable, Sendable {
   public let kind: String
   public let at: Date
   public let request: NodRequest?
-  public let source: NodSource?
+  public let channel: NodChannel?
   public let notificationDelivery: NodNotificationDelivery?
 
   enum CodingKeys: String, CodingKey {
@@ -603,7 +603,7 @@ public struct NodSyncEnvelope: Decodable, Sendable {
   }
 
   enum PayloadKeys: String, CodingKey {
-    case request, source
+    case request, channel
     case notificationDelivery = "notification_delivery"
   }
 
@@ -613,26 +613,26 @@ public struct NodSyncEnvelope: Decodable, Sendable {
     at = try container.decode(Date.self, forKey: .at)
     if let payload = try? container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload) {
       request = try? payload.decode(NodRequest.self, forKey: .request)
-      source = try? payload.decode(NodSource.self, forKey: .source)
+      channel = try? payload.decode(NodChannel.self, forKey: .channel)
       notificationDelivery = try? payload.decode(
         NodNotificationDelivery.self, forKey: .notificationDelivery)
     } else {
       request = nil
-      source = nil
+      channel = nil
       notificationDelivery = nil
     }
   }
 }
 
 public struct NodRequestQuery: Hashable, Sendable {
-  public var sourceId: String?
+  public var channelId: String?
   public var includeCleared: Bool
   public var limit: Int?
 
   public static let activeOnly = NodRequestQuery()
 
-  public init(sourceId: String? = nil, includeCleared: Bool = false, limit: Int? = nil) {
-    self.sourceId = sourceId
+  public init(channelId: String? = nil, includeCleared: Bool = false, limit: Int? = nil) {
+    self.channelId = channelId
     self.includeCleared = includeCleared
     self.limit = limit
   }
@@ -644,11 +644,11 @@ public struct EnrollDeviceResponse: Codable, Sendable {
   public let userName: String
   public let token: String
   public let notificationDelivery: NodNotificationDelivery
-  public let sources: [NodSource]
+  public let channels: [NodChannel]
   public let devices: [NodUserDevice]
 
   enum CodingKeys: String, CodingKey {
-    case token, sources, devices
+    case token, channels, devices
     case deviceId = "device_id"
     case userId = "user_id"
     case userName = "user_name"
@@ -676,8 +676,8 @@ public struct UserDeviceResponse: Codable, Sendable {
   public let device: NodUserDevice
 }
 
-public struct SourcesResponse: Codable, Sendable {
-  public let sources: [NodSource]
+public struct ChannelsResponse: Codable, Sendable {
+  public let channels: [NodChannel]
 }
 
 public struct RequestsResponse: Codable, Sendable {

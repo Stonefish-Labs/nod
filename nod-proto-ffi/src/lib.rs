@@ -1,0 +1,201 @@
+//! UniFFI bindings exposing `nod-proto`'s canonical decision-signing contract to
+//! the Apple clients.
+//!
+//! This crate is the **only** place the Swift app gets the request-digest /
+//! decision-payload byte construction and P-256 verification, so there is one
+//! Rust implementation of the security-critical path with no parallel Swift
+//! reimplementation to drift. The Secure Enclave still performs the actual
+//! signing in Swift; this crate decides *what* bytes get signed and verifies the
+//! result. See `ARCHITECTURE_NOTES.md`.
+
+uniffi::setup_scaffolding!();
+
+use nod_proto::{
+    decision_signing_payload as proto_decision_signing_payload,
+    request_digest as proto_request_digest, validate_public_key as proto_validate_public_key,
+    verify_payload as proto_verify_payload, DecisionSigningInput, OptionKind, Request,
+    SigningError,
+};
+
+/// Errors surfaced across the FFI boundary to Swift.
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum SigningFfiError {
+    #[error("invalid request json: {message}")]
+    InvalidRequestJson { message: String },
+    #[error("invalid signing public key")]
+    InvalidPublicKey,
+    #[error("invalid signature encoding")]
+    InvalidSignatureEncoding,
+    #[error("signature verification failed")]
+    SignatureMismatch,
+    #[error("signing failure: {message}")]
+    Other { message: String },
+}
+
+impl From<SigningError> for SigningFfiError {
+    fn from(err: SigningError) -> Self {
+        match err {
+            SigningError::Json(inner) => Self::InvalidRequestJson {
+                message: inner.to_string(),
+            },
+            SigningError::InvalidPublicKey => Self::InvalidPublicKey,
+            SigningError::InvalidSignatureEncoding => Self::InvalidSignatureEncoding,
+            SigningError::SignatureMismatch => Self::SignatureMismatch,
+            other => Self::Other {
+                message: other.to_string(),
+            },
+        }
+    }
+}
+
+/// Recompute the canonical request digest from the raw request JSON the server
+/// sent, so the client can independently confirm it is approving the request it
+/// saw rather than trusting the server-provided digest.
+#[uniffi::export]
+pub fn request_digest(request_json: String) -> Result<String, SigningFfiError> {
+    let request: Request =
+        serde_json::from_str(&request_json).map_err(|err| SigningFfiError::InvalidRequestJson {
+            message: err.to_string(),
+        })?;
+    Ok(proto_request_digest(&request)?)
+}
+
+/// Build the exact canonical string the client signs to resolve a request —
+/// byte-for-byte identical to the server's verify path.
+#[uniffi::export]
+#[allow(clippy::too_many_arguments)]
+pub fn decision_signing_payload(
+    request_id: String,
+    request_digest: String,
+    option_id: String,
+    option_kind: String,
+    user_id: String,
+    device_id: String,
+    key_id: String,
+    nonce: String,
+    signed_at: String,
+    text: Option<String>,
+) -> String {
+    let kind = OptionKind::from(option_kind.as_str());
+    proto_decision_signing_payload(DecisionSigningInput {
+        request_id: &request_id,
+        request_digest: &request_digest,
+        option_id: &option_id,
+        option_kind: &kind,
+        user_id: &user_id,
+        device_id: &device_id,
+        key_id: &key_id,
+        nonce: &nonce,
+        signed_at: &signed_at,
+        text: text.as_deref(),
+    })
+}
+
+/// Verify a base64url DER signature over `payload` with a base64url uncompressed
+/// P-256 public key. Defense-in-depth: the client can confirm its own Secure
+/// Enclave signature before sending it to the server.
+#[uniffi::export]
+pub fn verify_payload(
+    public_key: String,
+    payload: String,
+    signature: String,
+) -> Result<(), SigningFfiError> {
+    Ok(proto_verify_payload(
+        &public_key,
+        payload.as_bytes(),
+        &signature,
+    )?)
+}
+
+/// Validate that a base64url string is a well-formed uncompressed P-256 key.
+#[uniffi::export]
+pub fn validate_public_key(public_key: String) -> Result<(), SigningFfiError> {
+    Ok(proto_validate_public_key(&public_key)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The FFI layer must not alter the canonical decision payload: this is the
+    /// same frozen vector nod-proto pins, reproduced through the exported entry
+    /// point that Swift calls.
+    #[test]
+    fn ffi_decision_payload_matches_frozen_contract() {
+        let payload = decision_signing_payload(
+            "request-1".to_string(),
+            "server-provided-request-digest".to_string(),
+            "approve".to_string(),
+            "approve".to_string(),
+            "user-1".to_string(),
+            "device-1".to_string(),
+            "device-key-id".to_string(),
+            "unique-device-nonce".to_string(),
+            "2026-05-31T12:00:00.000Z".to_string(),
+            Some("ship it".to_string()),
+        );
+
+        assert_eq!(
+            payload,
+            concat!(
+                "nod-decision-v1\n",
+                "request_id:request-1\n",
+                "request_digest:server-provided-request-digest\n",
+                "option_id:approve\n",
+                "option_kind:approve\n",
+                "user_id:user-1\n",
+                "device_id:device-1\n",
+                "key_id:device-key-id\n",
+                "nonce:unique-device-nonce\n",
+                "signed_at:2026-05-31T12:00:00.000Z\n",
+                "text_sha256:bef4261f394bf71fd2b565cd76396ac9ed7953f9110c69ee49d7a82871238fbf\n"
+            )
+        );
+    }
+
+    #[test]
+    fn ffi_request_digest_reads_request_json() {
+        let json = r#"{
+            "id": "request-1",
+            "request_id": "request-1",
+            "channel_id": "deployments",
+            "recipients": ["owner"],
+            "decision_resolution": "shared",
+            "title": "Deploy?",
+            "summary": "Production deploy",
+            "body_markdown": "Approve deploy",
+            "fields": [],
+            "links": [],
+            "image_url": null,
+            "notification": { "redact": false, "title": null, "body": null },
+            "dedupe_key": null,
+            "expires_at": null,
+            "status": "pending",
+            "created_at": "2026-05-28T12:00:00.000Z",
+            "updated_at": "2026-05-28T12:00:00.000Z",
+            "resolved_at": null,
+            "decision": null,
+            "decisions": [],
+            "callback_url": null,
+            "options": []
+        }"#;
+
+        let digest = request_digest(json.to_string()).unwrap();
+        assert_eq!(digest.len(), 64);
+        assert!(digest.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn ffi_request_digest_rejects_invalid_json() {
+        let err = request_digest("not json".to_string()).unwrap_err();
+        assert!(matches!(err, SigningFfiError::InvalidRequestJson { .. }));
+    }
+
+    #[test]
+    fn ffi_validate_public_key_rejects_garbage() {
+        assert!(matches!(
+            validate_public_key("not-a-key".to_string()).unwrap_err(),
+            SigningFfiError::InvalidPublicKey
+        ));
+    }
+}

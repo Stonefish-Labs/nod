@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import NodProtoFFI
 
 public enum NodSigningError: Error, LocalizedError {
     case missingDeviceIdentity
@@ -145,24 +146,21 @@ public final class NodSigningKeyStore {
         signedAt: String,
         requestDigest: String
     ) -> String {
-        [
-            "nod-decision-v1",
-            "request_id:\(request.id)",
-            "request_digest:\(requestDigest)",
-            "option_id:\(option.id)",
-            "option_kind:\(option.kind.rawValue)",
-            "user_id:\(userId)",
-            "device_id:\(deviceId)",
-            "key_id:\(keyId)",
-            "nonce:\(nonce)",
-            "signed_at:\(signedAt)",
-            "text_sha256:\(sha256Hex(text ?? ""))",
-            ""
-        ].joined(separator: "\n")
-    }
-
-    private static func sha256Hex(_ value: String) -> String {
-        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+        // The canonical signing string is constructed by nod-proto (Rust) via
+        // UniFFI, so the Apple client and the server cannot drift on exactly what
+        // gets signed. The Secure Enclave below still performs the signature.
+        NodProtoFFI.decisionSigningPayload(
+            requestId: request.id,
+            requestDigest: requestDigest,
+            optionId: option.id,
+            optionKind: option.kind.rawValue,
+            userId: userId,
+            deviceId: deviceId,
+            keyId: keyId,
+            nonce: nonce,
+            signedAt: signedAt,
+            text: text
+        )
     }
 
     private static func iso8601Milliseconds(_ date: Date) -> String {

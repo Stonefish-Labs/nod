@@ -88,7 +88,7 @@ fn render_settings_modal(
 
 fn render_settings_tabs(frame: &mut Frame<'_>, area: Rect, settings: &SettingsState) {
     let labels = [
-        tab_label("Sources", settings.tab() == SettingsTab::Sources),
+        tab_label("Channels", settings.tab() == SettingsTab::Channels),
         tab_label("Sound", settings.tab() == SettingsTab::Sound),
         tab_label("Devices", settings.tab() == SettingsTab::Devices),
     ];
@@ -105,13 +105,13 @@ fn render_settings_body(
     settings: &SettingsState,
 ) {
     match settings.tab() {
-        SettingsTab::Sources => render_settings_sources(frame, area, app, settings),
+        SettingsTab::Channels => render_settings_channels(frame, area, app, settings),
         SettingsTab::Sound => render_settings_sound(frame, area, app, settings),
         SettingsTab::Devices => render_settings_devices(frame, area, app.devices(), settings),
     }
 }
 
-fn render_settings_sources(
+fn render_settings_channels(
     frame: &mut Frame<'_>,
     area: Rect,
     app: &AppState,
@@ -119,15 +119,15 @@ fn render_settings_sources(
 ) {
     let items: Vec<_> = app
         .client_state()
-        .sources
+        .channels
         .iter()
         .enumerate()
-        .map(|(index, source)| {
+        .map(|(index, channel)| {
             let marker = selected_marker(settings.selected_index() == index);
-            let checked = checkbox(source.subscribed);
+            let checked = checkbox(channel.subscribed);
             ListItem::new(format!(
                 "{marker}{checked} {} {}",
-                source.emoji, source.name
+                channel.emoji, channel.name
             ))
         })
         .collect();
@@ -187,7 +187,7 @@ fn render_help_modal(frame: &mut Frame<'_>, area: Rect) {
         Line::from("Tab changes focus"),
         Line::from("Enter opens detail or submits form"),
         Line::from("a approve, r reject, d dismiss, n notes"),
-        Line::from("c clear source, R refresh, / filter"),
+        Line::from("c clear channel, R refresh, / filter"),
         Line::from("s server focus, , settings, m mute alerts"),
         Line::from("q quit or close modal"),
     ];

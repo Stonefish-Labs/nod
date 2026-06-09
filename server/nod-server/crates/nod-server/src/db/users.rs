@@ -1,7 +1,7 @@
 use sqlx::{Row, SqlitePool};
 
 use super::{
-    list_sources_for_user, now_string,
+    list_channels_for_user, now_string,
     rows::row_to_user,
     set_user_subscription,
     validation::{parse_time, validate_id},
@@ -9,7 +9,7 @@ use super::{
 use crate::{
     error::ApiError,
     models::{
-        AdminUser, AdminUserSubscriptionUpdate, CreateUserRequest, Source, UpdateUserRequest, User,
+        AdminUser, AdminUserSubscriptionUpdate, Channel, CreateUserRequest, UpdateUserRequest, User,
     },
 };
 
@@ -28,16 +28,16 @@ pub async fn list_users_for_admin(pool: &SqlitePool) -> Result<Vec<AdminUser>, A
             ) AS device_count,
             (
                 SELECT COUNT(*)
-                FROM user_source_subscriptions us
+                FROM user_channel_subscriptions us
                 WHERE us.user_id = u.id
                     AND us.subscribed = 1
-            ) AS subscribed_source_count,
+            ) AS subscribed_channel_count,
             (
-                SELECT COALESCE(group_concat(us.source_id, char(31)), '')
-                FROM user_source_subscriptions us
+                SELECT COALESCE(group_concat(us.channel_id, char(31)), '')
+                FROM user_channel_subscriptions us
                 WHERE us.user_id = u.id
                     AND us.subscribed = 1
-            ) AS subscribed_source_ids
+            ) AS subscribed_channel_ids
         FROM users u
         ORDER BY u.name
         "#,
@@ -47,15 +47,15 @@ pub async fn list_users_for_admin(pool: &SqlitePool) -> Result<Vec<AdminUser>, A
 
     rows.into_iter()
         .map(|row| {
-            let subscribed_source_ids = row.get::<String, _>("subscribed_source_ids");
+            let subscribed_channel_ids = row.get::<String, _>("subscribed_channel_ids");
             Ok(AdminUser {
                 id: row.get("id"),
                 name: row.get("name"),
                 device_count: row.get("device_count"),
-                subscribed_source_count: row.get("subscribed_source_count"),
-                subscribed_source_ids: subscribed_source_ids
+                subscribed_channel_count: row.get("subscribed_channel_count"),
+                subscribed_channel_ids: subscribed_channel_ids
                     .split('\x1f')
-                    .filter(|source_id| !source_id.is_empty())
+                    .filter(|channel_id| !channel_id.is_empty())
                     .map(str::to_string)
                     .collect(),
                 created_at: parse_time(row.get("created_at"))?,
@@ -89,7 +89,7 @@ pub async fn create_user(pool: &SqlitePool, req: CreateUserRequest) -> Result<Us
 
     sqlx::query(
         r#"
-        INSERT OR IGNORE INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
+        INSERT OR IGNORE INTO user_channel_subscriptions (user_id, channel_id, subscribed, updated_at)
         VALUES (?, 'default', 1, ?)
         "#,
     )
@@ -161,19 +161,19 @@ pub async fn delete_user(pool: &SqlitePool, user_id: &str) -> Result<(), ApiErro
 pub async fn list_user_subscriptions_for_admin(
     pool: &SqlitePool,
     user_id: &str,
-) -> Result<Vec<Source>, ApiError> {
+) -> Result<Vec<Channel>, ApiError> {
     get_user(pool, user_id).await?;
-    list_sources_for_user(pool, user_id).await
+    list_channels_for_user(pool, user_id).await
 }
 
 pub async fn update_user_subscriptions_for_admin(
     pool: &SqlitePool,
     user_id: &str,
     updates: &[AdminUserSubscriptionUpdate],
-) -> Result<Vec<Source>, ApiError> {
+) -> Result<Vec<Channel>, ApiError> {
     get_user(pool, user_id).await?;
     for update in updates {
-        set_user_subscription(pool, user_id, &update.source_id, update.subscribed).await?;
+        set_user_subscription(pool, user_id, &update.channel_id, update.subscribed).await?;
     }
-    list_sources_for_user(pool, user_id).await
+    list_channels_for_user(pool, user_id).await
 }

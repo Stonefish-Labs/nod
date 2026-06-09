@@ -3,10 +3,10 @@ import Foundation
 public enum NodRequestInbox {
   public static let handledRequestDisplayLimit = 500
 
-  public static func pendingCountsBySource(in requests: [NodRequest]) -> [String: Int] {
+  public static func pendingCountsByChannel(in requests: [NodRequest]) -> [String: Int] {
     Dictionary(
       grouping: requests.filter { $0.status == .pending },
-      by: \.sourceId
+      by: \.channelId
     ).mapValues(\.count)
   }
 

@@ -146,7 +146,7 @@ final class NodAppAttestationTests: XCTestCase {
       "user_name": "Owner",
       "token": "nod_device_test",
       "notification_delivery": { "mode": "websocket" },
-      "sources": [],
+      "channels": [],
       "devices": []
     }
     """.data(using: .utf8)!

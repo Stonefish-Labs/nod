@@ -4,7 +4,7 @@ import Foundation
 public struct NodNotificationOpenRequest: Identifiable, Equatable, Sendable {
   public let id = UUID()
   public let requestId: String?
-  public let sourceId: String?
+  public let channelId: String?
 }
 
 @MainActor
@@ -16,10 +16,10 @@ public final class NodStore: ObservableObject {
   @Published public var enrollmentCode: String = ""
   @Published public var currentUser: NodUser?
   @Published public var registeredDevices: [NodUserDevice] = []
-  @Published public var sources: [NodSource] = []
-  @Published public var pendingCountsBySource: [String: Int] = [:]
+  @Published public var channels: [NodChannel] = []
+  @Published public var pendingCountsByChannel: [String: Int] = [:]
   @Published public var requests: [NodRequest] = []
-  @Published public var selectedSourceId: String?
+  @Published public var selectedChannelId: String?
   @Published public var selectedRequestId: String?
   @Published public var notificationSound: String
   @Published public var lastError: String?
@@ -43,12 +43,12 @@ public final class NodStore: ObservableObject {
     return servers.first { $0.id == selectedServerId } ?? servers.first
   }
 
-  public var subscribedSources: [NodSource] {
-    sources.filter(\.subscribed)
+  public var subscribedChannels: [NodChannel] {
+    channels.filter(\.subscribed)
   }
 
   public var totalPendingCount: Int {
-    pendingCountsBySource.values.reduce(0, +)
+    pendingCountsByChannel.values.reduce(0, +)
   }
 
   public var alertMessage: String? {
@@ -135,9 +135,9 @@ public final class NodStore: ObservableObject {
         apiProvider: { [weak self] in
           self?.api()
         },
-        onOpen: { [weak self] requestId, sourceId in
+        onOpen: { [weak self] requestId, channelId in
           Task { @MainActor in
-            await self?.openNotification(requestId: requestId, sourceId: sourceId)
+            await self?.openNotification(requestId: requestId, channelId: channelId)
           }
         },
         onOption: { [weak self] requestId, optionId, text in
@@ -171,11 +171,11 @@ public final class NodStore: ObservableObject {
     defaults.set(serverId, forKey: "nod.selectedServerId")
     currentUser = nil
     registeredDevices = []
-    sources = []
-    pendingCountsBySource = [:]
+    channels = []
+    pendingCountsByChannel = [:]
     requests = []
     resetKnownPendingRequests()
-    selectedSourceId = nil
+    selectedChannelId = nil
     selectedRequestId = nil
     sync.disconnect()
     isSyncConnected = false

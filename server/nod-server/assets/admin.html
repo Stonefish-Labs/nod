@@ -1104,14 +1104,15 @@
 
     function notificationDeliveryLabel(value) {
       return ({
-        push: "Remote push",
+        push: "Push",
         websocket: "WebSocket/local notifications"
       })[value] || value || "";
     }
 
-    function remotePushRouteLabel(value) {
+    function pushRouteLabel(value) {
       return ({
-        apns_relay: "APNs relay"
+        apns_relay: "APNs relay",
+        apns_direct: "APNs in-process"
       })[value] || value || "";
     }
 
@@ -1394,7 +1395,7 @@
       const apnsRelay = settings.apns_relay || {};
       $("settingsBody").innerHTML = [
         settingsItem("Notification delivery", notificationDeliveryLabel(settings.notification_delivery_mode)),
-        settingsItem("Remote push route", remotePushRouteLabel(settings.remote_push_route) || "not configured"),
+        settingsItem("Push route", pushRouteLabel(settings.push_route) || "not configured"),
         settingsItem("Retention days", settings.retention_days ?? ""),
         settingsItem("Apple App Attest mode", appAttest.mode || "report_only"),
         settingsItem("Apple App Attest environment", appAttest.environment || "development"),

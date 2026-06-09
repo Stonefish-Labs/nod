@@ -2,7 +2,7 @@ use chrono::{Duration, Utc};
 use sqlx::{Row, SqlitePool};
 
 use super::{
-    get_user, list_sources_for_device, list_user_devices, now_string,
+    get_user, list_channels_for_device, list_user_devices, now_string,
     validation::{parse_time, validate_id},
 };
 use crate::{
@@ -121,7 +121,7 @@ pub async fn enroll_device(
     .execute(pool)
     .await?;
 
-    let sources = list_sources_for_device(pool, &device_id).await?;
+    let channels = list_channels_for_device(pool, &device_id).await?;
     let devices = list_user_devices(pool, &user_id, &device_id).await?;
     Ok(EnrollDeviceResponse {
         device_id,
@@ -129,7 +129,7 @@ pub async fn enroll_device(
         user_name: user.name,
         token,
         notification_delivery,
-        sources,
+        channels,
         devices,
     })
 }

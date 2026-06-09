@@ -145,34 +145,34 @@ pub(crate) async fn update_preferences(
 pub(crate) async fn update_subscription(
     state: &AppState,
     device: &Device,
-    source_id: &str,
+    channel_id: &str,
     request: UpdateSubscriptionRequest,
 ) -> Result<(), ApiError> {
-    db::set_subscription(&state.pool, &device.id, source_id, request.subscribed).await?;
+    db::set_subscription(&state.pool, &device.id, channel_id, request.subscribed).await?;
     let envelope = sync::device_update(
         "subscription_updated",
-        json!({ "device_id": device.id, "source_id": source_id, "subscribed": request.subscribed }),
+        json!({ "device_id": device.id, "channel_id": channel_id, "subscribed": request.subscribed }),
     );
     let _ = state.sync.send(envelope);
     Ok(())
 }
 
-pub(crate) async fn clear_source(
+pub(crate) async fn clear_channel(
     state: &AppState,
     device: &Device,
-    source_id: &str,
+    channel_id: &str,
 ) -> Result<(), ApiError> {
-    db::clear_source(&state.pool, &device.id, source_id).await?;
+    db::clear_channel(&state.pool, &device.id, channel_id).await?;
     state
         .audit
         .record(
-            "source.cleared",
-            &json!({ "device_id": device.id, "source_id": source_id }),
+            "channel.cleared",
+            &json!({ "device_id": device.id, "channel_id": channel_id }),
         )
         .await;
     let _ = state.sync.send(sync::device_update(
         "cleared",
-        json!({ "device_id": device.id, "source_id": source_id }),
+        json!({ "device_id": device.id, "channel_id": channel_id }),
     ));
     Ok(())
 }

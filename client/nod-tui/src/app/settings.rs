@@ -4,7 +4,7 @@ use super::{navigation::moved_index, RuntimeCommand, SOUND_OPTIONS};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SettingsTab {
-    Sources,
+    Channels,
     Sound,
     Devices,
 }
@@ -12,16 +12,16 @@ pub(crate) enum SettingsTab {
 impl SettingsTab {
     fn next(self) -> Self {
         match self {
-            Self::Sources => Self::Sound,
+            Self::Channels => Self::Sound,
             Self::Sound => Self::Devices,
-            Self::Devices => Self::Sources,
+            Self::Devices => Self::Channels,
         }
     }
 
     fn previous(self) -> Self {
         match self {
-            Self::Sources => Self::Devices,
-            Self::Sound => Self::Sources,
+            Self::Channels => Self::Devices,
+            Self::Sound => Self::Channels,
             Self::Devices => Self::Sound,
         }
     }
@@ -36,7 +36,7 @@ pub(crate) struct SettingsState {
 impl SettingsState {
     pub(super) fn new() -> Self {
         Self {
-            tab: SettingsTab::Sources,
+            tab: SettingsTab::Channels,
             selected_index: 0,
         }
     }
@@ -85,13 +85,13 @@ impl SettingsState {
 
     pub(super) fn command_for_selected(&self, state: &ClientState) -> Vec<RuntimeCommand> {
         match self.tab {
-            SettingsTab::Sources => state
-                .sources
+            SettingsTab::Channels => state
+                .channels
                 .get(self.selected_index)
-                .map(|source| {
+                .map(|channel| {
                     RuntimeCommand::SetSubscription(SetSubscriptionParams {
-                        source_id: source.id.clone(),
-                        subscribed: !source.subscribed,
+                        channel_id: channel.id.clone(),
+                        subscribed: !channel.subscribed,
                     })
                 })
                 .into_iter()
@@ -107,7 +107,7 @@ impl SettingsState {
 
     fn item_count(&self, state: &ClientState, device_count: usize) -> usize {
         match self.tab {
-            SettingsTab::Sources => state.sources.len(),
+            SettingsTab::Channels => state.channels.len(),
             SettingsTab::Sound => SOUND_OPTIONS.len(),
             SettingsTab::Devices => device_count,
         }
@@ -131,9 +131,9 @@ mod tests {
     #[test]
     fn tab_changes_clamp_selection_to_available_items() {
         let mut state = client_state();
-        state.sources.clear();
+        state.channels.clear();
         let mut settings = SettingsState {
-            tab: SettingsTab::Sources,
+            tab: SettingsTab::Channels,
             selected_index: 10,
         };
 

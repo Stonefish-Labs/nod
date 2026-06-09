@@ -25,16 +25,16 @@ export function App(): JSX.Element {
   return (
     <div className="shell">
       <Sidebar
-        activeSource={client.activeSource}
+        activeChannel={client.activeChannel}
         onOpenSettings={client.commands.openSettings}
         onRefresh={client.commands.refreshState}
-        onSelectSource={client.commands.selectSource}
+        onSelectChannel={client.commands.selectChannel}
         onSelectServer={client.commands.selectServer}
         state={client.state}
       />
       <main className="workbench">
         <Topbar
-          activeSource={client.activeSource}
+          activeChannel={client.activeChannel}
           error={client.error}
           isConnected={client.state.is_sync_connected}
           onDismissError={client.commands.clearError}

@@ -1,24 +1,24 @@
 use nod_client_core::models::{
-    ClientState, OptionKind, Request, RequestOption, RequestStatus, Source,
+    ClientState, OptionKind, Request, RequestOption, RequestStatus, Channel,
 };
 
 pub fn total_pending_count(state: &ClientState) -> usize {
-    state.pending_counts_by_source.values().sum()
+    state.pending_counts_by_channel.values().sum()
 }
 
-pub fn pending_count_for(source: &Source, state: &ClientState) -> usize {
+pub fn pending_count_for(channel: &Channel, state: &ClientState) -> usize {
     state
-        .pending_counts_by_source
-        .get(&source.id)
+        .pending_counts_by_channel
+        .get(&channel.id)
         .copied()
         .unwrap_or_default()
 }
 
-pub fn subscribed_sources(state: &ClientState) -> Vec<&Source> {
+pub fn subscribed_channels(state: &ClientState) -> Vec<&Channel> {
     state
-        .sources
+        .channels
         .iter()
-        .filter(|source| source.subscribed)
+        .filter(|channel| channel.subscribed)
         .collect()
 }
 
@@ -33,13 +33,13 @@ pub fn ordered_requests(requests: &[Request]) -> Vec<&Request> {
     ordered
 }
 
-pub fn selected_source(state: &ClientState) -> Option<&Source> {
+pub fn selected_channel(state: &ClientState) -> Option<&Channel> {
     state
-        .selected_source_id
+        .selected_channel_id
         .as_deref()
-        .and_then(|id| state.sources.iter().find(|source| source.id == id))
-        .or_else(|| state.sources.iter().find(|source| source.subscribed))
-        .or_else(|| state.sources.first())
+        .and_then(|id| state.channels.iter().find(|channel| channel.id == id))
+        .or_else(|| state.channels.iter().find(|channel| channel.subscribed))
+        .or_else(|| state.channels.first())
 }
 
 pub fn selected_request(state: &ClientState) -> Option<&Request> {

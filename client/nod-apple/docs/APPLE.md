@@ -1,12 +1,12 @@
 # Apple Client Setup
 
-The source in `clients/apple` is intentionally SwiftUI-native. It contains:
+The channel in `clients/apple` is intentionally SwiftUI-native. It contains:
 
 - `NodKit`: shared API models, keychain token storage, HTTP client, websocket sync client, and notification option registration.
-- `Apps/NodMac`: macOS menu bar/window app source.
-- `Apps/NodIOS`: iOS app source.
+- `Apps/NodMac`: macOS menu bar/window app channel.
+- `Apps/NodIOS`: iOS app channel.
 - `Nod.xcodeproj`: Xcode app targets for iOS and macOS, linked to the local `NodKit` package.
-- A SwiftPM `NodMac` executable target that compiles the macOS app source for quick local checks.
+- A SwiftPM `NodMac` executable target that compiles the macOS app channel for quick local checks.
 
 ## Xcode
 
@@ -43,7 +43,7 @@ The Apple clients support multiple Nod servers. Pair each server with a short-li
 
 The apps do not ship with a default server URL. Enter the URL from your Nod server along with an enrollment code from the server's admin panel.
 
-Pairing codes are entered through fixed uppercase boxes to avoid autocorrect and whitespace issues. After pairing, the app shows servers first, then subscribed sources, then the request list for the selected source. Source visibility is controlled from the Subscriptions sheet.
+Pairing codes are entered through fixed uppercase boxes to avoid autocorrect and whitespace issues. After pairing, the app shows servers first, then subscribed channels, then the request list for the selected channel. Channel visibility is controlled from the Subscriptions sheet.
 
 Build the local runnable macOS app bundle with the canonical script:
 
@@ -60,7 +60,7 @@ build/DerivedData/Build/Products/Release/Nod.app
 Do not use `swift build --product NodMac` when you need the app bundle; it
 only builds the SwiftPM executable at `.build/.../NodMac`.
 
-Compile-check the shared client and macOS app source without changing global Xcode selection:
+Compile-check the shared client and macOS app channel without changing global Xcode selection:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \

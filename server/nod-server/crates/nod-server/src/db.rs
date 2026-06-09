@@ -1,6 +1,7 @@
 use chrono::Utc;
 use sqlx::SqlitePool;
 
+mod channels;
 mod connection;
 mod device_attestations;
 mod devices;
@@ -8,11 +9,14 @@ mod enrollment;
 mod issuer_tokens;
 mod requests;
 mod rows;
-mod sources;
 mod subscriptions;
 mod users;
 mod validation;
 
+pub use channels::{
+    create_channel, delete_channel, get_channel, list_channels, list_channels_for_device,
+    list_channels_for_user,
+};
 pub use device_attestations::record_device_attestation;
 pub use devices::{
     delete_device, get_device, list_devices_for_admin, list_user_devices, rename_user_device,
@@ -20,12 +24,8 @@ pub use devices::{
 };
 pub use enrollment::{create_enrollment_code, enroll_device};
 pub use issuer_tokens::{create_issuer_token, list_issuer_tokens_for_admin, revoke_issuer_token};
-pub use sources::{
-    create_source, delete_source, get_source, list_sources, list_sources_for_device,
-    list_sources_for_user,
-};
 pub use subscriptions::{
-    clear_source, set_subscription, set_user_subscription, update_device_preferences,
+    clear_channel, set_subscription, set_user_subscription, update_device_preferences,
     update_push_token,
 };
 pub use users::{
@@ -51,7 +51,7 @@ pub async fn admin_counts(pool: &SqlitePool) -> Result<AdminCounts, ApiError> {
     let users = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(pool)
         .await?;
-    let sources = sqlx::query_scalar("SELECT COUNT(*) FROM sources")
+    let channels = sqlx::query_scalar("SELECT COUNT(*) FROM channels")
         .fetch_one(pool)
         .await?;
     let devices = sqlx::query_scalar("SELECT COUNT(*) FROM devices")
@@ -67,7 +67,7 @@ pub async fn admin_counts(pool: &SqlitePool) -> Result<AdminCounts, ApiError> {
             .await?;
     Ok(AdminCounts {
         users,
-        sources,
+        channels,
         devices,
         active_issuer_tokens,
         pending_requests,

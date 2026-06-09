@@ -72,7 +72,7 @@ mod tests {
         Request {
             id: "request-1".to_string(),
             request_id: "request-1".to_string(),
-            source_id: "default".to_string(),
+            channel_id: "default".to_string(),
             recipients: Vec::new(),
             decision_resolution: DecisionResolution::Shared,
             title: "Approve deploy".to_string(),

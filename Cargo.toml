@@ -7,6 +7,7 @@
 resolver = "2"
 members = [
     "nod-proto",
+    "nod-proto-ffi",
     "server/nod-server/crates/nod-server",
     "server/nod-apns-relay",
     "client/nod-client-core",
@@ -21,3 +22,4 @@ repository = "https://github.com/Stonefish-Labs/nod"
 
 [workspace.dependencies]
 nod-proto = { path = "nod-proto" }
+nod-apns-relay = { path = "server/nod-apns-relay" }

@@ -58,9 +58,20 @@ impl RelayPolicy {
             },
             metadata: RelayNotificationMetadata {
                 request_id: required_text("metadata.request_id", &request.metadata.request_id)?,
-                source_id: required_text("metadata.source_id", &request.metadata.source_id)?,
+                channel_id: required_text("metadata.channel_id", &request.metadata.channel_id)?,
             },
         })
+    }
+
+    /// Validate and sanitize a relay request for in-process (library) delivery.
+    ///
+    /// The HTTP handler uses [`Self::validate`] directly for typed 4xx
+    /// responses; co-located callers (the server embedding this crate) get the
+    /// same bundle-id pinning and field validation, with the error mapped to
+    /// `anyhow`.
+    pub fn sanitize(&self, request: ApnsRelayRequest) -> anyhow::Result<RelayNotification> {
+        self.validate(request)
+            .map_err(|err| anyhow::anyhow!(err.to_string()))
     }
 }
 
@@ -136,7 +147,7 @@ pub struct NotificationContent {
 #[serde(deny_unknown_fields)]
 pub struct NotificationMetadata {
     pub request_id: String,
-    pub source_id: String,
+    pub channel_id: String,
 }
 
 /// Sanitized notification passed to APNs delivery after request validation.
@@ -186,7 +197,7 @@ pub struct RelayNotificationContent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelayNotificationMetadata {
     pub request_id: String,
-    pub source_id: String,
+    pub channel_id: String,
 }
 
 #[derive(Serialize)]
@@ -353,7 +364,7 @@ mod tests {
             },
             "metadata": {
                 "request_id": "request-1",
-                "source_id": "default"
+                "channel_id": "default"
             }
         })
     }

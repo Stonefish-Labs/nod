@@ -26,8 +26,8 @@ use crate::{
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CreateRequestRequest {
-    #[serde(default = "default_source")]
-    source_id: String,
+    #[serde(default = "default_channel")]
+    channel_id: String,
     #[serde(default)]
     recipients: Option<Vec<String>>,
     #[serde(default)]
@@ -61,7 +61,7 @@ pub(super) struct CreateRequestRequest {
     variables: Option<Value>,
 }
 
-fn default_source() -> String {
+fn default_channel() -> String {
     "default".to_string()
 }
 
@@ -70,7 +70,7 @@ impl From<CreateRequestRequest> for CreateDecisionRequest {
         // Accept template metadata while storing only the rendered request snapshot.
         let _template_snapshot = (&req.template_id, &req.template_version, &req.variables);
         Self {
-            source_id: req.source_id,
+            channel_id: req.channel_id,
             recipients: req.recipients,
             decision_resolution: req.decision_resolution,
             title: req.title,
@@ -93,9 +93,9 @@ pub(super) async fn create_request(
     headers: HeaderMap,
     Json(req): Json<CreateRequestRequest>,
 ) -> Result<Json<CreateRequestResponse>, ApiError> {
-    let source_id = req.source_id.clone();
+    let channel_id = req.channel_id.clone();
     let principal = auth::authenticate(&headers, &state.pool, state.config.admin_token()).await?;
-    auth::require_request_write(&principal, &source_id)?;
+    auth::require_request_write(&principal, &channel_id)?;
     let created_by_issuer_token_id = match &principal {
         auth::Principal::Issuer(token) => Some(token.id.as_str()),
         _ => None,
@@ -115,7 +115,7 @@ pub(super) async fn list_requests(
         &state.pool,
         db::ListRequestsForDevice {
             device_id: &device.id,
-            source_id: query.source_id.as_deref(),
+            channel_id: query.channel_id.as_deref(),
             include_cleared: query.include_cleared.unwrap_or(false),
             handled_limit: query.limit.unwrap_or(100),
             retention_days: state.config.retention_days,
@@ -143,7 +143,7 @@ pub(super) async fn cancel_request(
 ) -> Result<Json<RequestResponse>, ApiError> {
     let principal = auth::authenticate(&headers, &state.pool, state.config.admin_token()).await?;
     let request = db::get_request(&state.pool, &request_id).await?;
-    auth::require_request_cancel(&principal, &request.source_id)?;
+    auth::require_request_cancel(&principal, &request.channel_id)?;
     if let auth::Principal::Issuer(token) = &principal {
         let creator = db::request_created_by_issuer_token_id(&state.pool, &request_id).await?;
         if creator.as_deref() != Some(token.id.as_str()) {
@@ -181,7 +181,7 @@ pub(super) async fn wait_for_request_decision(
             Some(device.user_id.clone())
         }
         _ => {
-            auth::require_request_read(&principal, &initial_request.source_id)?;
+            auth::require_request_read(&principal, &initial_request.channel_id)?;
             None
         }
     };
@@ -214,7 +214,7 @@ pub(super) async fn submit_option(
 
 #[derive(Debug, Deserialize)]
 pub(super) struct ListRequestsQuery {
-    source_id: Option<String>,
+    channel_id: Option<String>,
     include_cleared: Option<bool>,
     limit: Option<i64>,
 }

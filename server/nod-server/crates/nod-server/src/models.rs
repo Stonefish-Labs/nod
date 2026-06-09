@@ -1,10 +1,10 @@
 mod admin;
 mod attestation;
+mod channel;
 mod delivery;
 mod device;
 mod issuer;
 mod request;
-mod source;
 mod sync;
 mod user;
 
@@ -16,6 +16,7 @@ pub use attestation::{
     DeviceAttestationRecord, DeviceAttestationStatus, DeviceAttestationSummary,
     FailedDeviceAttestation, VerifiedDeviceAttestation,
 };
+pub use channel::{Channel, CreateChannelRequest};
 pub use delivery::{NotificationDelivery, NotificationDeliveryMode};
 pub use device::{
     AdminDevice, CurrentUserResponse, Device, DeviceAttestationRequest, DevicePlatform,
@@ -30,7 +31,6 @@ pub use request::{
     DecisionResolution, DecisionSignatureRecord, OptionKind, RequestNotification, RequestOption,
     RequestStatus, SubmitDecisionRequest, SubmitDecisionSignature, UserDecision,
 };
-pub use source::{CreateSourceRequest, Source};
 pub use sync::SyncEnvelope;
 pub use user::{
     AdminUser, AdminUserSubscriptionUpdate, CreateEnrollmentCodeRequest, CreateUserRequest,

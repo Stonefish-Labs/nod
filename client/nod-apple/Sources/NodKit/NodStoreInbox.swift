@@ -6,7 +6,7 @@ extension NodStore {
       guard let api = api() else {
         currentUser = nil
         registeredDevices = []
-        sources = []
+        channels = []
         requests = []
         notificationDeliveryMode = .push
         return
@@ -15,18 +15,18 @@ extension NodStore {
       guard selectedServer != nil else {
         return
       }
-      sources = try await api.sources()
-      selectFirstVisibleSourceIfNeeded()
+      channels = try await api.channels()
+      selectFirstVisibleChannelIfNeeded()
 
       let allVisibleRequests = locallyVisibleRequests(
         try await api.requests(NodRequestQuery(limit: 500))
       )
       let pendingRequests = allVisibleRequests.filter { $0.status == .pending }
-      pendingCountsBySource = NodRequestInbox.pendingCountsBySource(in: pendingRequests)
+      pendingCountsByChannel = NodRequestInbox.pendingCountsByChannel(in: pendingRequests)
       await presentNotificationsForPendingRequestsDiscoveredByRefresh(pendingRequests)
-      if let selectedSourceId {
+      if let selectedChannelId {
         requests = NodRequestInbox.visibleRequests(
-          allVisibleRequests.filter { $0.sourceId == selectedSourceId }
+          allVisibleRequests.filter { $0.channelId == selectedChannelId }
         )
       } else {
         requests = []
@@ -114,17 +114,17 @@ extension NodStore {
     }
   }
 
-  public func clearSelectedSource() async {
-    guard let selectedSourceId else {
+  public func clearSelectedChannel() async {
+    guard let selectedChannelId else {
       return
     }
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      try await api.clear(sourceId: selectedSourceId)
-      requests.removeAll { $0.sourceId == selectedSourceId }
-      pendingCountsBySource[selectedSourceId] = 0
+      try await api.clear(channelId: selectedChannelId)
+      requests.removeAll { $0.channelId == selectedChannelId }
+      pendingCountsByChannel[selectedChannelId] = 0
       selectedRequestId = requests.first?.id
       lastError = nil
     } catch {
@@ -132,19 +132,19 @@ extension NodStore {
     }
   }
 
-  public func setSubscription(sourceId: String, subscribed: Bool) async {
+  public func setSubscription(channelId: String, subscribed: Bool) async {
     do {
       guard let api = api() else {
         throw NodAPIError.badURL
       }
-      try await api.updateSubscription(sourceId: sourceId, subscribed: subscribed)
-      if let index = sources.firstIndex(where: { $0.id == sourceId }) {
-        sources[index].subscribed = subscribed
+      try await api.updateSubscription(channelId: channelId, subscribed: subscribed)
+      if let index = channels.firstIndex(where: { $0.id == channelId }) {
+        channels[index].subscribed = subscribed
       }
-      if !subscribed, selectedSourceId == sourceId {
-        selectedSourceId = subscribedSources.first?.id
+      if !subscribed, selectedChannelId == channelId {
+        selectedChannelId = subscribedChannels.first?.id
         requests = []
-        pendingCountsBySource[sourceId] = nil
+        pendingCountsByChannel[channelId] = nil
         await refresh()
       }
       lastError = nil
@@ -182,9 +182,9 @@ extension NodStore {
     guard previousRequest.status == .pending, request.status != .pending else {
       return
     }
-    pendingCountsBySource[previousRequest.sourceId] = max(
+    pendingCountsByChannel[previousRequest.channelId] = max(
       0,
-      (pendingCountsBySource[previousRequest.sourceId] ?? 1) - 1
+      (pendingCountsByChannel[previousRequest.channelId] ?? 1) - 1
     )
     knownPendingRequestIds.remove(previousRequest.id)
   }
@@ -208,9 +208,9 @@ extension NodStore {
       && locallyDismissedInformationalRequestIds.contains(request.id)
   }
 
-  private func decrementPendingCount(for sourceId: String) {
-    let count = max(0, (pendingCountsBySource[sourceId] ?? 1) - 1)
-    pendingCountsBySource[sourceId] = count == 0 ? nil : count
+  private func decrementPendingCount(for channelId: String) {
+    let count = max(0, (pendingCountsByChannel[channelId] ?? 1) - 1)
+    pendingCountsByChannel[channelId] = count == 0 ? nil : count
   }
 
   private func localDismissedInformationalRequest(from request: NodRequest) -> NodRequest {
@@ -225,7 +225,7 @@ extension NodStore {
     return NodRequest(
       id: request.id,
       requestId: request.requestId,
-      sourceId: request.sourceId,
+      channelId: request.channelId,
       recipients: request.recipients,
       decisionResolution: request.decisionResolution,
       title: request.title,
@@ -290,12 +290,12 @@ extension NodStore {
     ))
   }
 
-  private func selectFirstVisibleSourceIfNeeded() {
-    let visibleSources = subscribedSources
-    if selectedSourceId == nil
-      || !visibleSources.contains(where: { $0.id == selectedSourceId })
+  private func selectFirstVisibleChannelIfNeeded() {
+    let visibleChannels = subscribedChannels
+    if selectedChannelId == nil
+      || !visibleChannels.contains(where: { $0.id == selectedChannelId })
     {
-      selectedSourceId = visibleSources.first?.id
+      selectedChannelId = visibleChannels.first?.id
     }
   }
 }

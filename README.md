@@ -26,7 +26,7 @@ result.
 
 Nod makes those ideas explicit:
 
-- sources define scopes that users can subscribe to without turning every
+- channels define scopes that users can subscribe to without turning every
   request into a noisy chat thread
 - requests carry structured context and action options instead of relying on
   free-form replies
@@ -40,11 +40,11 @@ Nod makes those ideas explicit:
 ## What It Does
 
 - Agents and services create decision requests with issuer tokens.
-- Admins manage users, sources, issuer tokens, and short-lived enrollment codes.
+- Admins manage users, channels, issuer tokens, and short-lived enrollment codes.
 - Clients enroll devices against a server, and the same client can be connected
   to multiple Nod servers.
 - A request can target one user, several users, or every subscribed user for a
-  source.
+  channel.
 - Each enrolled device for those users is notified over WebSocket/local
   notifications or full Apple Push Notification service delivery through the
   APNs relay.
@@ -72,7 +72,7 @@ Example:
 
 ```json
 {
-  "source_id": "deployments",
+  "channel_id": "deployments",
   "recipients": ["owner", "platform"],
   "decision_resolution": "shared",
   "title": "Approve production deploy",

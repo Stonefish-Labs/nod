@@ -29,7 +29,7 @@ struct ApnsAlert<'a> {
 #[derive(Serialize)]
 struct ApnsMetadata<'a> {
     request_id: &'a str,
-    source_id: &'a str,
+    channel_id: &'a str,
 }
 
 pub(crate) fn apns_payload(notification: &RelayNotification) -> ApnsPayload<'_> {
@@ -45,7 +45,7 @@ pub(crate) fn apns_payload(notification: &RelayNotification) -> ApnsPayload<'_> 
         },
         nod: ApnsMetadata {
             request_id: &notification.metadata.request_id,
-            source_id: &notification.metadata.source_id,
+            channel_id: &notification.metadata.channel_id,
         },
     }
 }
@@ -84,9 +84,9 @@ mod tests {
         assert_eq!(payload["aps"]["category"], "NOD_APPROVAL");
         assert_eq!(payload["aps"]["sound"], "nod_ping.wav");
         assert_eq!(payload["nod"]["request_id"], "request-1");
-        assert_eq!(payload["nod"]["source_id"], "default");
+        assert_eq!(payload["nod"]["channel_id"], "default");
         assert!(payload.get("request_id").is_none());
-        assert!(payload.get("source_id").is_none());
+        assert!(payload.get("channel_id").is_none());
     }
 
     #[test]
@@ -125,7 +125,7 @@ mod tests {
             },
             metadata: RelayNotificationMetadata {
                 request_id: "request-1".to_string(),
-                source_id: "default".to_string(),
+                channel_id: "default".to_string(),
             },
         }
     }

@@ -117,7 +117,7 @@ fn transient_desktop_error(context: &str, error: impl Display) -> NodClientMessa
 }
 
 fn total_pending_count(state: &ClientState) -> usize {
-    state.pending_counts_by_source.values().sum()
+    state.pending_counts_by_channel.values().sum()
 }
 
 #[cfg(test)]

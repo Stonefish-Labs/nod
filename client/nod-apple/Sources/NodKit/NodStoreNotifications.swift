@@ -41,23 +41,23 @@ extension NodStore {
     }
   }
 
-  public func openNotification(requestId: String?, sourceId: String?) async {
+  public func openNotification(requestId: String?, channelId: String?) async {
     guard isRegistered else {
       return
     }
-    if let sourceId, !sourceId.isEmpty {
-      selectedSourceId = sourceId
+    if let channelId, !channelId.isEmpty {
+      selectedChannelId = channelId
     }
     await refresh()
-    if let sourceId, !sourceId.isEmpty {
-      selectedSourceId = sourceId
+    if let channelId, !channelId.isEmpty {
+      selectedChannelId = channelId
     }
     if let requestId, !requestId.isEmpty {
       selectedRequestId = requestId
     }
     notificationOpenRequest = NodNotificationOpenRequest(
       requestId: selectedRequestId,
-      sourceId: selectedSourceId ?? sourceId
+      channelId: selectedChannelId ?? channelId
     )
     connectSync()
   }

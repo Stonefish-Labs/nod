@@ -1,4 +1,4 @@
-use nod_client_core::models::{Request, RequestStatus, Source};
+use nod_client_core::models::{Request, RequestStatus, Channel};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -56,7 +56,7 @@ fn render_sidebar(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
         .constraints([Constraint::Length(8), Constraint::Min(8)])
         .split(area);
     render_servers(frame, sections[0], app);
-    render_sources(frame, sections[1], app);
+    render_channels(frame, sections[1], app);
 }
 
 fn render_servers(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
@@ -79,25 +79,25 @@ fn render_servers(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
     );
 }
 
-fn render_sources(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
-    let selected_id = domain::selected_source(app.client_state()).map(|source| source.id.as_str());
-    let items: Vec<ListItem<'_>> = domain::subscribed_sources(app.client_state())
+fn render_channels(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
+    let selected_id = domain::selected_channel(app.client_state()).map(|channel| channel.id.as_str());
+    let items: Vec<ListItem<'_>> = domain::subscribed_channels(app.client_state())
         .iter()
-        .map(|source| source_item(source, selected_id, app))
+        .map(|channel| channel_item(channel, selected_id, app))
         .collect();
 
     frame.render_widget(
-        List::new(items).block(focused_block("Sources", app.focus() == Focus::Sources)),
+        List::new(items).block(focused_block("Channels", app.focus() == Focus::Channels)),
         area,
     );
 }
 
-fn source_item<'a>(source: &Source, selected_id: Option<&str>, app: &AppState) -> ListItem<'a> {
-    let marker = selected_marker(selected_id == Some(source.id.as_str()));
-    let count = domain::pending_count_for(source, app.client_state());
+fn channel_item<'a>(channel: &Channel, selected_id: Option<&str>, app: &AppState) -> ListItem<'a> {
+    let marker = selected_marker(selected_id == Some(channel.id.as_str()));
+    let count = domain::pending_count_for(channel, app.client_state());
     ListItem::new(Line::from(format!(
         "{marker}{} {} ({count})",
-        source.emoji, source.name
+        channel.emoji, channel.name
     )))
 }
 

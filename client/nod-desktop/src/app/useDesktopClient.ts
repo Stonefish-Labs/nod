@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  clearSource,
+  clearChannel,
   enroll,
   forgetServer,
   getState,
@@ -9,7 +9,7 @@ import {
   refresh,
   renameDevice,
   revokeDevice,
-  selectSource,
+  selectChannel,
   selectRequest,
   selectServer,
   setNotificationPreference,
@@ -17,9 +17,9 @@ import {
   submitOption,
 } from "../commands";
 import { listenForRuntimeMessages } from "../events";
-import { selectedSource, selectedRequest } from "../domain";
+import { selectedChannel, selectedRequest } from "../domain";
 import type {
-  Source,
+  Channel,
   ClientState,
   EnrollParams,
   RequestOption,
@@ -33,7 +33,7 @@ import { EMPTY_CLIENT_STATE } from "./state";
 export interface DesktopClientCommands {
   clearError: () => void;
   closeSettings: () => void;
-  clearSelectedSource: () => Promise<void>;
+  clearSelectedChannel: () => Promise<void>;
   enrollDevice: (params: EnrollParams) => Promise<void>;
   forgetSelectedServer: () => Promise<void>;
   openSettings: () => void;
@@ -41,7 +41,7 @@ export interface DesktopClientCommands {
   refreshState: () => Promise<void>;
   renameUserDevice: (deviceId: string, name: string) => Promise<boolean>;
   revokeUserDevice: (deviceId: string) => Promise<void>;
-  selectSource: (source: Source) => Promise<void>;
+  selectChannel: (channel: Channel) => Promise<void>;
   selectRequest: (request: NodRequest) => Promise<void>;
   selectServer: (server: ServerProfile) => Promise<void>;
   submitRequestOption: (
@@ -49,12 +49,12 @@ export interface DesktopClientCommands {
     option: RequestOption,
     text?: string,
   ) => Promise<void>;
-  toggleSourceSubscription: (source: Source) => Promise<void>;
+  toggleChannelSubscription: (channel: Channel) => Promise<void>;
   updateNotificationSound: (notificationSound: string) => Promise<void>;
 }
 
 export interface DesktopClient {
-  activeSource?: Source;
+  activeChannel?: Channel;
   activeRequest?: NodRequest;
   commands: DesktopClientCommands;
   devices: UserDevice[];
@@ -118,7 +118,7 @@ export function useDesktopClient(): DesktopClient {
       .catch((reason: unknown) => setError(String(reason)));
   }, [settingsOpen]);
 
-  const activeSource = useMemo(() => selectedSource(state), [state]);
+  const activeChannel = useMemo(() => selectedChannel(state), [state]);
   const activeRequest = useMemo(() => selectedRequest(state), [state]);
 
   async function runStateCommand(work: () => Promise<ClientState>): Promise<boolean> {
@@ -144,8 +144,8 @@ export function useDesktopClient(): DesktopClient {
     await runStateCommand(() => selectServer({ server_id: server.id }));
   }
 
-  async function selectNodSource(source: Source): Promise<void> {
-    await runStateCommand(() => selectSource({ source_id: source.id }));
+  async function selectNodChannel(channel: Channel): Promise<void> {
+    await runStateCommand(() => selectChannel({ channel_id: channel.id }));
   }
 
   async function selectNodRequest(request: NodRequest): Promise<void> {
@@ -190,11 +190,11 @@ export function useDesktopClient(): DesktopClient {
     );
   }
 
-  async function toggleSourceSubscription(source: Source): Promise<void> {
+  async function toggleChannelSubscription(channel: Channel): Promise<void> {
     await runStateCommand(() =>
       setSubscription({
-        source_id: source.id,
-        subscribed: !source.subscribed,
+        channel_id: channel.id,
+        subscribed: !channel.subscribed,
       }),
     );
   }
@@ -240,20 +240,20 @@ export function useDesktopClient(): DesktopClient {
     }
   }
 
-  async function clearSelectedSource(): Promise<void> {
-    const sourceId = state.selected_source_id;
-    if (!sourceId) {
+  async function clearSelectedChannel(): Promise<void> {
+    const channelId = state.selected_channel_id;
+    if (!channelId) {
       return;
     }
-    await runStateCommand(() => clearSource({ source_id: sourceId }));
+    await runStateCommand(() => clearChannel({ channel_id: channelId }));
   }
 
   return {
-    activeSource,
+    activeChannel,
     activeRequest,
     commands: {
       clearError: () => setError(null),
-      clearSelectedSource,
+      clearSelectedChannel,
       closeSettings: () => setSettingsOpen(false),
       enrollDevice,
       forgetSelectedServer,
@@ -262,11 +262,11 @@ export function useDesktopClient(): DesktopClient {
       refreshState,
       renameUserDevice,
       revokeUserDevice,
-      selectSource: selectNodSource,
+      selectChannel: selectNodChannel,
       selectRequest: selectNodRequest,
       selectServer: selectServerProfile,
       submitRequestOption,
-      toggleSourceSubscription,
+      toggleChannelSubscription,
       updateNotificationSound,
     },
     devices,

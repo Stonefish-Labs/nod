@@ -1,0 +1,23 @@
+[package]
+name = "nod-proto-ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# `staticlib` is linked into the Apple .xcframework; `cdylib` is what
+# `uniffi-bindgen --library` introspects on the host to emit Swift; `lib` keeps
+# the functions callable from Rust tests.
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+nod-proto = { workspace = true }
+uniffi = { version = "0.28", features = ["cli"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+# Version-matched bindings generator: `cargo run -p nod-proto-ffi --bin
+# uniffi-bindgen -- generate ...` cannot drift from the `uniffi` crate above.
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"

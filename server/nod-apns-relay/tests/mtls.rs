@@ -146,7 +146,7 @@ fn valid_request() -> serde_json::Value {
         },
         "metadata": {
             "request_id": "request-1",
-            "source_id": "default"
+            "channel_id": "default"
         }
     })
 }

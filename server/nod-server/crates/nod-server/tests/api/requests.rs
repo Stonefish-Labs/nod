@@ -76,7 +76,7 @@ async fn user_can_manage_own_registered_devices() {
         .await;
     assert_eq!(status, StatusCode::OK, "{revoked_sibling}");
     let (status, rejected_sibling) = app
-        .request(Method::GET, "/api/v1/sources", Some(&mac_token), None)
+        .request(Method::GET, "/api/v1/channels", Some(&mac_token), None)
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{rejected_sibling}");
 
@@ -90,21 +90,21 @@ async fn user_can_manage_own_registered_devices() {
         .await;
     assert_eq!(status, StatusCode::OK, "{revoked_current}");
     let (status, rejected_current) = app
-        .request(Method::GET, "/api/v1/sources", Some(&phone_token), None)
+        .request(Method::GET, "/api/v1/channels", Some(&phone_token), None)
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{rejected_current}");
 }
 
 #[tokio::test]
-async fn admin_can_delete_source_and_related_request_history() {
+async fn admin_can_delete_channel_and_related_request_history() {
     let app = TestApp::new().await;
     let (_device_id, device_token) = app.enroll_device("Phone", "ios").await;
     let issuer_token = app.issuer_token().await;
 
-    let (status, source) = app
+    let (status, channel) = app
         .request(
             Method::POST,
-            "/api/v1/admin/sources",
+            "/api/v1/admin/channels",
             Some("admin-test-token"),
             Some(json!({
                 "id": "accidental",
@@ -113,7 +113,7 @@ async fn admin_can_delete_source_and_related_request_history() {
             })),
         )
         .await;
-    assert_eq!(status, StatusCode::OK, "{source}");
+    assert_eq!(status, StatusCode::OK, "{channel}");
 
     let (status, created) = app
         .request(
@@ -121,7 +121,7 @@ async fn admin_can_delete_source_and_related_request_history() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "accidental",
+                "channel_id": "accidental",
                 "title": "Delete me",
                 "summary": "Temporary",
                 "options": [
@@ -137,37 +137,37 @@ async fn admin_can_delete_source_and_related_request_history() {
     let (status, deleted) = app
         .request(
             Method::DELETE,
-            "/api/v1/admin/sources/accidental",
+            "/api/v1/admin/channels/accidental",
             Some("admin-test-token"),
             None,
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{deleted}");
 
-    let (status, sources) = app
+    let (status, channels) = app
         .request(
             Method::GET,
-            "/api/v1/admin/sources",
+            "/api/v1/admin/channels",
             Some("admin-test-token"),
             None,
         )
         .await;
-    assert_eq!(status, StatusCode::OK, "{sources}");
-    assert!(!sources["sources"]
+    assert_eq!(status, StatusCode::OK, "{channels}");
+    assert!(!channels["channels"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|source| source["id"] == "accidental"));
+        .any(|channel| channel["id"] == "accidental"));
 
-    let (status, device_sources) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+    let (status, device_channels) = app
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
-    assert_eq!(status, StatusCode::OK, "{device_sources}");
-    assert!(!device_sources["sources"]
+    assert_eq!(status, StatusCode::OK, "{device_channels}");
+    assert!(!device_channels["channels"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|source| source["id"] == "accidental"));
+        .any(|channel| channel["id"] == "accidental"));
 
     let (status, missing_request) = app
         .request(
@@ -181,13 +181,13 @@ async fn admin_can_delete_source_and_related_request_history() {
 }
 
 #[tokio::test]
-async fn deleting_missing_source_returns_not_found() {
+async fn deleting_missing_channel_returns_not_found() {
     let app = TestApp::new().await;
 
     let (status, response) = app
         .request(
             Method::DELETE,
-            "/api/v1/admin/sources/not-here",
+            "/api/v1/admin/channels/not-here",
             Some("admin-test-token"),
             None,
         )
@@ -206,7 +206,7 @@ async fn admin_can_create_test_request_without_issuer_token() {
             "/api/v1/admin/test-requests",
             Some("admin-test-token"),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Admin test",
                 "summary": "Created from the admin panel",
                 "body_markdown": "**Admin** test body",
@@ -244,7 +244,7 @@ async fn enrollment_request_option_flow_updates_decision() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Deploy approval",
                 "summary": "Approve production deploy?",
                 "body_markdown": "**Production** deploy is waiting.",
@@ -309,7 +309,7 @@ async fn text_capable_options_accept_empty_text() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Review deploy",
                 "summary": "Rejecting can include a reason, but does not require one.",
                 "options": [
@@ -397,7 +397,7 @@ async fn v1_signed_decision_records_verified_signature() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Approve deploy",
                 "summary": "Production deploy is waiting",
                 "options": [{ "id": "approve", "label": "Approve", "kind": "approve" }]
@@ -468,7 +468,7 @@ async fn per_user_decision_resolution_tracks_each_user_independently() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "recipients": ["paul", "maya"],
                 "decision_resolution": "per_user",
                 "title": "Review",
@@ -563,7 +563,7 @@ async fn device_can_dismiss_request_without_options() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "FYI",
                 "summary": "No decision needed",
                 "body_markdown": "This card should be dismissible."
@@ -637,7 +637,7 @@ async fn device_can_sign_dismiss_for_request_without_options() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "FYI",
                 "summary": "No decision needed"
             })),
@@ -761,7 +761,7 @@ async fn request_list_limit_caps_handled_but_keeps_all_pending() {
                 "/api/v1/requests",
                 Some(&issuer_token),
                 Some(json!({
-                    "source_id": "default",
+                    "channel_id": "default",
                     "title": format!("Handled {index}"),
                     "summary": "Already handled"
                 })),
@@ -787,7 +787,7 @@ async fn request_list_limit_caps_handled_but_keeps_all_pending() {
                 "/api/v1/requests",
                 Some(&issuer_token),
                 Some(json!({
-                    "source_id": "default",
+                    "channel_id": "default",
                     "title": format!("Pending {index}"),
                     "summary": "Needs attention"
                 })),
@@ -828,7 +828,7 @@ async fn dedupe_returns_existing_pending_request() {
     let app = TestApp::new().await;
     let issuer_token = app.issuer_token().await;
     let payload = json!({
-        "source_id": "default",
+        "channel_id": "default",
         "title": "Same thing",
         "summary": "Only one card",
         "dedupe_key": "agent:permission:123",

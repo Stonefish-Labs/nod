@@ -8,5 +8,5 @@ mod store;
 pub use runtime::{
     EnrollParams, NodClientMessage, NodClientRuntime, NotificationPreferenceParams,
     RenameDeviceParams, RevokeDeviceParams, RpcRequest, RpcResponse, SelectRequestParams,
-    SelectServerParams, SetSubscriptionParams, SourceParams, SubmitOptionParams,
+    SelectServerParams, SetSubscriptionParams, ChannelParams, SubmitOptionParams,
 };

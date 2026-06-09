@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Source {
+pub struct Channel {
     pub id: String,
     pub name: String,
     pub emoji: String,
@@ -17,7 +17,7 @@ fn default_subscribed() -> bool {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CreateSourceRequest {
+pub struct CreateChannelRequest {
     pub id: String,
     pub name: String,
     #[serde(default = "default_emoji")]

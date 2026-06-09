@@ -1,7 +1,9 @@
 //! Notification delivery hints carried on requests and sync envelopes.
 
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
+#[typeshare]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NotificationDeliveryMode {

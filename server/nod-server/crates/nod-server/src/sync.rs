@@ -3,7 +3,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::broadcast;
 
-use crate::models::{DecisionRequest, Source, SyncEnvelope};
+use crate::models::{Channel, DecisionRequest, SyncEnvelope};
 
 pub type SyncSender = broadcast::Sender<SyncEnvelope>;
 
@@ -24,8 +24,8 @@ pub fn request_for_users(
     targeted_envelope(kind, request_payload(request), target_user_ids)
 }
 
-pub fn source_update(kind: &str, source: &Source) -> SyncEnvelope {
-    envelope(kind, SourceUpdate { source })
+pub fn channel_update(kind: &str, channel: &Channel) -> SyncEnvelope {
+    envelope(kind, ChannelUpdate { channel })
 }
 
 pub fn device_update<T: Serialize>(kind: &str, payload: T) -> SyncEnvelope {
@@ -70,8 +70,8 @@ struct RequestUpdate {
 }
 
 #[derive(Serialize)]
-struct SourceUpdate<'a> {
-    source: &'a Source,
+struct ChannelUpdate<'a> {
+    channel: &'a Channel,
 }
 
 #[cfg(test)]
@@ -86,7 +86,7 @@ mod tests {
         let now = Utc::now();
         let request = DecisionRequest {
             id: "request-1".to_string(),
-            source_id: "default".to_string(),
+            channel_id: "default".to_string(),
             recipients: vec!["owner".to_string()],
             decision_resolution: DecisionResolution::Shared,
             title: "Deploy".to_string(),

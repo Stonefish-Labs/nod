@@ -135,42 +135,42 @@ pub async fn require_device(headers: &HeaderMap, pool: &SqlitePool) -> Result<De
     Ok(device)
 }
 
-pub fn require_request_write(principal: &Principal, source_id: &str) -> Result<(), ApiError> {
+pub fn require_request_write(principal: &Principal, channel_id: &str) -> Result<(), ApiError> {
     match principal {
         Principal::Admin => Ok(()),
-        Principal::Issuer(token) if has_request_scope(token, "write", source_id) => Ok(()),
+        Principal::Issuer(token) if has_request_scope(token, "write", channel_id) => Ok(()),
         _ => Err(ApiError::Forbidden),
     }
 }
 
-pub fn require_request_read(principal: &Principal, source_id: &str) -> Result<(), ApiError> {
+pub fn require_request_read(principal: &Principal, channel_id: &str) -> Result<(), ApiError> {
     match principal {
         Principal::Admin => Ok(()),
-        Principal::Issuer(token) if has_request_scope(token, "read", source_id) => Ok(()),
+        Principal::Issuer(token) if has_request_scope(token, "read", channel_id) => Ok(()),
         Principal::Device(_) => Ok(()),
         _ => Err(ApiError::Forbidden),
     }
 }
 
-pub fn require_request_cancel(principal: &Principal, source_id: &str) -> Result<(), ApiError> {
+pub fn require_request_cancel(principal: &Principal, channel_id: &str) -> Result<(), ApiError> {
     match principal {
         Principal::Admin => Ok(()),
-        Principal::Issuer(token) if has_request_scope(token, "cancel", source_id) => Ok(()),
+        Principal::Issuer(token) if has_request_scope(token, "cancel", channel_id) => Ok(()),
         _ => Err(ApiError::Forbidden),
     }
 }
 
-fn has_request_scope(token: &IssuerToken, operation: &str, source_id: &str) -> bool {
-    let source_scope = format!("requests:{operation}:{source_id}");
-    let any_source_scope = format!("requests:*:{source_id}");
+fn has_request_scope(token: &IssuerToken, operation: &str, channel_id: &str) -> bool {
+    let channel_scope = format!("requests:{operation}:{channel_id}");
+    let any_channel_scope = format!("requests:*:{channel_id}");
     token.scopes.iter().any(|scope| {
         scope == "*"
             || scope == "requests:*"
             || scope == &format!("requests:{operation}")
-            || scope == &source_scope
-            || scope == &any_source_scope
+            || scope == &channel_scope
+            || scope == &any_channel_scope
             || (operation == "read"
-                && (scope == "requests:write" || scope == &format!("requests:write:{source_id}")))
+                && (scope == "requests:write" || scope == &format!("requests:write:{channel_id}")))
     })
 }
 

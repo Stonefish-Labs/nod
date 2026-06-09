@@ -22,14 +22,14 @@ pub fn router(state: AppState) -> Router {
             post(admin::create_admin_session).delete(admin::delete_admin_session),
         )
         .route("/health", get(health))
-        .route("/api/v1/sources", get(device_endpoints::list_sources))
+        .route("/api/v1/channels", get(device_endpoints::list_channels))
         .route(
-            "/api/v1/admin/sources",
-            get(admin_endpoints::list_admin_sources).post(admin_endpoints::create_source),
+            "/api/v1/admin/channels",
+            get(admin_endpoints::list_admin_channels).post(admin_endpoints::create_channel),
         )
         .route(
-            "/api/v1/admin/sources/{source_id}",
-            delete(admin_endpoints::delete_admin_source),
+            "/api/v1/admin/channels/{channel_id}",
+            delete(admin_endpoints::delete_admin_channel),
         )
         .route(
             "/api/v1/admin/users",
@@ -57,7 +57,7 @@ pub fn router(state: AppState) -> Router {
             delete(admin_endpoints::delete_admin_device),
         )
         .route(
-            "/api/v1/admin/devices/{device_id}/subscriptions/{source_id}",
+            "/api/v1/admin/devices/{device_id}/subscriptions/{channel_id}",
             put(admin_endpoints::update_admin_subscription),
         )
         .route(
@@ -97,12 +97,12 @@ pub fn router(state: AppState) -> Router {
             put(device_endpoints::update_device_preferences),
         )
         .route(
-            "/api/v1/devices/me/subscriptions/{source_id}",
+            "/api/v1/devices/me/subscriptions/{channel_id}",
             put(device_endpoints::update_subscription),
         )
         .route(
-            "/api/v1/devices/me/sources/{source_id}/clear",
-            post(device_endpoints::clear_source),
+            "/api/v1/devices/me/channels/{channel_id}/clear",
+            post(device_endpoints::clear_channel),
         )
         .route(
             "/api/v1/requests",

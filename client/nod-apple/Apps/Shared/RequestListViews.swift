@@ -1,16 +1,16 @@
 import NodKit
 import SwiftUI
 
-struct SourceRequestsView: View {
+struct ChannelRequestsView: View {
   @EnvironmentObject private var store: NodStore
-  let sourceId: String
+  let channelId: String
   @State private var pendingRequestsExpanded = true
   @State private var handledRequestsExpanded = false
   @State private var initializedSectionExpansion = false
 
   var body: some View {
     Group {
-      if sourceRequests.isEmpty {
+      if channelRequests.isEmpty {
         ContentUnavailableView("No Requests", systemImage: "bell.slash")
       } else {
         List {
@@ -27,17 +27,17 @@ struct SourceRequestsView: View {
         }
       }
     }
-    .navigationTitle(sourceName)
+    .navigationTitle(channelName)
     .task {
-      if store.selectedSourceId != sourceId {
-        store.selectedSourceId = sourceId
+      if store.selectedChannelId != channelId {
+        store.selectedChannelId = channelId
       }
       await store.refresh()
     }
     .onAppear {
       initializeSectionExpansionIfNeeded()
     }
-    .onChange(of: sourceRequests.isEmpty) {
+    .onChange(of: channelRequests.isEmpty) {
       initializeSectionExpansionIfNeeded()
     }
     .onChange(of: pendingRequests.isEmpty) { _, hasNoPendingRequests in
@@ -48,20 +48,20 @@ struct SourceRequestsView: View {
     }
   }
 
-  private var sourceRequests: [NodRequest] {
-    NodRequestInbox.newestFirst(store.requests.filter { $0.sourceId == sourceId })
+  private var channelRequests: [NodRequest] {
+    NodRequestInbox.newestFirst(store.requests.filter { $0.channelId == channelId })
   }
 
   private var pendingRequests: [NodRequest] {
-    sourceRequests.filter { $0.status == .pending }
+    channelRequests.filter { $0.status == .pending }
   }
 
   private var handledRequests: [NodRequest] {
-    sourceRequests.filter { $0.status != .pending }
+    channelRequests.filter { $0.status != .pending }
   }
 
-  private var sourceName: String {
-    store.sources.first(where: { $0.id == sourceId })?.name ?? "Requests"
+  private var channelName: String {
+    store.channels.first(where: { $0.id == channelId })?.name ?? "Requests"
   }
 
   @ViewBuilder
@@ -101,7 +101,7 @@ struct SourceRequestsView: View {
   }
 
   private func initializeSectionExpansionIfNeeded() {
-    guard !initializedSectionExpansion, !sourceRequests.isEmpty else {
+    guard !initializedSectionExpansion, !channelRequests.isEmpty else {
       return
     }
     handledRequestsExpanded = pendingRequests.isEmpty
@@ -129,7 +129,7 @@ struct RequestListView: View {
         }
       }
     }
-    .navigationTitle(selectedSourceName)
+    .navigationTitle(selectedChannelName)
     .onAppear {
       initializeSectionExpansionIfNeeded()
     }
@@ -142,7 +142,7 @@ struct RequestListView: View {
         handledRequestsExpanded = true
       }
     }
-    .onChange(of: store.selectedSourceId) {
+    .onChange(of: store.selectedChannelId) {
       pendingRequestsExpanded = true
       handledRequestsExpanded = false
       initializedSectionExpansion = false
@@ -167,8 +167,8 @@ struct RequestListView: View {
     Task { await store.dismissIfInformational(request: request) }
   }
 
-  private var selectedSourceName: String {
-    store.sources.first(where: { $0.id == store.selectedSourceId })?.name ?? "Requests"
+  private var selectedChannelName: String {
+    store.channels.first(where: { $0.id == store.selectedChannelId })?.name ?? "Requests"
   }
 
   private var pendingRequests: [NodRequest] {
@@ -244,24 +244,24 @@ struct RequestDetailContainer: View {
   }
 }
 
-struct SourceLabel: View {
-  let source: NodSource
+struct ChannelLabel: View {
+  let channel: NodChannel
 
   var body: some View {
     HStack(spacing: 6) {
-      Text(source.emoji.isEmpty ? "🔔" : source.emoji)
-      Text(source.name)
+      Text(channel.emoji.isEmpty ? "🔔" : channel.emoji)
+      Text(channel.name)
     }
   }
 }
 
-struct SourceRow: View {
-  let source: NodSource
+struct ChannelRow: View {
+  let channel: NodChannel
   let pendingCount: Int
 
   var body: some View {
     HStack {
-      SourceLabel(source: source)
+      ChannelLabel(channel: channel)
       Spacer()
       if pendingCount > 0 {
         Text(pendingCount, format: .number)

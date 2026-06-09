@@ -9,7 +9,7 @@ import type {
   SelectRequestParams,
   SelectServerParams,
   SetSubscriptionParams,
-  SourceParams,
+  ChannelParams,
   SubmitOptionParams,
   UserDevice,
 } from "./types";
@@ -34,8 +34,8 @@ export function forgetServer(params: SelectServerParams): Promise<ClientState> {
   return invoke<ClientState>("forget_server", { params });
 }
 
-export function selectSource(params: SourceParams): Promise<ClientState> {
-  return invoke<ClientState>("select_source", { params });
+export function selectChannel(params: ChannelParams): Promise<ClientState> {
+  return invoke<ClientState>("select_channel", { params });
 }
 
 export function selectRequest(params: SelectRequestParams): Promise<ClientState> {
@@ -46,8 +46,8 @@ export function submitOption(params: SubmitOptionParams): Promise<NodRequest> {
   return invoke<NodRequest>("submit_option", { params });
 }
 
-export function clearSource(params: SourceParams): Promise<ClientState> {
-  return invoke<ClientState>("clear_source", { params });
+export function clearChannel(params: ChannelParams): Promise<ClientState> {
+  return invoke<ClientState>("clear_channel", { params });
 }
 
 export function setSubscription(params: SetSubscriptionParams): Promise<ClientState> {

@@ -60,7 +60,7 @@ struct NodPhoneInbox: View {
     NavigationStack(path: $path) {
       List {
         serversSection
-        sourcesSection
+        channelsSection
         appBuildSection
       }
       .navigationTitle("Nod")
@@ -83,8 +83,8 @@ struct NodPhoneInbox: View {
           }
         }
       }
-      .navigationDestination(for: String.self) { sourceId in
-        SourceRequestsView(sourceId: sourceId)
+      .navigationDestination(for: String.self) { channelId in
+        ChannelRequestsView(channelId: channelId)
       }
     }
     .onAppear {
@@ -115,13 +115,13 @@ struct NodPhoneInbox: View {
     guard
       let request,
       handledNotificationOpenRequestId != request.id,
-      let sourceId = request.sourceId,
-      !sourceId.isEmpty
+      let channelId = request.channelId,
+      !channelId.isEmpty
     else {
       return
     }
     handledNotificationOpenRequestId = request.id
-    path = [sourceId]
+    path = [channelId]
   }
 
   private var serversSection: some View {
@@ -156,16 +156,16 @@ struct NodPhoneInbox: View {
     }
   }
 
-  private var sourcesSection: some View {
-    Section("Sources") {
-      if store.subscribedSources.isEmpty {
-        ContentUnavailableView("No Subscribed Sources", systemImage: "number")
+  private var channelsSection: some View {
+    Section("Channels") {
+      if store.subscribedChannels.isEmpty {
+        ContentUnavailableView("No Subscribed Channels", systemImage: "number")
       } else {
-        ForEach(store.subscribedSources) { source in
-          NavigationLink(value: source.id) {
-            SourceRow(
-              source: source,
-              pendingCount: store.pendingCountsBySource[source.id, default: 0]
+        ForEach(store.subscribedChannels) { channel in
+          NavigationLink(value: channel.id) {
+            ChannelRow(
+              channel: channel,
+              pendingCount: store.pendingCountsByChannel[channel.id, default: 0]
             )
           }
         }
@@ -235,19 +235,19 @@ struct NodSidebar: View {
         }
       }
 
-      Section("Sources") {
-        if store.subscribedSources.isEmpty {
-          Text("No subscribed sources")
+      Section("Channels") {
+        if store.subscribedChannels.isEmpty {
+          Text("No subscribed channels")
             .foregroundStyle(.secondary)
         } else {
-          ForEach(store.subscribedSources) { source in
+          ForEach(store.subscribedChannels) { channel in
             Button {
-              store.selectedSourceId = source.id
+              store.selectedChannelId = channel.id
               Task { await store.refresh() }
             } label: {
-              SourceRow(
-                source: source,
-                pendingCount: store.pendingCountsBySource[source.id, default: 0]
+              ChannelRow(
+                channel: channel,
+                pendingCount: store.pendingCountsByChannel[channel.id, default: 0]
               )
             }
             .buttonStyle(.plain)

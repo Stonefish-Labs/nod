@@ -28,13 +28,13 @@ the local core config file instead.
 ## Keys
 
 - `j`/`k` or arrows: move through the focused pane.
-- `Tab`: cycle focus between servers, sources, requests, and detail.
+- `Tab`: cycle focus between servers, channels, requests, and detail.
 - `Enter`: open the selected request detail or submit the active form.
 - `a`: approve the selected request when an approve option exists.
 - `r`: reject the selected request when a reject option exists.
 - `d`: dismiss the selected request.
 - `n`: open the text response editor for note-required options.
-- `c`: clear the selected source.
+- `c`: clear the selected channel.
 - `R`: refresh from the server.
 - `/`: filter visible requests.
 - `s`: focus the server list.
@@ -46,7 +46,7 @@ the local core config file instead.
 
 ## Settings
 
-Settings include source subscriptions, notification sound preference, device
+Settings include channel subscriptions, notification sound preference, device
 listing, device rename, device revoke, forget server, and the TUI-local alert
 mute toggle. The alert mute is intentionally local to the terminal session and
 does not change the server notification preference.

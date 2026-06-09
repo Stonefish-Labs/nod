@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use nod_client_core::{
     models::{ClientState, Request, UserDevice},
     EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
-    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
     SubmitOptionParams,
 };
 
@@ -14,10 +14,10 @@ pub(crate) trait RuntimePort {
     async fn connect_sync(&mut self) -> Result<()>;
     async fn select_server(&mut self, params: SelectServerParams) -> Result<ClientState>;
     async fn forget_server(&mut self, params: SelectServerParams) -> Result<ClientState>;
-    async fn select_source(&mut self, params: SourceParams) -> Result<ClientState>;
+    async fn select_channel(&mut self, params: ChannelParams) -> Result<ClientState>;
     async fn select_request(&mut self, params: SelectRequestParams) -> Result<ClientState>;
     async fn submit_option(&mut self, params: SubmitOptionParams) -> Result<Request>;
-    async fn clear_source(&mut self, params: SourceParams) -> Result<ClientState>;
+    async fn clear_channel(&mut self, params: ChannelParams) -> Result<ClientState>;
     async fn set_subscription(&mut self, params: SetSubscriptionParams) -> Result<ClientState>;
     async fn set_notification_preference(
         &mut self,

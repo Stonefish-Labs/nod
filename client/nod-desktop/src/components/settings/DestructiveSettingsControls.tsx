@@ -1,14 +1,14 @@
 import { Trash2 } from "lucide-react";
 
 interface DestructiveSettingsControlsProps {
-  canClearSource: boolean;
-  onClearSelectedSource: () => Promise<void>;
+  canClearChannel: boolean;
+  onClearSelectedChannel: () => Promise<void>;
   onForgetSelectedServer: () => Promise<void>;
 }
 
 export function DestructiveSettingsControls({
-  canClearSource,
-  onClearSelectedSource,
+  canClearChannel,
+  onClearSelectedChannel,
   onForgetSelectedServer,
 }: DestructiveSettingsControlsProps): JSX.Element {
   return (
@@ -19,11 +19,11 @@ export function DestructiveSettingsControls({
       </button>
       <button
         type="button"
-        onClick={() => void onClearSelectedSource()}
-        disabled={!canClearSource}
+        onClick={() => void onClearSelectedChannel()}
+        disabled={!canClearChannel}
       >
         <Trash2 size={16} />
-        Clear Source
+        Clear Channel
       </button>
     </footer>
   );

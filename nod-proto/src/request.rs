@@ -8,9 +8,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
 use crate::decision::{Decision, UserDecision};
 
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CardField {
     pub label: String,
@@ -19,12 +21,14 @@ pub struct CardField {
     pub style: Option<String>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CardLink {
     pub label: String,
     pub url: String,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OptionKind {
@@ -65,6 +69,7 @@ impl From<&str> for OptionKind {
     }
 }
 
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RequestOption {
     pub id: String,
@@ -86,6 +91,7 @@ fn default_option_style() -> String {
     "default".to_string()
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RequestNotification {
@@ -97,6 +103,7 @@ pub struct RequestNotification {
     pub body: Option<String>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequestStatus {
@@ -117,6 +124,7 @@ impl From<&str> for RequestStatus {
     }
 }
 
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionResolution {
@@ -148,11 +156,12 @@ impl From<&str> for DecisionResolution {
 /// internal model into this shape; clients deserialize it directly. Unknown
 /// fields are ignored, so a newer server can add wire fields without breaking
 /// already-shipped clients.
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Request {
     pub id: String,
     pub request_id: String,
-    pub source_id: String,
+    pub channel_id: String,
     #[serde(default)]
     pub recipients: Vec<String>,
     #[serde(default = "default_decision_resolution")]
@@ -173,11 +182,15 @@ pub struct Request {
     #[serde(default)]
     pub dedupe_key: Option<String>,
     #[serde(default)]
+    #[typeshare(serialized_as = "Option<String>")]
     pub expires_at: Option<DateTime<Utc>>,
     pub status: RequestStatus,
+    #[typeshare(serialized_as = "String")]
     pub created_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "String")]
     pub updated_at: DateTime<Utc>,
     #[serde(default)]
+    #[typeshare(serialized_as = "Option<String>")]
     pub resolved_at: Option<DateTime<Utc>>,
     #[serde(default)]
     pub decision: Option<Decision>,
@@ -196,8 +209,8 @@ pub struct Request {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateDecisionRequest {
-    #[serde(default = "default_source")]
-    pub source_id: String,
+    #[serde(default = "default_channel")]
+    pub channel_id: String,
     #[serde(default)]
     pub recipients: Option<Vec<String>>,
     #[serde(default)]
@@ -237,6 +250,6 @@ fn default_decision_resolution() -> DecisionResolution {
     DecisionResolution::Shared
 }
 
-fn default_source() -> String {
+fn default_channel() -> String {
     "default".to_string()
 }

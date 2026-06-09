@@ -18,7 +18,7 @@ async fn issuer_token_can_cancel_own_pending_request() {
         .await;
 
     let payload = json!({
-        "source_id": "default",
+        "channel_id": "default",
         "title": "Cancel me",
         "summary": "No longer needed",
         "dedupe_key": "cancel:pending:123",
@@ -101,7 +101,7 @@ async fn admin_can_cancel_any_pending_request() {
             "/api/v1/requests",
             Some(&issuer_token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Admin cancel",
                 "summary": "Withdrawn by admin"
             })),
@@ -133,7 +133,7 @@ async fn admin_can_cancel_any_pending_request() {
 }
 
 #[tokio::test]
-async fn issuer_token_can_be_scoped_to_one_source() {
+async fn issuer_token_can_be_scoped_to_one_channel() {
     let app = TestApp::new().await;
     let scoped_token = app
         .issuer_token_with_scopes([
@@ -142,10 +142,10 @@ async fn issuer_token_can_be_scoped_to_one_source() {
         ])
         .await;
 
-    let (status, source) = app
+    let (status, channel) = app
         .request(
             Method::POST,
-            "/api/v1/admin/sources",
+            "/api/v1/admin/channels",
             Some("admin-test-token"),
             Some(json!({
                 "id": "steam-wishlist-notifier",
@@ -154,7 +154,7 @@ async fn issuer_token_can_be_scoped_to_one_source() {
             })),
         )
         .await;
-    assert_eq!(status, StatusCode::OK, "{source}");
+    assert_eq!(status, StatusCode::OK, "{channel}");
 
     let (status, created) = app
         .request(
@@ -162,9 +162,9 @@ async fn issuer_token_can_be_scoped_to_one_source() {
             "/api/v1/requests",
             Some(&scoped_token),
             Some(json!({
-                "source_id": "steam-wishlist-notifier",
+                "channel_id": "steam-wishlist-notifier",
                 "title": "Wishlist test",
-                "summary": "Allowed source"
+                "summary": "Allowed channel"
             })),
         )
         .await;
@@ -187,8 +187,8 @@ async fn issuer_token_can_be_scoped_to_one_source() {
             "/api/v1/requests",
             Some(&scoped_token),
             Some(json!({
-                "source_id": "default",
-                "title": "Wrong source",
+                "channel_id": "default",
+                "title": "Wrong channel",
                 "summary": "Should not be allowed"
             })),
         )

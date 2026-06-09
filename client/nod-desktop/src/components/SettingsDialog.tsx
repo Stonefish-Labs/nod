@@ -1,17 +1,17 @@
 import { X } from "lucide-react";
 import { NOTIFICATION_SOUND_OPTIONS } from "../app/state";
-import type { Source, ClientState, UserDevice } from "../types";
-import { SourceSubscriptions } from "./settings/SourceSubscriptions";
+import type { Channel, ClientState, UserDevice } from "../types";
+import { ChannelSubscriptions } from "./settings/ChannelSubscriptions";
 import { DestructiveSettingsControls } from "./settings/DestructiveSettingsControls";
 import { DeviceList } from "./settings/DeviceList";
 
 export interface SettingsDialogCommands {
-  clearSelectedSource: () => Promise<void>;
+  clearSelectedChannel: () => Promise<void>;
   closeSettings: () => void;
   forgetSelectedServer: () => Promise<void>;
   renameUserDevice: (deviceId: string, name: string) => Promise<boolean>;
   revokeUserDevice: (deviceId: string) => Promise<void>;
-  toggleSourceSubscription: (source: Source) => Promise<void>;
+  toggleChannelSubscription: (channel: Channel) => Promise<void>;
   updateNotificationSound: (notificationSound: string) => Promise<void>;
 }
 
@@ -50,9 +50,9 @@ export function SettingsDialog({
             ))}
           </select>
         </label>
-        <SourceSubscriptions
-          sources={state.sources}
-          onToggleSource={commands.toggleSourceSubscription}
+        <ChannelSubscriptions
+          channels={state.channels}
+          onToggleChannel={commands.toggleChannelSubscription}
         />
         <DeviceList
           devices={devices}
@@ -60,8 +60,8 @@ export function SettingsDialog({
           onRevokeDevice={commands.revokeUserDevice}
         />
         <DestructiveSettingsControls
-          canClearSource={Boolean(state.selected_source_id)}
-          onClearSelectedSource={commands.clearSelectedSource}
+          canClearChannel={Boolean(state.selected_channel_id)}
+          onClearSelectedChannel={commands.clearSelectedChannel}
           onForgetSelectedServer={commands.forgetSelectedServer}
         />
       </section>

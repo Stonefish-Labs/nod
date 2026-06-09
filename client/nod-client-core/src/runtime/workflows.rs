@@ -12,7 +12,7 @@ use crate::{
 use super::{
     session::DecisionSignatureInput, EnrollParams, NodClientMessage, NodClientRuntime,
     RenameDeviceParams, RevokeDeviceParams, SelectRequestParams, SetSubscriptionParams,
-    SourceParams, SubmitOptionParams,
+    ChannelParams, SubmitOptionParams,
 };
 
 const REFRESH_EVENT_LIMIT: usize = 500;
@@ -64,7 +64,7 @@ impl NodClientRuntime {
             let mut reducer = self.reducer.lock().await;
             reducer.upsert_server(profile);
             reducer.set_selected_server(profile_id);
-            reducer.state.sources = response.sources;
+            reducer.state.channels = response.channels;
             reducer.state.devices = response.devices;
             reducer.state.is_registered = true;
             reducer.set_notification_delivery_mode(response.notification_delivery.mode);
@@ -126,12 +126,12 @@ impl NodClientRuntime {
             devices.insert(0, current_user.current_device.clone());
         }
 
-        let sources = api.sources().await?;
+        let channels = api.channels().await?;
         let requests = api.requests(None, Some(REFRESH_EVENT_LIMIT)).await?;
         let candidates = {
             let mut reducer = self.reducer.lock().await;
             reducer.set_notification_delivery_mode(current_user.notification_delivery.mode);
-            reducer.apply_refresh(Some(current_user.user), devices, sources, requests)
+            reducer.apply_refresh(Some(current_user.user), devices, channels, requests)
         };
         self.emit_notifications(candidates).await;
         self.emit_state().await;
@@ -171,15 +171,15 @@ impl NodClientRuntime {
         Ok(request)
     }
 
-    pub async fn clear_source(&mut self, params: SourceParams) -> Result<ClientState> {
-        self.api().await?.clear_source(&params.source_id).await?;
+    pub async fn clear_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
+        self.api().await?.clear_channel(&params.channel_id).await?;
         self.refresh().await
     }
 
     pub async fn set_subscription(&mut self, params: SetSubscriptionParams) -> Result<ClientState> {
         self.api()
             .await?
-            .set_subscription(&params.source_id, params.subscribed)
+            .set_subscription(&params.channel_id, params.subscribed)
             .await?;
         self.refresh().await
     }
@@ -234,8 +234,8 @@ impl NodClientRuntime {
         self.refresh_or_forget_current(&params.device_id).await
     }
 
-    pub async fn select_source(&mut self, params: SourceParams) -> Result<ClientState> {
-        self.reducer.lock().await.state.selected_source_id = Some(params.source_id);
+    pub async fn select_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
+        self.reducer.lock().await.state.selected_channel_id = Some(params.channel_id);
         self.refresh().await
     }
 

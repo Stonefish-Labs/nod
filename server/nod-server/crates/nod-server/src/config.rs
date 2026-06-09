@@ -56,6 +56,7 @@ impl Config {
         if self.retention_days < 1 {
             bail!("retention_days must be at least 1");
         }
+        self.notifications.apns_direct.validate()?;
         self.notifications.apns_relay.validate()?;
         self.device_attestation.apple_app_attest.validate()?;
         Ok(())
@@ -168,7 +169,72 @@ impl AppAttestEnvironment {
 
 #[derive(Debug, Clone, Default)]
 pub struct NotificationsConfig {
+    pub apns_direct: ApnsDirectConfig,
     pub apns_relay: ApnsRelayConfig,
+}
+
+/// In-process APNs credentials. When these are set, the server delivers pushes
+/// to Apple directly (embedding `nod-apns-relay`) with no HTTP hop or mTLS —
+/// the co-located deployment. Mutually exclusive with [`ApnsRelayConfig`]; the
+/// active route is decided in `push::configured_push_route`.
+#[derive(Clone, Default)]
+pub struct ApnsDirectConfig {
+    pub bundle_id: Option<String>,
+    pub team_id: Option<String>,
+    pub key_id: Option<String>,
+    pub private_key_path: Option<PathBuf>,
+    pub environment: Option<String>,
+}
+
+impl ApnsDirectConfig {
+    /// True when every credential needed to push to Apple in-process is present.
+    pub fn enabled(&self) -> bool {
+        has_text(self.bundle_id.as_deref())
+            && has_text(self.team_id.as_deref())
+            && has_text(self.key_id.as_deref())
+            && path_configured(&self.private_key_path)
+    }
+
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if !self.any_configured() {
+            return Ok(());
+        }
+        if !has_text(self.bundle_id.as_deref()) {
+            bail!("notifications.apns_direct.bundle_id or NOD_APNS_DIRECT_BUNDLE_ID is required");
+        }
+        if !has_text(self.team_id.as_deref()) {
+            bail!("notifications.apns_direct.team_id or NOD_APNS_DIRECT_TEAM_ID is required");
+        }
+        if !has_text(self.key_id.as_deref()) {
+            bail!("notifications.apns_direct.key_id or NOD_APNS_DIRECT_KEY_ID is required");
+        }
+        if !path_configured(&self.private_key_path) {
+            bail!("notifications.apns_direct.private_key_path or NOD_APNS_DIRECT_PRIVATE_KEY_PATH is required");
+        }
+        Ok(())
+    }
+
+    fn any_configured(&self) -> bool {
+        has_text(self.bundle_id.as_deref())
+            || has_text(self.team_id.as_deref())
+            || has_text(self.key_id.as_deref())
+            || path_configured(&self.private_key_path)
+            || has_text(self.environment.as_deref())
+    }
+}
+
+impl fmt::Debug for ApnsDirectConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Redact Apple account identifiers so incidental Debug logging cannot expose them.
+        formatter
+            .debug_struct("ApnsDirectConfig")
+            .field("bundle_id", &self.bundle_id)
+            .field("team_id_configured", &has_text(self.team_id.as_deref()))
+            .field("key_id_configured", &has_text(self.key_id.as_deref()))
+            .field("private_key_path", &self.private_key_path)
+            .field("environment", &self.environment)
+            .finish()
+    }
 }
 
 #[derive(Clone, Default)]

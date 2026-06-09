@@ -46,11 +46,11 @@ extension NodStore {
     if let notificationDelivery = envelope.notificationDelivery {
       apply(notificationDelivery: notificationDelivery)
     }
-    if let source = envelope.source {
-      if let index = sources.firstIndex(where: { $0.id == source.id }) {
-        sources[index] = source
+    if let channel = envelope.channel {
+      if let index = channels.firstIndex(where: { $0.id == channel.id }) {
+        channels[index] = channel
       } else {
-        sources.append(source)
+        channels.append(channel)
       }
     }
     if let request = envelope.request {
@@ -163,16 +163,16 @@ extension NodStore {
 
   private func applySyncedRequest(_ request: NodRequest, envelopeKind: String) async {
     if request.status == .pending {
-      pendingCountsBySource[request.sourceId, default: 0] += envelopeKind == "created" ? 1 : 0
+      pendingCountsByChannel[request.channelId, default: 0] += envelopeKind == "created" ? 1 : 0
       knownPendingRequestIds.insert(request.id)
     } else {
-      pendingCountsBySource[request.sourceId] = max(
+      pendingCountsByChannel[request.channelId] = max(
         0,
-        (pendingCountsBySource[request.sourceId] ?? 1) - 1
+        (pendingCountsByChannel[request.channelId] ?? 1) - 1
       )
       knownPendingRequestIds.remove(request.id)
     }
-    if selectedSourceId == nil || selectedSourceId == request.sourceId {
+    if selectedChannelId == nil || selectedChannelId == request.channelId {
       upsert(request)
     }
     if envelopeKind == "created", shouldPresentLocalNotificationFromSync() {

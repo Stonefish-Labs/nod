@@ -1,7 +1,7 @@
 use nod_client_core::models::ClientState;
 use nod_client_core::{
     EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
-    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
     SubmitOptionParams,
 };
 use tauri::State;
@@ -57,11 +57,11 @@ pub(crate) async fn forget_server(
 }
 
 #[tauri::command]
-pub(crate) async fn select_source(
+pub(crate) async fn select_channel(
     state: State<'_, DesktopState>,
-    params: SourceParams,
+    params: ChannelParams,
 ) -> Result<ClientState, String> {
-    command_result(state.runtime.lock().await.select_source(params).await)
+    command_result(state.runtime.lock().await.select_channel(params).await)
 }
 
 #[tauri::command]
@@ -81,11 +81,11 @@ pub(crate) async fn submit_option(
 }
 
 #[tauri::command]
-pub(crate) async fn clear_source(
+pub(crate) async fn clear_channel(
     state: State<'_, DesktopState>,
-    params: SourceParams,
+    params: ChannelParams,
 ) -> Result<ClientState, String> {
-    command_result(state.runtime.lock().await.clear_source(params).await)
+    command_result(state.runtime.lock().await.clear_channel(params).await)
 }
 
 #[tauri::command]

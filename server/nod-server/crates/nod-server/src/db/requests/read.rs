@@ -10,7 +10,7 @@ use crate::{
 
 pub struct ListRequestsForDevice<'a> {
     pub device_id: &'a str,
-    pub source_id: Option<&'a str>,
+    pub channel_id: Option<&'a str>,
     pub include_cleared: bool,
     pub handled_limit: i64,
     pub retention_days: i64,
@@ -31,17 +31,17 @@ pub async fn list_requests_for_device(
         JOIN request_recipients er
             ON er.request_id = e.id
             AND er.user_id = ?
-        JOIN user_source_subscriptions us
-            ON us.source_id = e.source_id
+        JOIN user_channel_subscriptions us
+            ON us.channel_id = e.channel_id
             AND us.user_id = ?
             AND us.subscribed = 1
-        LEFT JOIN user_source_clears uc
-            ON uc.source_id = e.source_id
+        LEFT JOIN user_channel_clears uc
+            ON uc.channel_id = e.channel_id
             AND uc.user_id = ?
         LEFT JOIN request_user_decisions eur
             ON eur.request_id = e.id
             AND eur.user_id = ?
-        WHERE (? IS NULL OR e.source_id = ?)
+        WHERE (? IS NULL OR e.channel_id = ?)
             AND e.created_at >= ?
             AND (? = 1 OR uc.cleared_at IS NULL OR e.created_at > uc.cleared_at)
             AND (
@@ -55,8 +55,8 @@ pub async fn list_requests_for_device(
     .bind(&device.user_id)
     .bind(&device.user_id)
     .bind(&device.user_id)
-    .bind(query.source_id)
-    .bind(query.source_id)
+    .bind(query.channel_id)
+    .bind(query.channel_id)
     .bind(&cutoff)
     .bind(if query.include_cleared { 1 } else { 0 })
     .fetch_all(pool)
@@ -71,17 +71,17 @@ pub async fn list_requests_for_device(
             JOIN request_recipients er
                 ON er.request_id = e.id
                 AND er.user_id = ?
-            JOIN user_source_subscriptions us
-                ON us.source_id = e.source_id
+            JOIN user_channel_subscriptions us
+                ON us.channel_id = e.channel_id
                 AND us.user_id = ?
                 AND us.subscribed = 1
-            LEFT JOIN user_source_clears uc
-                ON uc.source_id = e.source_id
+            LEFT JOIN user_channel_clears uc
+                ON uc.channel_id = e.channel_id
                 AND uc.user_id = ?
             LEFT JOIN request_user_decisions eur
                 ON eur.request_id = e.id
                 AND eur.user_id = ?
-            WHERE (? IS NULL OR e.source_id = ?)
+            WHERE (? IS NULL OR e.channel_id = ?)
                 AND e.created_at >= ?
                 AND (? = 1 OR uc.cleared_at IS NULL OR e.created_at > uc.cleared_at)
                 AND (
@@ -96,8 +96,8 @@ pub async fn list_requests_for_device(
         .bind(&device.user_id)
         .bind(&device.user_id)
         .bind(&device.user_id)
-        .bind(query.source_id)
-        .bind(query.source_id)
+        .bind(query.channel_id)
+        .bind(query.channel_id)
         .bind(&cutoff)
         .bind(if query.include_cleared { 1 } else { 0 })
         .bind(handled_limit)
@@ -119,7 +119,7 @@ pub async fn list_requests_for_device(
 pub async fn get_request(pool: &SqlitePool, request_id: &str) -> Result<DecisionRequest, ApiError> {
     let row = sqlx::query(
         r#"
-        SELECT id, source_id, title, summary, body_markdown, fields_json, links_json,
+        SELECT id, channel_id, title, summary, body_markdown, fields_json, links_json,
             image_url, notification_json, dedupe_key, expires_at, status, created_at,
             updated_at, resolved_at, decision_json, callback_url, decision_resolution
         FROM requests
@@ -215,9 +215,9 @@ pub async fn push_devices_for_request(
             ON er.user_id = COALESCE(d.user_id, ?)
             AND er.request_id = ?
         JOIN requests e ON e.id = er.request_id
-        JOIN user_source_subscriptions us
+        JOIN user_channel_subscriptions us
             ON us.user_id = er.user_id
-            AND us.source_id = e.source_id
+            AND us.channel_id = e.channel_id
             AND us.subscribed = 1
         WHERE d.push_token IS NOT NULL
             AND TRIM(d.push_token) != ''

@@ -223,12 +223,12 @@ extension NodStore {
 
     currentUser = nil
     registeredDevices = []
-    sources = []
-    pendingCountsBySource = [:]
+    channels = []
+    pendingCountsByChannel = [:]
     requests = []
     notificationDeliveryMode = .push
     resetKnownPendingRequests()
-    selectedSourceId = nil
+    selectedChannelId = nil
     selectedRequestId = nil
     sync.disconnect()
     isSyncConnected = false
@@ -283,9 +283,9 @@ extension NodStore {
     )
     apply(notificationDelivery: response.notificationDelivery)
     registeredDevices = response.devices
-    sources = response.sources
+    channels = response.channels
     resetKnownPendingRequests()
-    selectedSourceId = response.sources.first(where: \.subscribed)?.id ?? response.sources.first?.id
+    selectedChannelId = response.channels.first(where: \.subscribed)?.id ?? response.channels.first?.id
     selectedRequestId = nil
     defaults.set(profileId, forKey: "nod.selectedServerId")
     defaults.set(baseURLString, forKey: "nod.baseURL")

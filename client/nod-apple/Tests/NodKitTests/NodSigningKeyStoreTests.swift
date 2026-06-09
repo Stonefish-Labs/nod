@@ -149,7 +149,7 @@ private func makeRequest() throws -> NodRequest {
     {
       "id": "request-1",
       "request_id": "request-1",
-      "source_id": "source-1",
+      "channel_id": "channel-1",
       "recipients": [],
       "decision_resolution": "shared",
       "title": "Deploy?",

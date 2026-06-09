@@ -95,7 +95,7 @@ pub(crate) async fn request_for_principal(
         }
         _ => {
             let request = db::get_request(&state.pool, request_id).await?;
-            auth::require_request_read(principal, &request.source_id)?;
+            auth::require_request_read(principal, &request.channel_id)?;
             Ok(request)
         }
     }

@@ -4,7 +4,7 @@ import type {
   NodRequest,
   RequestOption,
   RequestStatus,
-  Source,
+  Channel,
 } from "./types";
 
 const statusRank: Record<RequestStatus, number> = {
@@ -25,17 +25,17 @@ const defaultDismissOption: RequestOption = {
 };
 
 export function totalPendingCount(state: ClientState): number {
-  return Object.values(state.pending_counts_by_source).reduce(
+  return Object.values(state.pending_counts_by_channel).reduce(
     (total, count) => total + count,
     0,
   );
 }
 
-export function pendingCountFor(source: Source, state: ClientState): number {
-  return state.pending_counts_by_source[source.id] ?? 0;
+export function pendingCountFor(channel: Channel, state: ClientState): number {
+  return state.pending_counts_by_channel[channel.id] ?? 0;
 }
 
-export function sourceColor(source: Source): string {
+export function channelColor(channel: Channel): string {
   const palette = [
     "#2563EB",
     "#059669",
@@ -47,7 +47,7 @@ export function sourceColor(source: Source): string {
     "#DB2777",
   ];
   let hash = 0;
-  for (const char of source.id) {
+  for (const char of channel.id) {
     hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   }
   return palette[hash % palette.length];
@@ -75,10 +75,10 @@ export function selectedRequest(state: ClientState): NodRequest | undefined {
   );
 }
 
-export function selectedSource(state: ClientState): Source | undefined {
+export function selectedChannel(state: ClientState): Channel | undefined {
   return (
-    state.sources.find((source) => source.id === state.selected_source_id) ??
-    state.sources[0]
+    state.channels.find((channel) => channel.id === state.selected_channel_id) ??
+    state.channels[0]
   );
 }
 

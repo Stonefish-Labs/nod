@@ -15,12 +15,28 @@ let package = Package(
     targets: [
         .target(
             name: "NodKit",
+            dependencies: ["NodProtoFFI"],
             path: "Sources/NodKit",
             linkerSettings: [
                 .linkedFramework("DeviceCheck"),
                 .linkedFramework("Security"),
                 .linkedFramework("UserNotifications")
             ]
+        ),
+        // Generated UniFFI Swift wrapper over the Rust signing crypto. Built by
+        // scripts/build-nod-proto-ffi.sh.
+        .target(
+            name: "NodProtoFFI",
+            dependencies: ["nod_proto_ffiFFI"],
+            path: "Sources/NodProtoFFI",
+            // UniFFI 0.28's generated wrapper predates Swift 6 strict concurrency
+            // (a global `var initializationResult`). Build this generated shim in
+            // Swift 5 language mode; NodKit and the apps stay on Swift 6.
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .binaryTarget(
+            name: "nod_proto_ffiFFI",
+            path: "Frameworks/nod_proto_ffiFFI.xcframework"
         ),
         .executableTarget(
             name: "NodMac",

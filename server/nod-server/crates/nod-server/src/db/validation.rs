@@ -29,7 +29,7 @@ pub(super) fn validate_request(req: &CreateDecisionRequest) -> Result<(), ApiErr
             ));
         }
     }
-    validate_id(&req.source_id, "source id")
+    validate_id(&req.channel_id, "channel id")
 }
 
 fn validate_notification_text(

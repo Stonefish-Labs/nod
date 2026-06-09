@@ -58,7 +58,7 @@ async fn admin_session_login_logout_and_cookie_auth() {
         .request_with_cookie(Method::GET, "/api/v1/admin/summary", &cookie, None)
         .await;
     assert_eq!(status, StatusCode::OK, "{summary}");
-    assert_eq!(summary["sources"], 1);
+    assert_eq!(summary["channels"], 1);
 
     let (status, headers, logged_out) = app
         .request_with_cookie(Method::DELETE, "/admin/session", &cookie, None)
@@ -103,7 +103,7 @@ async fn admin_settings_redacts_secrets() {
         .await;
     assert_eq!(status, StatusCode::OK, "{settings}");
     assert_eq!(settings["notification_delivery_mode"], "push");
-    assert_eq!(settings["remote_push_route"], "apns_relay");
+    assert_eq!(settings["push_route"], "apns_relay");
     assert_eq!(settings["retention_days"], 14);
     assert!(settings.get("apple_apns").is_none());
     assert_eq!(settings["apns_relay"]["client_enabled"], true);
@@ -137,7 +137,7 @@ async fn admin_settings_redacts_secrets() {
 }
 
 #[tokio::test]
-async fn device_responses_report_websocket_delivery_without_remote_push_route() {
+async fn device_responses_report_websocket_delivery_without_push_route() {
     let app = TestApp::new().await;
     let enrollment_body = json!({
         "expires_in_seconds": 600
@@ -196,7 +196,7 @@ async fn device_responses_hide_apns_relay_route_behind_push_delivery() {
         .await;
     assert_eq!(status, StatusCode::OK, "{me}");
     assert_eq!(me["notification_delivery"]["mode"], "push");
-    assert!(me["remote_push_route"].is_null(), "{me}");
+    assert!(me["push_route"].is_null(), "{me}");
 }
 
 #[tokio::test]
@@ -249,7 +249,7 @@ async fn admin_lists_hide_secrets_and_token_revocation_blocks_use() {
             "/api/v1/requests",
             Some(token),
             Some(json!({
-                "source_id": "default",
+                "channel_id": "default",
                 "title": "Blocked after revoke",
                 "summary": "This should fail"
             })),
@@ -286,11 +286,11 @@ async fn admin_can_revoke_device_and_manage_subscriptions() {
         .await;
     assert_eq!(status, StatusCode::OK, "{updated}");
 
-    let (status, sources) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+    let (status, channels) = app
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
-    assert_eq!(status, StatusCode::OK, "{sources}");
-    assert_eq!(sources["sources"][0]["subscribed"], false);
+    assert_eq!(status, StatusCode::OK, "{channels}");
+    assert_eq!(channels["channels"][0]["subscribed"], false);
 
     let (status, revoked) = app
         .request(
@@ -303,7 +303,7 @@ async fn admin_can_revoke_device_and_manage_subscriptions() {
     assert_eq!(status, StatusCode::OK, "{revoked}");
 
     let (status, rejected) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{rejected}");
 }
@@ -351,10 +351,10 @@ async fn admin_can_manage_subscriptions_on_users() {
     let app = TestApp::new().await;
     let (_device_id, device_token) = app.enroll_device("Phone", "ios").await;
 
-    let (status, created_source) = app
+    let (status, created_channel) = app
         .request(
             Method::POST,
-            "/api/v1/admin/sources",
+            "/api/v1/admin/channels",
             Some("admin-test-token"),
             Some(json!({
                 "id": "alerts",
@@ -363,7 +363,7 @@ async fn admin_can_manage_subscriptions_on_users() {
             })),
         )
         .await;
-    assert_eq!(status, StatusCode::OK, "{created_source}");
+    assert_eq!(status, StatusCode::OK, "{created_channel}");
 
     let (status, subscriptions) = app
         .request(
@@ -374,22 +374,22 @@ async fn admin_can_manage_subscriptions_on_users() {
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{subscriptions}");
-    assert_eq!(subscriptions["sources"].as_array().unwrap().len(), 2);
+    assert_eq!(subscriptions["channels"].as_array().unwrap().len(), 2);
     assert_eq!(
-        subscriptions["sources"]
+        subscriptions["channels"]
             .as_array()
             .unwrap()
             .iter()
-            .filter(|source| source["subscribed"] == true)
+            .filter(|channel| channel["subscribed"] == true)
             .count(),
         1
     );
     assert_eq!(
-        subscriptions["sources"]
+        subscriptions["channels"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|source| source["id"] == "alerts")
+            .find(|channel| channel["id"] == "alerts")
             .unwrap()["subscribed"],
         false
     );
@@ -401,19 +401,19 @@ async fn admin_can_manage_subscriptions_on_users() {
             Some("admin-test-token"),
             Some(json!({
                 "updates": [
-                    { "source_id": "default", "subscribed": false },
-                    { "source_id": "alerts", "subscribed": false }
+                    { "channel_id": "default", "subscribed": false },
+                    { "channel_id": "alerts", "subscribed": false }
                 ]
             })),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{updated}");
     assert_eq!(
-        updated["sources"]
+        updated["channels"]
             .as_array()
             .unwrap()
             .iter()
-            .filter(|source| source["subscribed"] == true)
+            .filter(|channel| channel["subscribed"] == true)
             .count(),
         0
     );
@@ -427,18 +427,18 @@ async fn admin_can_manage_subscriptions_on_users() {
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{users}");
-    assert_eq!(users["users"][0]["subscribed_source_count"], 0);
+    assert_eq!(users["users"][0]["subscribed_channel_count"], 0);
 
-    let (status, device_sources) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+    let (status, device_channels) = app
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
-    assert_eq!(status, StatusCode::OK, "{device_sources}");
+    assert_eq!(status, StatusCode::OK, "{device_channels}");
     assert_eq!(
-        device_sources["sources"]
+        device_channels["channels"]
             .as_array()
             .unwrap()
             .iter()
-            .filter(|source| source["subscribed"] == true)
+            .filter(|channel| channel["subscribed"] == true)
             .count(),
         0
     );
@@ -486,9 +486,9 @@ async fn admin_can_manage_users_and_enroll_devices_to_users() {
     assert_eq!(device["user_id"], "paul");
     assert_eq!(device["user_name"], "Paul");
 
-    let (status, sources) = app
-        .request(Method::GET, "/api/v1/sources", Some(&device_token), None)
+    let (status, channels) = app
+        .request(Method::GET, "/api/v1/channels", Some(&device_token), None)
         .await;
-    assert_eq!(status, StatusCode::OK, "{sources}");
-    assert_eq!(sources["sources"][0]["subscribed"], true);
+    assert_eq!(status, StatusCode::OK, "{channels}");
+    assert_eq!(channels["channels"][0]["subscribed"], true);
 }

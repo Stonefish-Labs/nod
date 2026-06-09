@@ -2,7 +2,7 @@
 //! crypto — the byte-exact contract that clients sign and the server verifies.
 //!
 //! Previously this lived twice and across two crypto stacks (the server verified
-//! with `ring`, clients signed with `p256`). It is now the single source of
+//! with `ring`, clients signed with `p256`). It is now the single channel of
 //! truth, standardized on pure-Rust `p256` so it cross-compiles cleanly into the
 //! Apple clients via UniFFI.
 //!
@@ -119,7 +119,7 @@ pub fn request_digest(request: &Request) -> Result<String, SigningError> {
         concat!(
             "nod-request-v1\n",
             "request_id:{request_id}\n",
-            "source_id:{source_id}\n",
+            "channel_id:{channel_id}\n",
             "recipients:{recipients}\n",
             "decision_resolution:{decision_resolution}\n",
             "title_sha256:{title}\n",
@@ -134,7 +134,7 @@ pub fn request_digest(request: &Request) -> Result<String, SigningError> {
             "options_sha256:{options}\n"
         ),
         request_id = request.id,
-        source_id = request.source_id,
+        channel_id = request.channel_id,
         recipients = request.recipients.join(","),
         decision_resolution = request.decision_resolution.as_str(),
         title = sha256_hex(request.title.as_bytes()),
@@ -292,7 +292,7 @@ mod tests {
     fn request_digest_matches_frozen_contract() {
         assert_eq!(
             request_digest(&canonical_request()).unwrap(),
-            "9eb8157f2bee70b206c04c24460e42362e6fc5b9914a2d87c4af13bb2a385051"
+            "97e2edc559c47570f31c154f535ee6b019a509e998bf8a0c7f7b1cccb75d1f3f"
         );
     }
 
@@ -300,7 +300,7 @@ mod tests {
         Request {
             id: "request-1".to_string(),
             request_id: "request-1".to_string(),
-            source_id: "deployments".to_string(),
+            channel_id: "deployments".to_string(),
             recipients: vec!["owner".to_string(), "platform".to_string()],
             decision_resolution: DecisionResolution::Shared,
             title: "Approve production deploy".to_string(),

@@ -9,7 +9,7 @@ use crate::{
     config::Config,
     db,
     models::NotificationDelivery,
-    push::{build_push_registry, notification_delivery_for_route, PushRegistry, RemotePushRoute},
+    push::{build_push_registry, notification_delivery_for_route, PushRegistry, PushRoute},
     sync::{self, SyncSender},
 };
 
@@ -21,7 +21,7 @@ pub struct AppState {
     pub(crate) sync: SyncSender,
     pub(crate) push: PushRegistry,
     pub(crate) notification_delivery: NotificationDelivery,
-    pub(crate) remote_push_route: Option<RemotePushRoute>,
+    pub(crate) push_route: Option<PushRoute>,
     pub(crate) http: Client,
 }
 
@@ -30,7 +30,7 @@ impl AppState {
         let pool = db::connect(&config).await?;
         let audit = AuditLogger::new(config.data_dir.clone()).await?;
         let built_push = build_push_registry(&config.notifications)?;
-        let notification_delivery = notification_delivery_for_route(built_push.remote_route);
+        let notification_delivery = notification_delivery_for_route(built_push.route);
         let state = Self {
             config: Arc::new(config),
             pool,
@@ -38,7 +38,7 @@ impl AppState {
             sync: sync::sender(),
             push: built_push.registry,
             notification_delivery,
-            remote_push_route: built_push.remote_route,
+            push_route: built_push.route,
             http: Client::builder()
                 .timeout(std::time::Duration::from_secs(10))
                 .build()?,

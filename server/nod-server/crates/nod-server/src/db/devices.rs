@@ -1,7 +1,7 @@
 use sqlx::{Row, SqlitePool};
 
 use super::{
-    get_user, list_sources_for_device, now_string,
+    get_user, list_channels_for_device, now_string,
     rows::{row_to_attestation_summary, row_to_device, row_to_user_device},
     validation::parse_time,
     DEFAULT_USER_ID,
@@ -51,7 +51,7 @@ pub async fn list_devices_for_admin(pool: &SqlitePool) -> Result<Vec<AdminDevice
     let mut devices = Vec::with_capacity(rows.len());
     for row in rows {
         let id: String = row.get("id");
-        let subscriptions = list_sources_for_device(pool, &id).await?;
+        let subscriptions = list_channels_for_device(pool, &id).await?;
         devices.push(AdminDevice {
             id,
             user_id: row.get("user_id"),

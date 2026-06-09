@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE IF NOT EXISTS sources (
+CREATE TABLE IF NOT EXISTS channels (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     emoji TEXT NOT NULL DEFAULT '🔔',
@@ -82,24 +82,24 @@ CREATE TABLE IF NOT EXISTS user_enrollment_codes (
 CREATE INDEX IF NOT EXISTS idx_user_enrollment_codes_user
 ON user_enrollment_codes(user_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS user_source_subscriptions (
+CREATE TABLE IF NOT EXISTS user_channel_subscriptions (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     subscribed INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL,
-    PRIMARY KEY (user_id, source_id)
+    PRIMARY KEY (user_id, channel_id)
 );
 
-CREATE TABLE IF NOT EXISTS user_source_clears (
+CREATE TABLE IF NOT EXISTS user_channel_clears (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     cleared_at TEXT NOT NULL,
-    PRIMARY KEY (user_id, source_id)
+    PRIMARY KEY (user_id, channel_id)
 );
 
 CREATE TABLE IF NOT EXISTS requests (
     id TEXT PRIMARY KEY,
-    source_id TEXT NOT NULL REFERENCES sources(id),
+    channel_id TEXT NOT NULL REFERENCES channels(id),
     title TEXT NOT NULL,
     summary TEXT NOT NULL,
     body_markdown TEXT NOT NULL,
@@ -120,11 +120,11 @@ CREATE TABLE IF NOT EXISTS requests (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_pending_dedupe
-ON requests(source_id, dedupe_key)
+ON requests(channel_id, dedupe_key)
 WHERE dedupe_key IS NOT NULL AND status = 'pending';
 
-CREATE INDEX IF NOT EXISTS idx_requests_source_created
-ON requests(source_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_requests_channel_created
+ON requests(channel_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_requests_status_expires
 ON requests(status, expires_at);

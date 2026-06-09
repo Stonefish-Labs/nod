@@ -3,11 +3,13 @@ use sqlx::Row;
 use super::validation::parse_time;
 use crate::{
     error::ApiError,
-    models::{Device, DeviceAttestationStatus, DeviceAttestationSummary, Source, User, UserDevice},
+    models::{
+        Channel, Device, DeviceAttestationStatus, DeviceAttestationSummary, User, UserDevice,
+    },
 };
 
-pub(super) fn row_to_source(row: sqlx::sqlite::SqliteRow) -> Result<Source, ApiError> {
-    Ok(Source {
+pub(super) fn row_to_channel(row: sqlx::sqlite::SqliteRow) -> Result<Channel, ApiError> {
+    Ok(Channel {
         id: row.get("id"),
         name: row.get("name"),
         emoji: row.get("emoji"),

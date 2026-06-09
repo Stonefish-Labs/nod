@@ -14,8 +14,8 @@ pub struct AdminUser {
     pub id: String,
     pub name: String,
     pub device_count: i64,
-    pub subscribed_source_count: i64,
-    pub subscribed_source_ids: Vec<String>,
+    pub subscribed_channel_count: i64,
+    pub subscribed_channel_ids: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -50,7 +50,7 @@ pub struct UpdateSubscriptionRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdminUserSubscriptionUpdate {
-    pub source_id: String,
+    pub channel_id: String,
     pub subscribed: bool,
 }
 

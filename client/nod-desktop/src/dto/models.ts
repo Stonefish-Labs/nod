@@ -1,4 +1,10 @@
-// These DTOs intentionally mirror Rust serde payloads, so field names stay snake_case here.
+// These DTOs mirror the Rust serde payloads, so field names stay snake_case.
+//
+// The canonical definitions live in Rust (nod-proto + nod-client-core); the
+// typeshare projection of them is `./generated.ts` (run scripts/generate-types.sh).
+// These interfaces track that projection but use string-literal unions and
+// `| null` (matching the wire, which sends JSON `null`) rather than typeshare's
+// TS enums / `undefined`, so the UI can compare against string literals.
 export type DevicePlatform =
   | "ios"
   | "macos"
@@ -49,7 +55,7 @@ export interface UserDevice {
   is_current: boolean;
 }
 
-export interface Source {
+export interface Channel {
   id: string;
   name: string;
   emoji: string;
@@ -98,7 +104,7 @@ export interface UserDecision {
 export interface NodRequest {
   id: string;
   request_id: string;
-  source_id: string;
+  channel_id: string;
   recipients: string[];
   decision_resolution: "shared" | "per_user";
   title: string;
@@ -132,10 +138,10 @@ export interface ClientState {
   selected_server_id?: string | null;
   current_user?: User | null;
   devices: UserDevice[];
-  sources: Source[];
-  pending_counts_by_source: Record<string, number>;
+  channels: Channel[];
+  pending_counts_by_channel: Record<string, number>;
   requests: NodRequest[];
-  selected_source_id?: string | null;
+  selected_channel_id?: string | null;
   selected_request_id?: string | null;
   notification_sound: string;
   notification_delivery_mode: NotificationDeliveryMode;

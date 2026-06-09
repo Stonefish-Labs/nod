@@ -4,7 +4,7 @@ use super::read::get_request;
 use crate::{
     auth::new_id,
     db::{
-        get_source, get_user, now_string,
+        get_channel, get_user, now_string,
         validation::{normalize_options, validate_id, validate_request},
     },
     error::ApiError,
@@ -20,12 +20,13 @@ pub async fn create_request(
     created_by_issuer_token_id: Option<&str>,
 ) -> Result<CreatedDecisionRequest, ApiError> {
     validate_request(&req)?;
-    get_source(pool, &req.source_id).await?;
+    get_channel(pool, &req.channel_id).await?;
     let recipients =
-        resolve_request_recipients(pool, &req.source_id, req.recipients.as_ref()).await?;
+        resolve_request_recipients(pool, &req.channel_id, req.recipients.as_ref()).await?;
     // The dedupe key is part of the issuer contract: retried creates must return the pending request.
     if let Some(key) = req.dedupe_key.as_deref() {
-        if let Some(request) = find_pending_request_by_dedupe_key(pool, &req.source_id, key).await?
+        if let Some(request) =
+            find_pending_request_by_dedupe_key(pool, &req.channel_id, key).await?
         {
             return Ok(CreatedDecisionRequest {
                 request_id: request.id.clone(),
@@ -57,7 +58,7 @@ pub async fn create_request(
     sqlx::query(
         r#"
         INSERT INTO requests (
-            id, source_id, title, summary, body_markdown, fields_json, links_json,
+            id, channel_id, title, summary, body_markdown, fields_json, links_json,
             image_url, notification_json, dedupe_key, expires_at, status,
             created_at, updated_at, callback_url, decision_resolution, created_by_issuer_token_id
         )
@@ -65,7 +66,7 @@ pub async fn create_request(
         "#,
     )
     .bind(&id)
-    .bind(&req.source_id)
+    .bind(&req.channel_id)
     .bind(req.title.trim())
     .bind(summary.trim())
     .bind(req.body_markdown.trim())
@@ -170,7 +171,7 @@ async fn insert_request_recipient(
 
 async fn resolve_request_recipients(
     pool: &SqlitePool,
-    source_id: &str,
+    channel_id: &str,
     requested: Option<&Vec<String>>,
 ) -> Result<Vec<String>, ApiError> {
     if let Some(requested) = requested {
@@ -195,12 +196,12 @@ async fn resolve_request_recipients(
     let rows = sqlx::query(
         r#"
         SELECT user_id
-        FROM user_source_subscriptions
-        WHERE source_id = ? AND subscribed = 1
+        FROM user_channel_subscriptions
+        WHERE channel_id = ? AND subscribed = 1
         ORDER BY user_id
         "#,
     )
-    .bind(source_id)
+    .bind(channel_id)
     .fetch_all(pool)
     .await?;
     Ok(rows.into_iter().map(|row| row.get("user_id")).collect())
@@ -208,13 +209,13 @@ async fn resolve_request_recipients(
 
 async fn find_pending_request_by_dedupe_key(
     pool: &SqlitePool,
-    source_id: &str,
+    channel_id: &str,
     dedupe_key: &str,
 ) -> Result<Option<DecisionRequest>, ApiError> {
     let row = sqlx::query(
-        "SELECT id FROM requests WHERE source_id = ? AND dedupe_key = ? AND status = 'pending'",
+        "SELECT id FROM requests WHERE channel_id = ? AND dedupe_key = ? AND status = 'pending'",
     )
-    .bind(source_id)
+    .bind(channel_id)
     .bind(dedupe_key)
     .fetch_optional(pool)
     .await?;

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use nod_client_core::{
     models::{ClientState, Request, UserDevice},
     NodClientRuntime, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
-    SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
     SubmitOptionParams,
 };
 
@@ -31,8 +31,8 @@ impl RuntimePort for NodClientRuntime {
         self.forget_server(&params.server_id).await
     }
 
-    async fn select_source(&mut self, params: SourceParams) -> Result<ClientState> {
-        self.select_source(params).await
+    async fn select_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
+        self.select_channel(params).await
     }
 
     async fn select_request(&mut self, params: SelectRequestParams) -> Result<ClientState> {
@@ -43,8 +43,8 @@ impl RuntimePort for NodClientRuntime {
         self.submit_option(params).await
     }
 
-    async fn clear_source(&mut self, params: SourceParams) -> Result<ClientState> {
-        self.clear_source(params).await
+    async fn clear_channel(&mut self, params: ChannelParams) -> Result<ClientState> {
+        self.clear_channel(params).await
     }
 
     async fn set_subscription(&mut self, params: SetSubscriptionParams) -> Result<ClientState> {

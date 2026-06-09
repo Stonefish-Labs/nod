@@ -1,21 +1,21 @@
 import { Bell, RefreshCw, Server, Settings } from "lucide-react";
-import { pendingCountFor, sourceColor, totalPendingCount } from "../domain";
-import type { Source, ClientState, ServerProfile } from "../types";
+import { pendingCountFor, channelColor, totalPendingCount } from "../domain";
+import type { Channel, ClientState, ServerProfile } from "../types";
 
 interface SidebarProps {
-  activeSource?: Source;
+  activeChannel?: Channel;
   onOpenSettings: () => void;
   onRefresh: () => Promise<void>;
-  onSelectSource: (source: Source) => Promise<void>;
+  onSelectChannel: (channel: Channel) => Promise<void>;
   onSelectServer: (server: ServerProfile) => Promise<void>;
   state: ClientState;
 }
 
 export function Sidebar({
-  activeSource,
+  activeChannel,
   onOpenSettings,
   onRefresh,
-  onSelectSource,
+  onSelectChannel,
   onSelectServer,
   state,
 }: SidebarProps): JSX.Element {
@@ -31,11 +31,11 @@ export function Sidebar({
         selectedServerId={state.selected_server_id ?? null}
         onSelect={onSelectServer}
       />
-      <SourceList
-        sources={state.sources.filter((source) => source.subscribed)}
-        activeSource={activeSource}
+      <ChannelList
+        channels={state.channels.filter((channel) => channel.subscribed)}
+        activeChannel={activeChannel}
         state={state}
-        onSelect={onSelectSource}
+        onSelect={onSelectChannel}
       />
       <div className="sidebarControls">
         <button type="button" onClick={() => void onRefresh()}>
@@ -80,33 +80,33 @@ function ServerList({
   );
 }
 
-interface SourceListProps {
-  activeSource?: Source;
-  sources: Source[];
-  onSelect: (source: Source) => Promise<void>;
+interface ChannelListProps {
+  activeChannel?: Channel;
+  channels: Channel[];
+  onSelect: (channel: Channel) => Promise<void>;
   state: ClientState;
 }
 
-function SourceList({
-  activeSource,
-  sources,
+function ChannelList({
+  activeChannel,
+  channels,
   onSelect,
   state,
-}: SourceListProps): JSX.Element {
+}: ChannelListProps): JSX.Element {
   return (
-    <section className="navGroup sources">
-      <h2>Sources</h2>
-      {sources.map((source) => (
+    <section className="navGroup channels">
+      <h2>Channels</h2>
+      {channels.map((channel) => (
         <button
           type="button"
-          key={source.id}
-          className={source.id === activeSource?.id ? "active" : ""}
-          onClick={() => void onSelect(source)}
+          key={channel.id}
+          className={channel.id === activeChannel?.id ? "active" : ""}
+          onClick={() => void onSelect(channel)}
         >
-          <span className="swatch" style={{ backgroundColor: sourceColor(source) }} />
-          <span className="sourceEmoji" aria-hidden="true">{source.emoji || "🔔"}</span>
-          <span>{source.name}</span>
-          <strong>{pendingCountFor(source, state)}</strong>
+          <span className="swatch" style={{ backgroundColor: channelColor(channel) }} />
+          <span className="channelEmoji" aria-hidden="true">{channel.emoji || "🔔"}</span>
+          <span>{channel.name}</span>
+          <strong>{pendingCountFor(channel, state)}</strong>
         </button>
       ))}
     </section>

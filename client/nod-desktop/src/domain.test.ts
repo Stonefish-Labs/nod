@@ -5,17 +5,17 @@ import {
   canSubmitEnrollment,
   requestPreview,
   orderedRequests,
-  selectedSource,
+  selectedChannel,
   selectedRequest,
-  sourceColor,
+  channelColor,
   totalPendingCount,
 } from "./domain";
-import type { Source, ClientState, RequestOption, NodRequest } from "./types";
+import type { Channel, ClientState, RequestOption, NodRequest } from "./types";
 
 const baseRequest: NodRequest = {
   id: "base",
   request_id: "base",
-  source_id: "default",
+  channel_id: "default",
   recipients: [],
   decision_resolution: "shared",
   title: "Base",
@@ -47,10 +47,10 @@ const baseState: ClientState = {
   selected_server_id: null,
   current_user: null,
   devices: [],
-  sources: [],
-  pending_counts_by_source: {},
+  channels: [],
+  pending_counts_by_channel: {},
   requests: [],
-  selected_source_id: null,
+  selected_channel_id: null,
   selected_request_id: null,
   notification_sound: "default",
   notification_delivery_mode: "websocket",
@@ -59,7 +59,7 @@ const baseState: ClientState = {
   last_error: null,
 };
 
-const baseSource: Source = {
+const baseChannel: Channel = {
   id: "default",
   name: "Default",
   emoji: "🔔",
@@ -79,17 +79,17 @@ const baseOption: RequestOption = {
 };
 
 describe("domain helpers", () => {
-  it("totals pending counts across sources", () => {
+  it("totals pending counts across channels", () => {
     expect(
       totalPendingCount({
         ...baseState,
-        pending_counts_by_source: { a: 2, b: 3 },
+        pending_counts_by_channel: { a: 2, b: 3 },
       }),
     ).toBe(5);
   });
 
-  it("generates stable display colors from source identity", () => {
-    expect(sourceColor(baseSource)).toBe(sourceColor({ ...baseSource }));
+  it("generates stable display colors from channel identity", () => {
+    expect(channelColor(baseChannel)).toBe(channelColor({ ...baseChannel }));
   });
 
   it("orders pending requests before handled requests", () => {
@@ -136,26 +136,26 @@ describe("domain helpers", () => {
     expect(selected?.id).toBe("pending");
   });
 
-  it("selects the explicit source when it exists", () => {
-    const selected = selectedSource({
+  it("selects the explicit channel when it exists", () => {
+    const selected = selectedChannel({
       ...baseState,
-      selected_source_id: "target",
-      sources: [
-        { ...baseSource, id: "fallback" },
-        { ...baseSource, id: "target" },
+      selected_channel_id: "target",
+      channels: [
+        { ...baseChannel, id: "fallback" },
+        { ...baseChannel, id: "target" },
       ],
     });
 
     expect(selected?.id).toBe("target");
   });
 
-  it("falls back to the first source when the selected source is absent", () => {
-    const selected = selectedSource({
+  it("falls back to the first channel when the selected channel is absent", () => {
+    const selected = selectedChannel({
       ...baseState,
-      selected_source_id: "missing",
-      sources: [
-        { ...baseSource, id: "fallback" },
-        { ...baseSource, id: "target" },
+      selected_channel_id: "missing",
+      channels: [
+        { ...baseChannel, id: "fallback" },
+        { ...baseChannel, id: "target" },
       ],
     });
 

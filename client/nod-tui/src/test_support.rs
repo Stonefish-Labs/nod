@@ -20,16 +20,16 @@ pub fn client_state() -> ClientState {
         selected_server_id: Some("local".to_string()),
         current_user: None,
         devices: Vec::new(),
-        sources: vec![nod_client_core::models::Source {
+        channels: vec![nod_client_core::models::Channel {
             id: "default".to_string(),
             name: "Default".to_string(),
             emoji: "🔔".to_string(),
             subscribed: true,
             created_at: Utc.with_ymd_and_hms(2026, 5, 31, 12, 0, 0).unwrap(),
         }],
-        pending_counts_by_source: BTreeMap::from([("default".to_string(), 1)]),
+        pending_counts_by_channel: BTreeMap::from([("default".to_string(), 1)]),
         requests: vec![request("deploy", "default")],
-        selected_source_id: Some("default".to_string()),
+        selected_channel_id: Some("default".to_string()),
         selected_request_id: Some("deploy".to_string()),
         notification_sound: "default".to_string(),
         notification_delivery_mode: NotificationDeliveryMode::Websocket,
@@ -39,15 +39,15 @@ pub fn client_state() -> ClientState {
     }
 }
 
-pub fn request(id: &str, source_id: &str) -> Request {
-    request_with_status(id, source_id, RequestStatus::Pending)
+pub fn request(id: &str, channel_id: &str) -> Request {
+    request_with_status(id, channel_id, RequestStatus::Pending)
 }
 
-pub fn request_with_status(id: &str, source_id: &str, status: RequestStatus) -> Request {
+pub fn request_with_status(id: &str, channel_id: &str, status: RequestStatus) -> Request {
     Request {
         id: id.to_string(),
         request_id: id.to_string(),
-        source_id: source_id.to_string(),
+        channel_id: channel_id.to_string(),
         recipients: Vec::new(),
         decision_resolution: DecisionResolution::Shared,
         title: id.to_string(),

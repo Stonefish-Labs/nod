@@ -11,7 +11,7 @@ use std::time::Instant;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use nod_client_core::{
     models::{ClientState, OptionKind, Request, UserDevice},
-    NodClientMessage, RevokeDeviceParams, SelectRequestParams, SelectServerParams, SourceParams,
+    NodClientMessage, RevokeDeviceParams, SelectRequestParams, SelectServerParams, ChannelParams,
     SubmitOptionParams,
 };
 
@@ -278,7 +278,7 @@ impl AppState {
             KeyCode::Char('r') => self.command_for_option_kind(OptionKind::Reject),
             KeyCode::Char('d') => self.command_for_option_kind(OptionKind::Dismiss),
             KeyCode::Char('n') => self.command_for_text_option(),
-            KeyCode::Char('c') => self.command_for_clear_source(),
+            KeyCode::Char('c') => self.command_for_clear_channel(),
             KeyCode::Enter => {
                 if self.focus == Focus::Requests {
                     self.focus = Focus::Detail;
@@ -288,7 +288,7 @@ impl AppState {
             KeyCode::Up | KeyCode::Char('k') => self.move_selection(-1),
             KeyCode::Down | KeyCode::Char('j') => self.move_selection(1),
             KeyCode::Left => {
-                self.focus = Focus::Sources;
+                self.focus = Focus::Channels;
                 Vec::new()
             }
             KeyCode::Right => {
@@ -415,7 +415,7 @@ impl AppState {
     fn move_selection(&mut self, delta: isize) -> Vec<RuntimeCommand> {
         match self.focus {
             Focus::Servers => self.move_server(delta),
-            Focus::Sources => self.move_source(delta),
+            Focus::Channels => self.move_channel(delta),
             Focus::Requests => self.move_request(delta),
             Focus::Detail => Vec::new(),
         }
@@ -438,19 +438,19 @@ impl AppState {
         })]
     }
 
-    fn move_source(&self, delta: isize) -> Vec<RuntimeCommand> {
-        let sources = domain::subscribed_sources(&self.client_state);
-        let current = domain::selected_source(&self.client_state).map(|source| source.id.as_str());
+    fn move_channel(&self, delta: isize) -> Vec<RuntimeCommand> {
+        let channels = domain::subscribed_channels(&self.client_state);
+        let current = domain::selected_channel(&self.client_state).map(|channel| channel.id.as_str());
         let Some(next_id) = selected_id_after(
-            sources.iter().map(|source| source.id.as_str()),
+            channels.iter().map(|channel| channel.id.as_str()),
             current,
             delta,
         ) else {
             return Vec::new();
         };
 
-        vec![RuntimeCommand::SelectSource(SourceParams {
-            source_id: next_id,
+        vec![RuntimeCommand::SelectChannel(ChannelParams {
+            channel_id: next_id,
         })]
     }
 
@@ -511,13 +511,13 @@ impl AppState {
         Vec::new()
     }
 
-    fn command_for_clear_source(&self) -> Vec<RuntimeCommand> {
-        let Some(source) = domain::selected_source(&self.client_state) else {
+    fn command_for_clear_channel(&self) -> Vec<RuntimeCommand> {
+        let Some(channel) = domain::selected_channel(&self.client_state) else {
             return Vec::new();
         };
 
-        vec![RuntimeCommand::ClearSource(SourceParams {
-            source_id: source.id.clone(),
+        vec![RuntimeCommand::ClearChannel(ChannelParams {
+            channel_id: channel.id.clone(),
         })]
     }
 }
@@ -636,7 +636,7 @@ mod tests {
     }
 
     #[test]
-    fn settings_source_toggle_uses_core_subscription_command() {
+    fn settings_channel_toggle_uses_core_subscription_command() {
         let mut app = AppState::new(client_state());
         app.modal = Some(Modal::Settings(SettingsState::new()));
 
@@ -646,7 +646,7 @@ mod tests {
             commands,
             vec![RuntimeCommand::SetSubscription(
                 nod_client_core::SetSubscriptionParams {
-                    source_id: "default".to_string(),
+                    channel_id: "default".to_string(),
                     subscribed: false
                 }
             )]

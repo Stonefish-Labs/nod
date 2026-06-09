@@ -7,10 +7,12 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
 use crate::{request::OptionKind, DECISION_SIGNING_ALGORITHM};
 
 /// The signature a client submits when resolving a request.
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DecisionSignature {
     pub key_id: String,
@@ -25,6 +27,7 @@ pub struct DecisionSignature {
 /// The signature record the server stores and republishes on a decision. Adds
 /// the server's verification verdict (`verified`) and the canonical
 /// `signing_payload` it reconstructed during verification.
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DecisionSignatureRecord {
     pub key_id: String,
@@ -40,6 +43,7 @@ pub struct DecisionSignatureRecord {
 /// A recorded decision on a request. Carries the optional signature record so
 /// clients can display and independently verify it (the previous client model
 /// silently dropped it).
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Decision {
     pub request_id: String,
@@ -54,10 +58,12 @@ pub struct Decision {
     pub actor_device_id: Option<String>,
     #[serde(default)]
     pub signature: Option<DecisionSignatureRecord>,
+    #[typeshare(serialized_as = "String")]
     pub resolved_at: DateTime<Utc>,
 }
 
 /// One user's decision under per-user resolution.
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserDecision {
     pub user_id: String,

@@ -7,7 +7,7 @@ use url::Url;
 
 use crate::models::{
     CurrentUserResponse, DecisionSignature, DevicePlatform, DeviceSigningKey, EnrollDeviceResponse,
-    Request, RequestResponse, RequestsResponse, Source, SourcesResponse, UserDevice,
+    Request, RequestResponse, RequestsResponse, Channel, ChannelsResponse, UserDevice,
     UserDeviceResponse, UserDevicesResponse,
 };
 
@@ -92,19 +92,19 @@ impl NodApi {
         Ok(())
     }
 
-    pub async fn sources(&self) -> Result<Vec<Source>> {
-        let response: SourcesResponse = self
-            .request(RequestSpec::authenticated(Method::GET, "/api/v1/sources"))
+    pub async fn channels(&self) -> Result<Vec<Channel>> {
+        let response: ChannelsResponse = self
+            .request(RequestSpec::authenticated(Method::GET, "/api/v1/channels"))
             .await?;
-        Ok(response.sources)
+        Ok(response.channels)
     }
 
     pub async fn requests(
         &self,
-        source_id: Option<&str>,
+        channel_id: Option<&str>,
         limit: Option<usize>,
     ) -> Result<Vec<Request>> {
-        let path = requests_path(source_id, limit);
+        let path = requests_path(channel_id, limit);
         let response: RequestsResponse = self
             .request(RequestSpec::authenticated(Method::GET, &path))
             .await?;
@@ -136,20 +136,20 @@ impl NodApi {
         Ok(response.request)
     }
 
-    pub async fn clear_source(&self, source_id: &str) -> Result<()> {
-        let path = format!("/api/v1/devices/me/sources/{source_id}/clear");
+    pub async fn clear_channel(&self, channel_id: &str) -> Result<()> {
+        let path = format!("/api/v1/devices/me/channels/{channel_id}/clear");
         let _: serde_json::Value = self
             .request(RequestSpec::authenticated(Method::POST, &path))
             .await?;
         Ok(())
     }
 
-    pub async fn set_subscription(&self, source_id: &str, subscribed: bool) -> Result<()> {
+    pub async fn set_subscription(&self, channel_id: &str, subscribed: bool) -> Result<()> {
         #[derive(Serialize)]
         struct Body {
             subscribed: bool,
         }
-        let path = format!("/api/v1/devices/me/subscriptions/{source_id}");
+        let path = format!("/api/v1/devices/me/subscriptions/{channel_id}");
         let _: serde_json::Value = self
             .request(RequestSpec::authenticated_json(
                 Method::PUT,
@@ -365,11 +365,11 @@ fn join_path(base: &str, path: &str) -> String {
     }
 }
 
-fn requests_path(source_id: Option<&str>, limit: Option<usize>) -> String {
+fn requests_path(channel_id: Option<&str>, limit: Option<usize>) -> String {
     let mut query = url::form_urlencoded::Serializer::new(String::new());
     query.append_pair("include_cleared", "false");
-    if let Some(source_id) = source_id {
-        query.append_pair("source_id", source_id);
+    if let Some(channel_id) = channel_id {
+        query.append_pair("channel_id", channel_id);
     }
     if let Some(limit) = limit {
         query.append_pair("limit", &limit.to_string());
@@ -405,8 +405,8 @@ mod tests {
     #[test]
     fn builds_requests_path_with_encoded_filters() {
         assert_eq!(
-            requests_path(Some("ops/main source"), Some(25)),
-            "/api/v1/requests?include_cleared=false&source_id=ops%2Fmain+source&limit=25"
+            requests_path(Some("ops/main channel"), Some(25)),
+            "/api/v1/requests?include_cleared=false&channel_id=ops%2Fmain+channel&limit=25"
         );
     }
 
@@ -440,29 +440,29 @@ mod tests {
     }
 
     #[test]
-    fn enrollment_response_decodes_sources_field() {
+    fn enrollment_response_decodes_channels_field() {
         let response: EnrollDeviceResponse = serde_json::from_value(serde_json::json!({
             "device_id": "device-1",
             "user_id": "owner",
             "user_name": "Owner",
             "token": "device-token",
             "notification_delivery": { "mode": "websocket" },
-            "sources": [source_json("default")],
+            "channels": [channel_json("default")],
             "devices": []
         }))
         .unwrap();
 
-        assert_eq!(response.sources[0].id, "default");
+        assert_eq!(response.channels[0].id, "default");
     }
 
     #[test]
-    fn sources_response_decodes_sources_field() {
-        let response: SourcesResponse = serde_json::from_value(serde_json::json!({
-            "sources": [source_json("default")]
+    fn channels_response_decodes_channels_field() {
+        let response: ChannelsResponse = serde_json::from_value(serde_json::json!({
+            "channels": [channel_json("default")]
         }))
         .unwrap();
 
-        assert_eq!(response.sources[0].id, "default");
+        assert_eq!(response.channels[0].id, "default");
     }
 
     #[test]
@@ -489,17 +489,17 @@ mod tests {
     }
 
     #[test]
-    fn sync_payload_decodes_source_field() {
+    fn sync_payload_decodes_channel_field() {
         let envelope: SyncEnvelope = serde_json::from_value(serde_json::json!({
-            "kind": "source_updated",
+            "kind": "channel_updated",
             "at": "2026-06-01T00:00:01Z",
             "payload": {
-                "source": source_json("default")
+                "channel": channel_json("default")
             }
         }))
         .unwrap();
 
-        assert_eq!(envelope.payload.source.unwrap().id, "default");
+        assert_eq!(envelope.payload.channel.unwrap().id, "default");
     }
 
     #[test]
@@ -524,7 +524,7 @@ mod tests {
         );
     }
 
-    fn source_json(id: &str) -> serde_json::Value {
+    fn channel_json(id: &str) -> serde_json::Value {
         serde_json::json!({
             "id": id,
             "name": "Default",
@@ -538,7 +538,7 @@ mod tests {
         serde_json::json!({
             "id": id,
             "request_id": id,
-            "source_id": "default",
+            "channel_id": "default",
             "recipients": ["owner"],
             "decision_resolution": "per_user",
             "title": "Approve deployment",

@@ -81,7 +81,7 @@ pub(super) async fn row_to_request(
 
     Ok(DecisionRequest {
         id: request_id,
-        source_id: row.get("source_id"),
+        channel_id: row.get("channel_id"),
         recipients,
         decision_resolution: DecisionResolution::from(
             row.get::<String, _>("decision_resolution").as_str(),

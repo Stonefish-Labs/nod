@@ -20,7 +20,7 @@ use crate::{
 
 pub use rpc::{
     EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams, RpcRequest,
-    RpcResponse, SelectRequestParams, SelectServerParams, SetSubscriptionParams, SourceParams,
+    RpcResponse, SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
     SubmitOptionParams,
 };
 
