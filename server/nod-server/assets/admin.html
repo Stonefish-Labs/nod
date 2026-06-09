@@ -182,12 +182,12 @@
     .channels-table .emoji-col { width: 52px; }
     .channels-table .id-col { width: 220px; }
     .channels-table .members-col { width: 110px; }
-    .channels-table .actions-col { width: 170px; }
+    .channels-table .actions-col { width: 220px; }
     .users-table .name-col { min-width: 220px; }
     .users-table .id-col { width: 220px; }
     .users-table .count-col { width: 100px; }
     .users-table .created-col { width: 190px; }
-    .users-table .actions-col { width: 120px; }
+    .users-table .actions-col { width: 190px; }
     .channel-emoji-cell {
       width: 52px;
       font-size: 18px;
@@ -198,7 +198,7 @@
       min-width: 220px;
     }
     .channel-members-cell { width: 110px; white-space: nowrap; }
-    .channel-actions-cell { width: 170px; white-space: nowrap; }
+    .channel-actions-cell { width: 220px; white-space: nowrap; }
     code {
       display: inline-block;
       max-width: 360px;
@@ -1152,6 +1152,7 @@
           <td class="actions-col">
             <div class="actions-cell">
               <button class="link" data-edit-user="${esc(user.id)}">Edit</button>
+              <button class="link" data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}">Subscriptions</button>
               ${user.id === "owner" ? "" : `<button class="danger" data-delete-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Delete</button>`}
             </div>
           </td>
@@ -1173,6 +1174,7 @@
           <td class="channel-actions-cell">
             <div class="actions-cell">
               <button class="link" data-edit-channel="${esc(channel.id)}">Edit</button>
+              <button class="link" data-manage-channel-members="${esc(channel.id)}" data-channel-name="${esc(channel.name)}">Members</button>
               <button class="danger" data-delete-channel="${esc(channel.id)}" data-channel-name="${esc(channel.name)}">Delete</button>
             </div>
           </td>
@@ -1988,6 +1990,9 @@
       if (event.key === "Escape" && !$("channelModalBackdrop").classList.contains("hidden")) {
         closeChannelModal();
         $("resetChannelForm").focus();
+      }
+      if (event.key === "Escape" && !$("subscriptionModalBackdrop").classList.contains("hidden")) {
+        closeSubscriptionModal();
       }
       if (event.key === "Escape" && !$("channelMembershipModalBackdrop").classList.contains("hidden")) {
         closeChannelMembershipModal();
