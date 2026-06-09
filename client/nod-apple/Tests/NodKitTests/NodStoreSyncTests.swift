@@ -3,62 +3,17 @@ import XCTest
 
 @testable import NodKit
 
+/// After the cutover onto the shared Rust runtime, server/session lifecycle (the
+/// API client, auth-error classification, server removal) lives in
+/// `nod-client-core`. The Swift facade only still owns the re-enrollment UI flow:
+/// prefilling the draft fields from the invalid server and, when other servers
+/// remain, raising a registration prompt. Those are the behaviours covered here.
 final class NodStoreSyncTests: XCTestCase {
-  func testAuthenticatedRequestErrorActionInvalidatesOnlyUnauthorizedResponses() {
-    XCTAssertEqual(
-      NodStore.authenticatedRequestErrorAction(for: NodAPIError.badStatus(401, "")),
-      .serverRejectedSession
-    )
-  }
-
-  func testAuthenticatedRequestErrorActionKeepsForbiddenSeparateFromInvalidSession() {
-    XCTAssertEqual(
-      NodStore.authenticatedRequestErrorAction(for: NodAPIError.badStatus(403, "")),
-      .requestDenied
-    )
-  }
-
-  func testAuthenticatedRequestErrorActionKeepsMissingLocalTokenSeparateFromInvalidSession() {
-    XCTAssertEqual(
-      NodStore.authenticatedRequestErrorAction(for: NodAPIError.missingToken),
-      .missingLocalToken
-    )
-  }
-
-  func testAuthenticatedRequestErrorActionTreatsOtherFailuresAsConnectionIssues() {
-    XCTAssertEqual(
-      NodStore.authenticatedRequestErrorAction(for: NodAPIError.badStatus(500, "")),
-      .connectionIssue
-    )
-    XCTAssertEqual(
-      NodStore.authenticatedRequestErrorAction(for: URLError(.timedOut)),
-      .connectionIssue
-    )
-  }
-
   @MainActor
-  func testInvalidSessionOffersReEnrollmentForSelectedServer() {
+  func testInvalidSessionReEnrollmentPrefillsRegistrationDraft() {
     let store = testStore()
     store.servers = [serverProfile()]
     store.selectedServerId = "server-1"
-    store.isRegistered = true
-
-    store.handleAuthenticatedRequestError(NodAPIError.badStatus(401, ""))
-
-    XCTAssertEqual(store.reEnrollmentServerId, "server-1")
-    XCTAssertTrue(store.canReEnrollInvalidSession)
-    XCTAssertEqual(
-      store.connectionIssue(for: store.servers[0]),
-      "Your Nod session with Test Server is no longer valid. Re-enroll this device to continue."
-    )
-  }
-
-  @MainActor
-  func testInvalidSessionReEnrollmentPrefillsRegistrationAndRemovesInvalidServer() {
-    let store = testStore()
-    store.servers = [serverProfile()]
-    store.selectedServerId = "server-1"
-    store.isRegistered = true
     store.reEnrollmentServerId = "server-1"
     store.lastError = "invalid"
 
@@ -69,8 +24,7 @@ final class NodStoreSyncTests: XCTestCase {
     XCTAssertEqual(store.enrollmentCode, "")
     XCTAssertNil(store.lastError)
     XCTAssertNil(store.reEnrollmentServerId)
-    XCTAssertFalse(store.isRegistered)
-    XCTAssertTrue(store.servers.isEmpty)
+    XCTAssertNil(store.registrationPromptRequestId)
   }
 
   @MainActor
@@ -87,15 +41,22 @@ final class NodStoreSyncTests: XCTestCase {
       ),
     ]
     store.selectedServerId = "server-1"
-    store.isRegistered = true
     store.reEnrollmentServerId = "server-1"
 
     store.beginInvalidSessionReEnrollment()
 
     XCTAssertEqual(store.baseURLString, "https://example.test/boop")
-    XCTAssertEqual(store.servers.map(\.id), ["server-2"])
-    XCTAssertTrue(store.isRegistered)
     XCTAssertNotNil(store.registrationPromptRequestId)
+  }
+
+  @MainActor
+  func testInvalidSessionReEnrollmentClearsWhenNoServerSelected() {
+    let store = testStore()
+    store.reEnrollmentServerId = "missing"
+
+    store.beginInvalidSessionReEnrollment()
+
+    XCTAssertNil(store.reEnrollmentServerId)
   }
 
   @MainActor
@@ -108,12 +69,12 @@ final class NodStoreSyncTests: XCTestCase {
     )
     store.servers = []
     store.selectedServerId = nil
-    store.isRegistered = false
     store.baseURLString = ""
     store.deviceName = "Test Mac"
     store.enrollmentCode = ""
     store.lastError = nil
     store.reEnrollmentServerId = nil
+    store.registrationPromptRequestId = nil
     return store
   }
 
