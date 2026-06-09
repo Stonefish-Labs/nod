@@ -5,8 +5,11 @@ mod signing;
 mod state;
 mod store;
 
+pub use api::{display_name_for, normalize_base_url, profile_id_for};
 pub use runtime::{
     EnrollParams, NodClientMessage, NodClientRuntime, NotificationPreferenceParams,
-    RenameDeviceParams, RevokeDeviceParams, RpcRequest, RpcResponse, SelectRequestParams,
-    SelectServerParams, SetSubscriptionParams, ChannelParams, SubmitOptionParams,
+    RegisterPushTokenParams, RenameDeviceParams, RevokeDeviceParams, RpcRequest, RpcResponse,
+    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams, SignerBackend,
+    SubmitOptionParams,
 };
+pub use signing::{ForeignSigner, ForeignSignerKey};

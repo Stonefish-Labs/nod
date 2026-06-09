@@ -21,18 +21,19 @@
 - Consequences: Deleted `reset_legacy_config`, retired-column migrations, and legacy-rejection tests (Rust + the Swift twin `testLegacyServerContractKeysDoNotDecode`). Lenient decoding (no `deny_unknown_fields` on inbound wire types) chosen over strict.
 - Reconsideration trigger: First real external client ships.
 
-## #9 UniFFI lives in a dedicated `nod-proto-ffi` crate
+## #9 UniFFI lives in ONE crate (`nod-client-ffi`) — SUPERSEDED the dedicated `nod-proto-ffi`
 
 - Date: 2026-06-09
-- Rationale: Keep `nod-proto` a pure protocol crate — the server and Rust clients must not pull `uniffi`. The FFI crate depends on `nod-proto` and is the Apple-only artifact.
-- Tradeoffs: One more crate; an xcframework build step.
-- Rejected alternatives: Feature-gate `uniffi` inside `nod-proto` (rejected — pollutes the canonical crate).
-- Reconsideration trigger: n/a.
+- Decision: There is exactly one UniFFI crate / xcframework / Swift module (`nod-client-ffi` → `nod_client_ffiFFI.xcframework` → `NodClientFFI`). It exposes both the decision-signing contract (direct `nod-proto` dep) and the client logic (via `nod-client-core`). `nod-proto` itself stays a pure protocol crate (no `uniffi`).
+- History: First built as a dedicated `nod-proto-ffi` crate (signing only). When `nod-client-ffi` was added for client logic, having TWO UniFFI xcframeworks broke the `.xcodeproj` app build — Xcode flattens each binaryTarget's `Headers/module.modulemap` into one `include/` and they collide ("Multiple commands produce module.modulemap"). `swift build` tolerates it; the app build does not. Resolution: deleted `nod-proto-ffi`, merged its surface into `nod-client-ffi`. Burn-the-boats — no second FFI crate kept around.
+- Tradeoffs: the one FFI crate links the whole `nod-client-core` dep tree (tokio/reqwest/keyring) even for code that only needs signing. Acceptable: it's an Apple-only artifact and the app links it all anyway.
+- Rule going forward: NEVER add a second UniFFI crate/xcframework — extend `nod-client-ffi`. (See learnings: "Two UniFFI xcframeworks collide … RESOLVED by one FFI crate".)
+- Rejected alternatives: per-module header subdirs in each xcframework (fragile clang module resolution); feature-gate `uniffi` inside `nod-proto` (pollutes the canonical crate).
 
 ## #9 xcframework is built from source, not committed
 
 - Date: 2026-06-09
-- Rationale: The universal static archive is ~140 MB; building from source (via `build-nod-proto-ffi.sh`) is leaner and more auditable for crypto (review source, not a binary blob).
+- Rationale: The universal static archive is large; building from source (via `build-nod-client-ffi.sh`) is leaner and more auditable for crypto (review source, not a binary blob).
 - Tradeoffs: A fresh checkout needs the Rust toolchain + script before the Swift app builds.
 - Rejected alternatives: Commit the binary (repo bloat); leave unbuilt (breaks `swift build`).
 - Reconsideration trigger: Cutting releases → switch to a release-hosted URL+checksum `binaryTarget` (see ideas).
@@ -59,3 +60,15 @@
 - Evaluated and rejected: **full literal adoption** — `models.ts` re-exports `generated.ts` + `#[serde(skip_serializing_if="Option::is_none")]` so JSON omits nulls (→ matches typeshare `undefined`) + enum-member call sites. It was actually tried in this tree and **reverted**: it made the desktop noisier and failed the user's explicit bar ("only if it makes the code easier to maintain / more understandable with less churn").
 - The real #8 win: the desktop frontend was **broken** — still `source`/`source_id` while the rewired backend emits `channel`. Completed source→channel across the frontend (incl. `SourceSubscriptions.tsx` → `ChannelSubscriptions.tsx`); `tsc` clean, 16 vitest tests pass.
 - Reconsideration trigger: typeshare gains camelCase Swift + TS string-unions + `| null` for options; or the team decides the defensive-access cost is worth a single imported source of truth (then do `skip_serializing_if` + import `generated.ts`).
+
+## Apple apps move onto `nod-client-core` (logic) — keep SwiftUI (native UI)
+
+- Date: 2026-06-09
+- Decision: Kill the biggest remaining duplication — NodKit re-implements the API client, store, sync, request/notification rules, and models that `nod-client-core` already owns. Move that *logic* into `nod-client-core` (shared by TUI + desktop + Apple). **Keep SwiftUI**: the dedup target is the logic, not the UI; two thin renderers (SwiftUI + React) over one Rust core preserves native quality.
+- Two decisions deliberately separated: (a) dedup the logic → **YES**; (b) drop SwiftUI / full-Tauri-on-Apple → **NO** (only buys one fewer thin UI at the cost of native QoL). They are independent.
+- Mechanism: the single `nod-client-ffi` UniFFI crate wraps `nod-client-core` AND carries the signing contract (it absorbed `nod-proto-ffi` — see #9). Desktop keeps `nod-client-core` as a direct Rust dep (no UniFFI). Hexagonal ports-and-adapters: the core defines capability ports; each host provides adapters. The existing `NodClientRuntime` + `RpcRequest`/`NodClientMessage` is the seam to expose.
+- Progress: (1) scaffolded + iOS-cross-compile-proven; the FIRST swap is LIVE — `NodServerAddress` delegates to `NodClientFFI` (Rust), `NodSigningKeyStore` builds the payload via `NodClientFFI`. (2) The async `NodClientRuntime` is now exposed + proven from Swift — `NodClient` (UniFFI, `async_runtime = "tokio"`) with a `NodClientObserver` foreign callback and a JSON `request`/`start` surface; a Swift test drives it end to end. (3) The Secure-Enclave `DeviceSigner` port is in: nod-client-core has a `DeviceSigner` trait + one `build_decision_signature` path + a `ForeignSigner` port + `SignerBackend::{Software,Foreign}` (TUI/desktop stay on software keys, unchanged); `NodClient::new(observer, signer)` mandates a `NodDeviceSigner` callback so Apple signs in hardware with no software fallback. A fake-SE signature verifies via `nod_proto`. NodMac + NodIOS build green throughout. Remaining for full migration: NodKit implements `NodDeviceSigner` over `SecureEnclave.P256`, routes enroll/submit/sync/state through `NodClient`, and deletes the duplicated Swift client.
+- Genuinely-Swift adapters (fewer than first listed): Secure Enclave signer, App Attest, UserNotifications + APNs token, SwiftUI. **Keychain stays in Rust** — `nod-client-core` already uses the `keyring` crate with `apple-native`.
+- Cost/risk (honest): the *hard* part of UniFFI — async (tokio↔Swift), a stateful interface object, foreign-trait callbacks (SE/attest/notify), a state-observer bridge, a bigger xcframework, iOS lifecycle (Swift drives connect/disconnect; APNs covers background). Proven in industry (Signal/1Password embed Rust+tokio on iOS) but a multi-step project, not one task.
+- Incremental path (each shippable): (1) move the API client behind the FFI; (2) move sync + state store (Swift becomes a thin observer); (3) NodKit = SwiftUI + 3 adapters. Started by scaffolding `nod-client-ffi`.
+- Reconsideration trigger: if maintaining SwiftUI stops being worth its native polish → revisit full Tauri (needs no UniFFI: src-tauri uses `nod-client-core` directly).

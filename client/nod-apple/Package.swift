@@ -15,7 +15,7 @@ let package = Package(
     targets: [
         .target(
             name: "NodKit",
-            dependencies: ["NodProtoFFI"],
+            dependencies: ["NodClientFFI"],
             path: "Sources/NodKit",
             linkerSettings: [
                 .linkedFramework("DeviceCheck"),
@@ -23,20 +23,22 @@ let package = Package(
                 .linkedFramework("UserNotifications")
             ]
         ),
-        // Generated UniFFI Swift wrapper over the Rust signing crypto. Built by
-        // scripts/build-nod-proto-ffi.sh.
+        // The single generated UniFFI Swift wrapper — exposes both nod-proto's
+        // signing contract and nod-client-core's client logic. One module → one
+        // xcframework → no `module.modulemap` collision in the app build. Built
+        // by scripts/build-nod-client-ffi.sh.
         .target(
-            name: "NodProtoFFI",
-            dependencies: ["nod_proto_ffiFFI"],
-            path: "Sources/NodProtoFFI",
+            name: "NodClientFFI",
+            dependencies: ["nod_client_ffiFFI"],
+            path: "Sources/NodClientFFI",
             // UniFFI 0.28's generated wrapper predates Swift 6 strict concurrency
             // (a global `var initializationResult`). Build this generated shim in
             // Swift 5 language mode; NodKit and the apps stay on Swift 6.
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .binaryTarget(
-            name: "nod_proto_ffiFFI",
-            path: "Frameworks/nod_proto_ffiFFI.xcframework"
+            name: "nod_client_ffiFFI",
+            path: "Frameworks/nod_client_ffiFFI.xcframework"
         ),
         .executableTarget(
             name: "NodMac",
@@ -59,7 +61,7 @@ let package = Package(
         ),
         .testTarget(
             name: "NodKitTests",
-            dependencies: ["NodKit"],
+            dependencies: ["NodKit", "NodClientFFI"],
             path: "Tests/NodKitTests"
         )
     ]

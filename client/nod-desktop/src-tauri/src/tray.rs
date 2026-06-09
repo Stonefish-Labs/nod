@@ -1,4 +1,5 @@
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     App,
@@ -12,6 +13,7 @@ pub(crate) fn install_tray(app: &mut App) -> tauri::Result<()> {
     let menu = Menu::with_items(app, &[&show, &quit])?;
 
     TrayIconBuilder::with_id("main")
+        .icon(nod_tray_icon()?)
         .tooltip("Nod")
         .menu(&menu)
         .show_menu_on_left_click(true)
@@ -32,4 +34,8 @@ pub(crate) fn install_tray(app: &mut App) -> tauri::Result<()> {
         })
         .build(app)?;
     Ok(())
+}
+
+fn nod_tray_icon() -> tauri::Result<Image<'static>> {
+    Image::from_bytes(include_bytes!("../icons/tray-nod.png"))
 }

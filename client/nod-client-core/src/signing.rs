@@ -27,57 +27,106 @@ impl StoredSigningKey {
         }
     }
 
-    pub fn device_signing_key(&self) -> Result<DeviceSigningKey> {
-        let public_key = nod_proto::public_key_for(&self.private_key)?;
+}
+
+/// A device's decision-signing primitive. The software path
+/// (`StoredSigningKey`, used by the TUI + desktop) and the Apple Secure Enclave
+/// path (a foreign signer reached over UniFFI) both implement this; the runtime
+/// never cares which it holds. The trait is deliberately *just* the primitive —
+/// identity (`key_id`/`algorithm`/`public_key`) and "sign these bytes" — while
+/// `build_decision_signature` owns the security-critical orchestration (digest
+/// recompute, option resolution, nonce/timestamp, canonical payload).
+pub trait DeviceSigner: Send + Sync {
+    /// The server-registered key id echoed back in every decision.
+    fn key_id(&self) -> String;
+    /// The signature algorithm id. Both paths are P-256 ECDSA / SHA-256.
+    fn algorithm(&self) -> String {
+        DECISION_SIGNING_ALGORITHM.to_string()
+    }
+    /// base64url uncompressed (x9.63) P-256 public key, sent at enrollment.
+    fn public_key(&self) -> Result<String>;
+    /// Sign the canonical decision payload bytes; returns a base64url DER ECDSA
+    /// signature. For the Secure Enclave this is the only step that crosses into
+    /// hardware — the bytes are built in Rust and never leave as a private key.
+    fn sign(&self, payload: &[u8]) -> Result<String>;
+
+    /// The public key bundle registered with the server at enrollment, built
+    /// uniformly from any signer's identity.
+    fn device_signing_key(&self) -> Result<DeviceSigningKey> {
         Ok(DeviceSigningKey {
-            key_id: self.key_id.clone(),
-            algorithm: DECISION_SIGNING_ALGORITHM.to_string(),
-            public_key,
+            key_id: self.key_id(),
+            algorithm: self.algorithm(),
+            public_key: self.public_key()?,
         })
+    }
+}
+
+impl DeviceSigner for StoredSigningKey {
+    fn key_id(&self) -> String {
+        self.key_id.clone()
     }
 
-    pub fn sign_decision(&self, request: DecisionSigningRequest<'_>) -> Result<DecisionSignature> {
-        let request_digest = request
-            .request
-            .request_digest
-            .as_deref()
-            .ok_or_else(|| anyhow!("request digest is missing for {}", request.request.id))?;
-        // Defense in depth: only sign a request whose digest we can reproduce
-        // from the content we received (and rendered to the user), rather than
-        // trusting the digest the server asserted.
-        let recomputed = nod_proto::request_digest(request.request)?;
-        if recomputed != request_digest {
-            return Err(anyhow!(
-                "request digest does not match request content for {}",
-                request.request.id
-            ));
-        }
-        let option = option_for(request.request, request.option_id)?;
-        let nonce = uuid::Uuid::new_v4().to_string();
-        let signed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let text = request.text.and_then(trimmed_text);
-        let payload = nod_proto::decision_signing_payload(nod_proto::DecisionSigningInput {
-            request_id: &request.request.id,
-            request_digest,
-            option_id: option.id,
-            option_kind: option.kind,
-            user_id: request.user_id,
-            device_id: request.device_id,
-            key_id: &self.key_id,
-            nonce: &nonce,
-            signed_at: &signed_at,
-            text,
-        });
-        let signature = nod_proto::sign_payload(&self.private_key, payload.as_bytes())?;
-        Ok(DecisionSignature {
-            key_id: self.key_id.clone(),
-            algorithm: DECISION_SIGNING_ALGORITHM.to_string(),
-            nonce,
-            signed_at,
-            request_digest: request_digest.to_string(),
-            signature,
-        })
+    fn public_key(&self) -> Result<String> {
+        Ok(nod_proto::public_key_for(&self.private_key)?)
     }
+
+    fn sign(&self, payload: &[u8]) -> Result<String> {
+        Ok(nod_proto::sign_payload(&self.private_key, payload)?)
+    }
+}
+
+/// Build a verified `DecisionSignature` for `request` using any `DeviceSigner`.
+///
+/// This is the single security-critical path shared by every platform: it
+/// refuses to sign unless it can reproduce the request digest from the content
+/// it received (defense in depth against a server lying about what is being
+/// approved), resolves the option, stamps a fresh nonce + timestamp, builds the
+/// canonical `nod-proto` payload, and asks the signer to sign those exact bytes.
+pub fn build_decision_signature(
+    signer: &dyn DeviceSigner,
+    request: DecisionSigningRequest<'_>,
+) -> Result<DecisionSignature> {
+    let request_digest = request
+        .request
+        .request_digest
+        .as_deref()
+        .ok_or_else(|| anyhow!("request digest is missing for {}", request.request.id))?;
+    // Defense in depth: only sign a request whose digest we can reproduce
+    // from the content we received (and rendered to the user), rather than
+    // trusting the digest the server asserted.
+    let recomputed = nod_proto::request_digest(request.request)?;
+    if recomputed != request_digest {
+        return Err(anyhow!(
+            "request digest does not match request content for {}",
+            request.request.id
+        ));
+    }
+    let option = option_for(request.request, request.option_id)?;
+    let nonce = uuid::Uuid::new_v4().to_string();
+    let signed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let text = request.text.and_then(trimmed_text);
+    let key_id = signer.key_id();
+    let payload = nod_proto::decision_signing_payload(nod_proto::DecisionSigningInput {
+        request_id: &request.request.id,
+        request_digest,
+        option_id: option.id,
+        option_kind: option.kind,
+        user_id: request.user_id,
+        device_id: request.device_id,
+        key_id: &key_id,
+        nonce: &nonce,
+        signed_at: &signed_at,
+        text,
+    });
+    let signature = signer.sign(payload.as_bytes())?;
+    Ok(DecisionSignature {
+        key_id,
+        algorithm: signer.algorithm(),
+        nonce,
+        signed_at,
+        request_digest: request_digest.to_string(),
+        signature,
+    })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -87,6 +136,59 @@ pub struct DecisionSigningRequest<'a> {
     pub text: Option<&'a str>,
     pub user_id: &'a str,
     pub device_id: &'a str,
+}
+
+/// Identity of a host-provisioned hardware key (Apple Secure Enclave). The
+/// private key never crosses this boundary — only the id the server registers
+/// and the public key it verifies against.
+#[derive(Debug, Clone)]
+pub struct ForeignSignerKey {
+    pub key_id: String,
+    /// base64url uncompressed (x9.63) P-256 public key.
+    pub public_key: String,
+}
+
+/// A host-owned signing backend (the Apple Secure Enclave). The runtime calls
+/// out to it instead of generating/persisting a software key, so the Apple apps
+/// keep non-exportable hardware keys while still using all of nod-client-core.
+/// Keyed by server profile id because each enrolled server has its own device
+/// key. Implemented in `nod-client-ffi` by a UniFFI foreign callback to Swift.
+pub trait ForeignSigner: Send + Sync {
+    /// Create (or fetch) the hardware key for a freshly enrolled profile and
+    /// return its public identity to register with the server.
+    fn provision(&self, profile_id: &str) -> Result<ForeignSignerKey>;
+    /// The existing hardware key for a profile, or `None` if there is none
+    /// (in which case decisions for that server cannot be signed).
+    fn signing_key(&self, profile_id: &str) -> Result<Option<ForeignSignerKey>>;
+    /// Sign the canonical decision payload bytes with the profile's hardware key
+    /// (base64url DER ECDSA). The bytes are built in Rust by
+    /// `build_decision_signature`.
+    fn sign(&self, profile_id: &str, payload: &[u8]) -> Result<String>;
+    /// Drop the hardware key when a server is forgotten.
+    fn remove(&self, profile_id: &str) -> Result<()>;
+}
+
+/// Adapts a `ForeignSigner` + a specific profile's resolved key into a
+/// `DeviceSigner`, so `build_decision_signature` treats hardware and software
+/// keys identically.
+pub struct ForeignDeviceSigner {
+    pub backend: std::sync::Arc<dyn ForeignSigner>,
+    pub profile_id: String,
+    pub key: ForeignSignerKey,
+}
+
+impl DeviceSigner for ForeignDeviceSigner {
+    fn key_id(&self) -> String {
+        self.key.key_id.clone()
+    }
+
+    fn public_key(&self) -> Result<String> {
+        Ok(self.key.public_key.clone())
+    }
+
+    fn sign(&self, payload: &[u8]) -> Result<String> {
+        self.backend.sign(&self.profile_id, payload)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -200,8 +302,9 @@ mod tests {
         let mut request = request();
         request.request_digest = None;
         let key = StoredSigningKey::generate();
-        let error = key
-            .sign_decision(DecisionSigningRequest {
+        let error = build_decision_signature(
+            &key,
+            DecisionSigningRequest {
                 request: &request,
                 option_id: "approve",
                 text: None,
@@ -217,8 +320,9 @@ mod tests {
     fn signing_fails_when_option_is_not_available() {
         let request = request();
         let key = StoredSigningKey::generate();
-        let error = key
-            .sign_decision(DecisionSigningRequest {
+        let error = build_decision_signature(
+            &key,
+            DecisionSigningRequest {
                 request: &request,
                 option_id: "reject",
                 text: None,
@@ -235,8 +339,9 @@ mod tests {
         let mut request = request();
         request.title = "Tampered after the digest was computed".to_string();
         let key = StoredSigningKey::generate();
-        let error = key
-            .sign_decision(DecisionSigningRequest {
+        let error = build_decision_signature(
+            &key,
+            DecisionSigningRequest {
                 request: &request,
                 option_id: "approve",
                 text: None,
@@ -264,5 +369,74 @@ mod tests {
 
         assert_eq!(bytes.len(), 65);
         assert_eq!(bytes[0], 4);
+    }
+
+    /// A `ForeignSigner` (the Secure Enclave seam) must drive the exact same
+    /// canonical path: `build_decision_signature` builds the bytes, hands them to
+    /// the backend, and the resulting signature verifies against the backend's
+    /// public key over those exact bytes. Emulates the SE with a software key so
+    /// the test can assert real signature verification.
+    #[test]
+    fn foreign_signer_path_produces_verifiable_signature() {
+        use std::sync::{Arc, Mutex};
+
+        struct FakeSecureEnclave {
+            key: StoredSigningKey,
+            signed_payload: Arc<Mutex<Option<Vec<u8>>>>,
+        }
+
+        impl ForeignSigner for FakeSecureEnclave {
+            fn provision(&self, _profile_id: &str) -> Result<ForeignSignerKey> {
+                self.signing_key(_profile_id).map(|k| k.unwrap())
+            }
+            fn signing_key(&self, _profile_id: &str) -> Result<Option<ForeignSignerKey>> {
+                Ok(Some(ForeignSignerKey {
+                    key_id: self.key.key_id(),
+                    public_key: self.key.public_key()?,
+                }))
+            }
+            fn sign(&self, _profile_id: &str, payload: &[u8]) -> Result<String> {
+                // Capture the exact bytes the runtime asked the hardware to sign.
+                *self.signed_payload.lock().unwrap() = Some(payload.to_vec());
+                self.key.sign(payload)
+            }
+            fn remove(&self, _profile_id: &str) -> Result<()> {
+                Ok(())
+            }
+        }
+
+        let software = StoredSigningKey::generate();
+        let public_key = software.public_key().unwrap();
+        let signed_payload = Arc::new(Mutex::new(None));
+        let backend: Arc<dyn ForeignSigner> = Arc::new(FakeSecureEnclave {
+            key: software,
+            signed_payload: signed_payload.clone(),
+        });
+
+        let key = backend.signing_key("p1").unwrap().unwrap();
+        let signer = ForeignDeviceSigner {
+            backend: backend.clone(),
+            profile_id: "p1".to_string(),
+            key,
+        };
+
+        let request = request();
+        let signature = build_decision_signature(
+            &signer,
+            DecisionSigningRequest {
+                request: &request,
+                option_id: "approve",
+                text: None,
+                user_id: "user-1",
+                device_id: "device-1",
+            },
+        )
+        .expect("foreign signer should produce a signature");
+
+        assert_eq!(signature.key_id, signer.key_id());
+        assert_eq!(signature.algorithm, DECISION_SIGNING_ALGORITHM);
+        let payload = signed_payload.lock().unwrap().clone().expect("backend was asked to sign");
+        nod_proto::verify_payload(&public_key, &payload, &signature.signature)
+            .expect("the foreign signature must verify against the backend public key");
     }
 }

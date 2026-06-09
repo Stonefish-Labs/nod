@@ -80,6 +80,8 @@ pub fn user_device(name: &str) -> UserDevice {
         native_app_id: None,
         push_provider: None,
         has_push_token: false,
+        has_signing_key: false,
+        attestation: None,
         notification_sound: "default".to_string(),
         last_seen_at: Utc.with_ymd_and_hms(2026, 5, 31, 12, 0, 0).unwrap(),
         created_at: Utc.with_ymd_and_hms(2026, 5, 31, 12, 0, 0).unwrap(),

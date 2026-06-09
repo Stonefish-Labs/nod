@@ -1,42 +1,22 @@
 import Foundation
+import NodClientFFI
 
+/// Server-address helpers. The implementations live in `nod-client-core` (Rust)
+/// and are reached through `NodClientFFI`, so the Apple apps, the TUI, and the
+/// desktop all share one canonical normalization/profile-id/display-name logic
+/// instead of re-deriving it per platform. A parity test in `nod-client-ffi`
+/// (`matches_nodkit_server_address_vectors`) pins these to the original Swift
+/// outputs.
 public enum NodServerAddress {
   public static func normalizedBaseURL(_ value: String) -> String {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-      .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-    guard !trimmed.isEmpty else {
-      return ""
-    }
-    if trimmed.contains("://") {
-      return trimmed
-    }
-    // Localhost and 192.168.* servers are expected to be development boxes
-    // without TLS; public hostnames default to HTTPS.
-    if trimmed == "localhost" || trimmed.hasPrefix("localhost:") || trimmed.hasPrefix("127.")
-      || trimmed.hasPrefix("192.168.")
-    {
-      return "http://\(trimmed)"
-    }
-    return "https://\(trimmed)"
+    NodClientFFI.normalizeBaseUrl(value: value)
   }
 
   public static func profileId(for baseURLString: String) -> String {
-    let mapped = baseURLString.lowercased().unicodeScalars.map { scalar in
-      CharacterSet.alphanumerics.contains(scalar) ? String(scalar) : "-"
-    }.joined()
-    let compact = mapped.split(separator: "-").joined(separator: "-")
-    return compact.isEmpty ? UUID().uuidString.lowercased() : String(compact.prefix(80))
+    NodClientFFI.profileIdFor(baseUrl: baseURLString)
   }
 
   public static func displayName(for baseURLString: String) -> String {
-    guard let url = URL(string: baseURLString) else {
-      return "Nod Server"
-    }
-    var name = url.host ?? "Nod Server"
-    let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-    if !path.isEmpty {
-      name += "/\(path)"
-    }
-    return name
+    NodClientFFI.displayNameFor(baseUrl: baseURLString)
   }
 }

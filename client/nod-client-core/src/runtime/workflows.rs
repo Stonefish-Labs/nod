@@ -5,14 +5,17 @@ use crate::{
         display_name_for, normalize_base_url, profile_id_for, EnrollDeviceRequest,
         SubmitOptionRequest,
     },
-    models::{ClientState, DevicePlatform, Request, RequestStatus, ServerProfile, UserDevice},
-    signing::StoredSigningKey,
+    models::{
+        ClientState, DevicePlatform, DeviceSigningKey, Request, RequestStatus, ServerProfile,
+        UserDevice,
+    },
+    signing::{DeviceSigner, StoredSigningKey},
 };
 
 use super::{
     session::DecisionSignatureInput, EnrollParams, NodClientMessage, NodClientRuntime,
-    RenameDeviceParams, RevokeDeviceParams, SelectRequestParams, SetSubscriptionParams,
-    ChannelParams, SubmitOptionParams,
+    RegisterPushTokenParams, RenameDeviceParams, RevokeDeviceParams, SelectRequestParams,
+    SetSubscriptionParams, ChannelParams, SignerBackend, SubmitOptionParams,
 };
 
 const REFRESH_EVENT_LIMIT: usize = 500;
@@ -21,8 +24,10 @@ impl NodClientRuntime {
     pub async fn enroll(&mut self, params: EnrollParams) -> Result<ClientState> {
         let normalized_url = normalize_base_url(&params.base_url);
         let profile_id = profile_id_for(&normalized_url);
-        let signing_key = StoredSigningKey::generate();
-        let device_signing_key = signing_key.device_signing_key()?;
+        // Provision the device key from the active backend: a software key the
+        // store will persist, or a Secure Enclave key the host already holds.
+        let (device_signing_key, software_key) =
+            self.provision_device_signing_key(&profile_id)?;
         let api = crate::api::NodApi::new(&normalized_url, None)?;
         let response = api
             .enroll(EnrollDeviceRequest {
@@ -31,7 +36,11 @@ impl NodClientRuntime {
                 platform: params
                     .platform
                     .unwrap_or_else(DevicePlatform::current_desktop),
+                native_app_id: params.native_app_id.as_deref(),
+                push_provider: params.push_provider.as_deref(),
+                push_token: params.push_token.as_deref(),
                 signing_key: Some(&device_signing_key),
+                attestation: params.attestation.as_ref(),
             })
             .await?;
         let profile = ServerProfile {
@@ -49,9 +58,13 @@ impl NodClientRuntime {
             self.store
                 .save_token(&mut persisted, &profile_id, &response.token)
                 .await?;
-            self.store
-                .save_signing_key(&mut persisted, &profile_id, &signing_key)
-                .await?;
+            // Only the software backend persists a private key; the Secure
+            // Enclave key stays in the host's hardware, never in the store.
+            if let Some(software_key) = &software_key {
+                self.store
+                    .save_signing_key(&mut persisted, &profile_id, software_key)
+                    .await?;
+            }
             persisted.selected_server_id = Some(profile_id.clone());
             persisted.notification_sound = params
                 .notification_sound
@@ -96,6 +109,12 @@ impl NodClientRuntime {
 
     pub async fn forget_server(&mut self, server_id: &str) -> Result<ClientState> {
         self.disconnect_sync().await;
+        // Drop the host-held hardware key (no-op for the software backend, whose
+        // key lives in the store and is cleared below). Done outside the store
+        // lock so the foreign callback isn't held across the mutex.
+        if let SignerBackend::Foreign(backend) = self.signer_backend() {
+            backend.remove(server_id)?;
+        }
         {
             let mut persisted = self.persisted.lock().await;
             persisted.servers.retain(|server| server.id != server_id);
@@ -202,6 +221,25 @@ impl NodClientRuntime {
         Ok(self.state().await)
     }
 
+    /// Register/refresh the APNs push token across every enrolled server (the
+    /// same token applies to all). Mirrors NodKit's `registerPushToken`.
+    pub async fn register_push_token(
+        &mut self,
+        params: RegisterPushTokenParams,
+    ) -> Result<ClientState> {
+        let servers = { self.persisted.lock().await.servers.clone() };
+        for server in &servers {
+            let token = {
+                let persisted = self.persisted.lock().await;
+                self.store.load_token(&persisted, &server.id)
+            };
+            let api = crate::api::NodApi::new(&server.base_url_string, token)?;
+            api.update_push_token(&params.provider, &params.native_app_id, &params.token)
+                .await?;
+        }
+        self.refresh().await
+    }
+
     pub async fn list_devices(&mut self) -> Result<Vec<UserDevice>> {
         let devices = self.api().await?.devices().await?;
         self.reducer.lock().await.state.devices = devices.clone();
@@ -266,6 +304,32 @@ impl NodClientRuntime {
             }
         }
         self.refresh().await
+    }
+
+    /// Provision the device signing key for a newly enrolling profile. Returns
+    /// the public `DeviceSigningKey` to register with the server, plus the
+    /// software key to persist (`Some` for the software backend, `None` for the
+    /// Secure Enclave — its key never leaves the host's hardware).
+    fn provision_device_signing_key(
+        &self,
+        profile_id: &str,
+    ) -> Result<(DeviceSigningKey, Option<StoredSigningKey>)> {
+        match self.signer_backend() {
+            SignerBackend::Software => {
+                let key = StoredSigningKey::generate();
+                let device_signing_key = key.device_signing_key()?;
+                Ok((device_signing_key, Some(key)))
+            }
+            SignerBackend::Foreign(backend) => {
+                let provisioned = backend.provision(profile_id)?;
+                let device_signing_key = DeviceSigningKey {
+                    key_id: provisioned.key_id,
+                    algorithm: nod_proto::DECISION_SIGNING_ALGORITHM.to_string(),
+                    public_key: provisioned.public_key,
+                };
+                Ok((device_signing_key, None))
+            }
+        }
     }
 }
 

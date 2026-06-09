@@ -14,11 +14,13 @@
 /// it and the canonical signing crypto is built around it.
 pub const DECISION_SIGNING_ALGORITHM: &str = "p256_ecdsa_sha256";
 
+pub mod attestation;
 pub mod decision;
 pub mod notification;
 pub mod request;
 pub mod signing;
 
+pub use attestation::{DeviceAttestationStatus, DeviceAttestationSummary};
 pub use decision::{
     Decision, DecisionSignature, DecisionSignatureRecord, SubmitDecisionRequest, UserDecision,
 };

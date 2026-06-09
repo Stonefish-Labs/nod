@@ -14,14 +14,15 @@ use tokio::{
 
 use crate::{
     models::{ClientState, Request, RequestStatus},
+    signing::ForeignSigner,
     state::StateReducer,
     store::{PersistedConfig, Store},
 };
 
 pub use rpc::{
-    EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams, RpcRequest,
-    RpcResponse, SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
-    SubmitOptionParams,
+    EnrollParams, NotificationPreferenceParams, RegisterPushTokenParams, RenameDeviceParams,
+    RevokeDeviceParams, RpcRequest, RpcResponse, SelectRequestParams, SelectServerParams,
+    SetSubscriptionParams, ChannelParams, SubmitOptionParams,
 };
 
 const DEFAULT_NOTIFICATION_SOUND: &str = "default";
@@ -41,16 +42,35 @@ pub enum NodClientMessage {
 
 type Outbox = mpsc::Sender<NodClientMessage>;
 
+/// Where the runtime gets device signing keys. The TUI + desktop use software
+/// keys persisted in the `Store`; Apple injects a `Foreign` backend so signing
+/// happens in the Secure Enclave and no private key is ever persisted by Rust.
+pub enum SignerBackend {
+    /// Software P-256 keys generated and stored by nod-client-core.
+    Software,
+    /// Host-owned hardware keys (Apple Secure Enclave) reached via a callback.
+    Foreign(Arc<dyn ForeignSigner>),
+}
+
 pub struct NodClientRuntime {
     store: Store,
     persisted: Arc<Mutex<PersistedConfig>>,
     reducer: Arc<Mutex<StateReducer>>,
     tx: Outbox,
     sync_task: Option<JoinHandle<()>>,
+    signer_backend: SignerBackend,
 }
 
 impl NodClientRuntime {
+    /// Construct with the default software signing backend (TUI + desktop).
     pub async fn new(tx: Outbox) -> Result<Self> {
+        Self::with_signer_backend(tx, SignerBackend::Software).await
+    }
+
+    /// Construct with an explicit signing backend. Apple passes
+    /// `SignerBackend::Foreign(..)` so decisions are signed in the Secure
+    /// Enclave instead of by a software key.
+    pub async fn with_signer_backend(tx: Outbox, signer_backend: SignerBackend) -> Result<Self> {
         let store = Store::new()?;
         let mut persisted = store.load().await?;
         normalize_notification_sound(&mut persisted);
@@ -69,7 +89,12 @@ impl NodClientRuntime {
             reducer: Arc::new(Mutex::new(reducer)),
             tx,
             sync_task: None,
+            signer_backend,
         })
+    }
+
+    pub(crate) fn signer_backend(&self) -> &SignerBackend {
+        &self.signer_backend
     }
 
     pub async fn emit_ready(&self) {

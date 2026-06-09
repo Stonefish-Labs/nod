@@ -93,6 +93,10 @@ impl NodClientRuntime {
                         .await?
                 ))
             }
+            "register_push_token" => {
+                let params: RegisterPushTokenParams = serde_json::from_value(params)?;
+                Ok(json!(self.register_push_token(params).await?))
+            }
             "list_devices" => Ok(json!({ "devices": self.list_devices().await? })),
             "rename_device" => {
                 let params: RenameDeviceParams = serde_json::from_value(params)?;
@@ -132,6 +136,16 @@ pub struct EnrollParams {
     pub notification_sound: Option<String>,
     #[serde(default)]
     pub platform: Option<DevicePlatform>,
+    // Native enrollment hardening provided by the host (Apple): push delivery
+    // and App Attest. nod-client-core forwards them to the server unchanged.
+    #[serde(default)]
+    pub native_app_id: Option<String>,
+    #[serde(default)]
+    pub push_provider: Option<String>,
+    #[serde(default)]
+    pub push_token: Option<String>,
+    #[serde(default)]
+    pub attestation: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -161,6 +175,13 @@ pub struct SetSubscriptionParams {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NotificationPreferenceParams {
     pub notification_sound: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RegisterPushTokenParams {
+    pub provider: String,
+    pub native_app_id: String,
+    pub token: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
