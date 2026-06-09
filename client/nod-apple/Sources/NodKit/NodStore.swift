@@ -176,7 +176,7 @@ public final class NodStore: ObservableObject {
 
   private func subscribeToRuntime() {
     runtime.$state
-      .receive(on: RunLoop.main)
+      .receive(on: DispatchQueue.main)
       .sink { [weak self] state in
         guard let self, let state else { return }
         self.apply(runtimeState: state)
@@ -184,7 +184,7 @@ public final class NodStore: ObservableObject {
       .store(in: &cancellables)
 
     runtime.$notificationCandidates
-      .receive(on: RunLoop.main)
+      .receive(on: DispatchQueue.main)
       .sink { [weak self] candidates in
         guard let self, !candidates.isEmpty else { return }
         let drained = self.runtime.takeNotificationCandidates()
@@ -193,7 +193,7 @@ public final class NodStore: ObservableObject {
       .store(in: &cancellables)
 
     runtime.$removedNotificationRequestIds
-      .receive(on: RunLoop.main)
+      .receive(on: DispatchQueue.main)
       .sink { [weak self] removed in
         guard let self, !removed.isEmpty else { return }
         let drained = self.runtime.takeRemovedNotificationRequestIds()
@@ -204,7 +204,7 @@ public final class NodStore: ObservableObject {
       .store(in: &cancellables)
 
     runtime.$authRevoked
-      .receive(on: RunLoop.main)
+      .receive(on: DispatchQueue.main)
       .sink { [weak self] revoked in
         guard let self, revoked else { return }
         self.handleAuthRevoked()
@@ -212,7 +212,7 @@ public final class NodStore: ObservableObject {
       .store(in: &cancellables)
 
     runtime.$lastTransientError
-      .receive(on: RunLoop.main)
+      .receive(on: DispatchQueue.main)
       .compactMap { $0 }
       .sink { [weak self] message in
         self?.lastError = message

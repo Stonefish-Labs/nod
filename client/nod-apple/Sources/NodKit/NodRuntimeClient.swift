@@ -58,14 +58,14 @@ public final class NodRuntimeClient: ObservableObject {
 
   // MARK: - RPCs (mirror nod-client-core's runtime methods)
 
-  public func refresh() async throws { try await call("refresh") }
+  public func refresh() async throws { applyStateResult(try await call("refresh")) }
 
   public func selectServer(_ serverId: String) async throws {
-    try await call("select_server", ["server_id": serverId])
+    applyStateResult(try await call("select_server", ["server_id": serverId]))
   }
 
   public func forgetServer(_ serverId: String) async throws {
-    try await call("forget_server", ["server_id": serverId])
+    applyStateResult(try await call("forget_server", ["server_id": serverId]))
   }
 
   public func enroll(
@@ -92,7 +92,7 @@ public final class NodRuntimeClient: ObservableObject {
     if let pushProvider { params["push_provider"] = pushProvider }
     if let pushToken { params["push_token"] = pushToken }
     if let attestation { params["attestation"] = attestation }
-    try await call("enroll", params)
+    applyStateResult(try await call("enroll", params))
   }
 
   public func submitOption(requestId: String, optionId: String, text: String?) async throws {
@@ -102,30 +102,32 @@ public final class NodRuntimeClient: ObservableObject {
   }
 
   public func setSubscription(channelId: String, subscribed: Bool) async throws {
-    try await call("set_subscription", ["channel_id": channelId, "subscribed": subscribed])
+    applyStateResult(
+      try await call("set_subscription", ["channel_id": channelId, "subscribed": subscribed]))
   }
 
   public func setNotificationPreference(sound: String) async throws {
-    try await call("set_notification_preference", ["notification_sound": sound])
+    applyStateResult(try await call("set_notification_preference", ["notification_sound": sound]))
   }
 
   /// Register/refresh the APNs push token across every enrolled server.
   public func registerPushToken(provider: String, nativeAppId: String, token: String) async throws {
-    try await call(
-      "register_push_token",
-      ["provider": provider, "native_app_id": nativeAppId, "token": token])
+    applyStateResult(
+      try await call(
+        "register_push_token",
+        ["provider": provider, "native_app_id": nativeAppId, "token": token]))
   }
 
   public func clearChannel(_ channelId: String) async throws {
-    try await call("clear_channel", ["channel_id": channelId])
+    applyStateResult(try await call("clear_channel", ["channel_id": channelId]))
   }
 
   public func selectChannel(_ channelId: String) async throws {
-    try await call("select_channel", ["channel_id": channelId])
+    applyStateResult(try await call("select_channel", ["channel_id": channelId]))
   }
 
   public func selectRequest(_ requestId: String) async throws {
-    try await call("select_request", ["request_id": requestId])
+    applyStateResult(try await call("select_request", ["request_id": requestId]))
   }
 
   public func renameDevice(deviceId: String, name: String) async throws {
@@ -133,7 +135,7 @@ public final class NodRuntimeClient: ObservableObject {
   }
 
   public func revokeDevice(_ deviceId: String) async throws {
-    try await call("revoke_device", ["device_id": deviceId])
+    applyStateResult(try await call("revoke_device", ["device_id": deviceId]))
   }
 
   public func connectSync() async throws { try await call("connect_sync") }
@@ -162,7 +164,22 @@ public final class NodRuntimeClient: ObservableObject {
     guard response.ok else {
       throw NodRuntimeError.rpc(response.error ?? "request failed")
     }
-    return nil
+    return response.result?.data
+  }
+
+  /// Apply the `ClientState` an RPC returned directly, rather than waiting for
+  /// the async observer event. The state-mutating RPCs (`enroll`, `refresh`,
+  /// `select_server`, …) return the new `ClientState` as their result — applying
+  /// it here makes the UI update synchronously with the call (mirroring the old
+  /// hand-written client) instead of depending on the event pipeline landing.
+  private func applyStateResult(_ data: Data?) {
+    guard let data else { return }
+    do {
+      state = try JSONDecoder.nod.decode(NodRuntimeState.self, from: data)
+    } catch {
+      // Surface rather than swallow — a decode failure here is a real drift bug.
+      lastTransientError = "Failed to decode client state: \(error)"
+    }
   }
 
   private func apply(_ message: NodRuntimeMessage) {
@@ -190,6 +207,7 @@ public final class NodRuntimeClient: ObservableObject {
   private struct RpcResponseEnvelope: Decodable {
     let ok: Bool
     let error: String?
+    let result: RawJSON?
   }
 }
 
@@ -204,7 +222,12 @@ private final class ObserverBridge: NodClientObserver, @unchecked Sendable {
   }
 
   func onMessage(message: String) {
-    guard let decoded = try? NodRuntimeMessage(from: Data(message.utf8)) else { return }
-    onDecoded(decoded)
+    do {
+      onDecoded(try NodRuntimeMessage(from: Data(message.utf8)))
+    } catch {
+      // Never silently swallow — surface as a transient error so drift is visible
+      // instead of producing a "nothing happened" dead end.
+      onDecoded(.transientError(message: "runtime event decode failed: \(error)"))
+    }
   }
 }
