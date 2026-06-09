@@ -90,7 +90,7 @@ pub async fn create_user(pool: &SqlitePool, req: CreateUserRequest) -> Result<Us
     sqlx::query(
         r#"
         INSERT OR IGNORE INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
-        SELECT ?, id, 1, ? FROM sources
+        VALUES (?, 'default', 1, ?)
         "#,
     )
     .bind(&req.id)

@@ -181,7 +181,8 @@
     }
     .sources-table .emoji-col { width: 52px; }
     .sources-table .id-col { width: 220px; }
-    .sources-table .actions-col { width: 120px; }
+    .sources-table .members-col { width: 110px; }
+    .sources-table .actions-col { width: 170px; }
     .users-table .name-col { min-width: 220px; }
     .users-table .id-col { width: 220px; }
     .users-table .count-col { width: 100px; }
@@ -196,7 +197,8 @@
     .source-name-cell {
       min-width: 220px;
     }
-    .source-actions-cell { width: 120px; white-space: nowrap; }
+    .source-members-cell { width: 110px; white-space: nowrap; }
+    .source-actions-cell { width: 170px; white-space: nowrap; }
     code {
       display: inline-block;
       max-width: 360px;
@@ -635,6 +637,7 @@
                   <th class="emoji-col">Emoji</th>
                   <th>Id</th>
                   <th>Name</th>
+                  <th class="members-col">Members</th>
                   <th class="actions-col"></th>
                 </tr>
               </thead>
@@ -677,10 +680,9 @@
             </label>
             <label>Options
               <select id="testOptionPreset">
-                <option value="notification">Notification only</option>
-                <option value="approval">Approve / reject</option>
-                <option value="approval_text">Approve and reject with text</option>
-                <option value="reject_reason">Reject with reason</option>
+                <option value="notification">Informational</option>
+                <option value="approval">Approve / reject buttons</option>
+                <option value="approval_text">Approve / reject with reason</option>
               </select>
             </label>
             <fieldset class="full">
@@ -857,6 +859,44 @@
       </section>
     </div>
 
+    <div id="sourceMembershipModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="sourceMembershipModalTitle">
+        <div class="split">
+          <div>
+            <h2 id="sourceMembershipModalTitle">Members</h2>
+            <div id="sourceMembershipModalSummary" class="muted"></div>
+          </div>
+          <button id="closeSourceMembershipModal" type="button">Close</button>
+        </div>
+        <div class="row">
+          <label class="wide">Search
+            <input id="sourceMembershipSearch" autocomplete="off" spellcheck="false">
+          </label>
+          <label>Filter
+            <select id="sourceMembershipFilter">
+              <option value="all">all</option>
+              <option value="member">members</option>
+              <option value="nonmember">not members</option>
+            </select>
+          </label>
+        </div>
+        <div id="sourceMembershipList" class="modal-body"></div>
+        <div class="modal-actions">
+          <div class="row">
+            <button id="addVisibleSourceMembers" type="button">Add visible</button>
+            <button id="removeVisibleSourceMembers" type="button">Remove visible</button>
+            <button id="addAllSourceMembers" type="button">Add all</button>
+            <button id="removeAllSourceMembers" type="button">Remove all</button>
+          </div>
+          <div class="row">
+            <span id="sourceMembershipDirtyState" class="muted"></span>
+            <button id="cancelSourceMembershipChanges" type="button">Cancel</button>
+            <button id="saveSourceMembershipChanges" class="primary" type="button">Save</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
     <div id="deviceEnrollmentModalBackdrop" class="modal-backdrop hidden">
       <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="deviceEnrollmentModalTitle">
         <div class="split">
@@ -924,6 +964,13 @@
         userId: null,
         userName: "",
         sources: [],
+        original: {},
+        visibleIds: []
+      },
+      sourceMembershipModal: {
+        sourceId: null,
+        sourceName: "",
+        users: [],
         original: {},
         visibleIds: []
       }
@@ -1117,6 +1164,11 @@
           <td class="source-emoji-cell">${esc(source.emoji || "🔔")}</td>
           <td class="id-col"><code>${esc(source.id)}</code></td>
           <td class="source-name-cell">${esc(source.name)}</td>
+          <td class="source-members-cell">
+            <button class="link" data-manage-source-members="${esc(source.id)}" data-source-name="${esc(source.name)}" aria-label="Manage members for ${esc(source.name)}" title="Manage members">
+              ${esc(sourceMemberCount(source.id))} / ${esc(state.users.length)}
+            </button>
+          </td>
           <td class="source-actions-cell">
             <div class="actions-cell">
               <button class="link" data-edit-source="${esc(source.id)}">Edit</button>
@@ -1124,7 +1176,7 @@
             </div>
           </td>
         </tr>
-      `).join("") || `<tr><td colspan="4" class="muted">No sources</td></tr>`;
+      `).join("") || `<tr><td colspan="5" class="muted">No sources</td></tr>`;
     }
 
     function renderDevices() {
@@ -1295,6 +1347,10 @@
 
     function userSubscribedToSource(user, sourceId) {
       return (user.subscribed_source_ids || []).includes(sourceId);
+    }
+
+    function sourceMemberCount(sourceId) {
+      return state.users.filter((user) => userSubscribedToSource(user, sourceId)).length;
     }
 
     function selectedTestRecipientIds() {
@@ -1471,6 +1527,87 @@
       renderSubscriptionModal();
     }
 
+    function sourceMembershipDiffs() {
+      const modal = state.sourceMembershipModal;
+      return modal.users
+        .filter((user) => Boolean(user.member) !== Boolean(modal.original[user.id]))
+        .map((user) => ({ user_id: user.id, subscribed: Boolean(user.member) }));
+    }
+
+    function filteredSourceMembershipUsers() {
+      const modal = state.sourceMembershipModal;
+      const query = $("sourceMembershipSearch").value.trim().toLowerCase();
+      const filter = $("sourceMembershipFilter").value;
+      return modal.users.filter((user) => {
+        const member = Boolean(user.member);
+        if (filter === "member" && !member) return false;
+        if (filter === "nonmember" && member) return false;
+        if (!query) return true;
+        return [user.name, user.id]
+          .some((value) => String(value || "").toLowerCase().includes(query));
+      });
+    }
+
+    function renderSourceMembershipModal() {
+      const modal = state.sourceMembershipModal;
+      if (!modal.sourceId) {
+        $("sourceMembershipModalBackdrop").classList.add("hidden");
+        return;
+      }
+
+      $("sourceMembershipModalBackdrop").classList.remove("hidden");
+      $("sourceMembershipModalTitle").textContent = `Members for ${modal.sourceName || modal.sourceId}`;
+      const memberCount = modal.users.filter((user) => user.member).length;
+      const diffs = sourceMembershipDiffs();
+      $("sourceMembershipModalSummary").textContent = `${memberCount} of ${modal.users.length} users included`;
+      $("sourceMembershipDirtyState").textContent = diffs.length ? `${diffs.length} pending change${diffs.length === 1 ? "" : "s"}` : "No changes";
+      $("saveSourceMembershipChanges").disabled = diffs.length === 0;
+
+      const visible = filteredSourceMembershipUsers();
+      modal.visibleIds = visible.map((user) => user.id);
+      $("sourceMembershipList").innerHTML = visible.map((user) => `
+        <div class="subscription-row">
+          <label>
+            <input type="checkbox" data-source-member-user="${esc(user.id)}" ${user.member ? "checked" : ""}>
+            <span>${esc(user.name)} <code>${esc(user.id)}</code></span>
+          </label>
+          <span class="muted">${esc(user.device_count ?? 0)} device${Number(user.device_count ?? 0) === 1 ? "" : "s"}</span>
+        </div>
+      `).join("") || `<div class="subscription-row"><span class="muted">No matching users</span></div>`;
+    }
+
+    function openSourceMembershipModal(sourceId, sourceName) {
+      const source = findSource(sourceId);
+      const original = {};
+      const users = state.users.map((user) => {
+        const member = userSubscribedToSource(user, sourceId);
+        original[user.id] = member;
+        return { ...user, member };
+      });
+
+      state.sourceMembershipModal = {
+        sourceId,
+        sourceName: sourceName || source?.name || sourceId,
+        users,
+        original,
+        visibleIds: []
+      };
+      $("sourceMembershipSearch").value = "";
+      $("sourceMembershipFilter").value = "all";
+      renderSourceMembershipModal();
+    }
+
+    function closeSourceMembershipModal() {
+      state.sourceMembershipModal = {
+        sourceId: null,
+        sourceName: "",
+        users: [],
+        original: {},
+        visibleIds: []
+      };
+      renderSourceMembershipModal();
+    }
+
     function openDeviceEnrollmentModal() {
       renderDeviceEnrollmentUsers();
       $("deviceEnrollmentSecret").innerHTML = "";
@@ -1509,6 +1646,14 @@
         ids.has(source.id) ? { ...source, subscribed } : source
       ));
       renderSubscriptionModal();
+    }
+
+    function setSourceMembershipState(userIds, member) {
+      const ids = new Set(userIds);
+      state.sourceMembershipModal.users = state.sourceMembershipModal.users.map((user) => (
+        ids.has(user.id) ? { ...user, member } : user
+      ));
+      renderSourceMembershipModal();
     }
 
     function parseScopes(value) {
@@ -1693,11 +1838,11 @@
     function testOptionsFromPreset() {
       const approve = { id: "approve", label: "Approve", kind: "approve" };
       const reject = { id: "reject", label: "Reject", kind: "reject", destructive: true };
-      const approveNotes = {
-        id: "approve_notes",
-        label: "Approve with notes",
+      const approveReason = {
+        id: "approve_reason",
+        label: "Approve with reason",
         kind: "approve_with_text",
-        text_placeholder: "Notes"
+        text_placeholder: "Reason"
       };
       const rejectReason = {
         id: "reject_reason",
@@ -1711,9 +1856,7 @@
         case "approval":
           return [approve, reject];
         case "approval_text":
-          return [approve, approveNotes, reject, rejectReason];
-        case "reject_reason":
-          return [rejectReason];
+          return [approveReason, rejectReason];
         default:
           return [];
       }
@@ -1818,6 +1961,7 @@
     $("closeDeviceEnrollmentModal").addEventListener("click", closeDeviceEnrollmentModal);
     $("closeUserModal").addEventListener("click", closeUserModal);
     $("closeSourceModal").addEventListener("click", closeSourceModal);
+    $("closeSourceMembershipModal").addEventListener("click", closeSourceMembershipModal);
     $("openTokenModal").addEventListener("click", () => openTokenModal());
     $("closeTokenModal").addEventListener("click", closeTokenModal);
 
@@ -1843,6 +1987,9 @@
       if (event.key === "Escape" && !$("sourceModalBackdrop").classList.contains("hidden")) {
         closeSourceModal();
         $("resetSourceForm").focus();
+      }
+      if (event.key === "Escape" && !$("sourceMembershipModalBackdrop").classList.contains("hidden")) {
+        closeSourceMembershipModal();
       }
       if (event.key === "Escape" && !$("tokenModalBackdrop").classList.contains("hidden")) {
         closeTokenModal();
@@ -1905,6 +2052,34 @@
         closeSubscriptionModal();
         await loadAll();
         setStatus("Subscriptions saved", "ok");
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
+    $("sourceMembershipSearch").addEventListener("input", renderSourceMembershipModal);
+    $("sourceMembershipFilter").addEventListener("change", renderSourceMembershipModal);
+    $("cancelSourceMembershipChanges").addEventListener("click", closeSourceMembershipModal);
+    $("addVisibleSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.visibleIds, true));
+    $("removeVisibleSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.visibleIds, false));
+    $("addAllSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.users.map((user) => user.id), true));
+    $("removeAllSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.users.map((user) => user.id), false));
+
+    $("saveSourceMembershipChanges").addEventListener("click", async () => {
+      const modal = state.sourceMembershipModal;
+      const updates = sourceMembershipDiffs();
+      if (!modal.sourceId || updates.length === 0) return;
+      try {
+        setStatus("Saving source members");
+        await Promise.all(updates.map((update) => api(`/users/${encodeURIComponent(update.user_id)}/subscriptions`, {
+          method: "PUT",
+          body: JSON.stringify({
+            updates: [{ source_id: modal.sourceId, subscribed: update.subscribed }]
+          })
+        })));
+        closeSourceMembershipModal();
+        await loadAll();
+        setStatus("Source members saved", "ok");
       } catch (err) {
         setStatus(err.message, "danger-text");
       }
@@ -2092,6 +2267,11 @@
         return;
       }
 
+      if (button.dataset.manageSourceMembers) {
+        openSourceMembershipModal(button.dataset.manageSourceMembers, button.dataset.sourceName);
+        return;
+      }
+
       if (button.dataset.deleteSource) {
         const sourceId = button.dataset.deleteSource;
         const sourceName = button.dataset.sourceName || sourceId;
@@ -2100,6 +2280,9 @@
           await api(`/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" });
           if (state.editingSourceId === sourceId) {
             closeSourceModal();
+          }
+          if (state.sourceMembershipModal.sourceId === sourceId) {
+            closeSourceMembershipModal();
           }
           $("testRequestResult").innerHTML = "";
           await loadAll();
@@ -2140,6 +2323,13 @@
           source.id === sourceId ? { ...source, subscribed: input.checked } : source
         ));
         renderSubscriptionModal();
+      }
+      if (input.matches("[data-source-member-user]")) {
+        const userId = input.dataset.sourceMemberUser;
+        state.sourceMembershipModal.users = state.sourceMembershipModal.users.map((user) => (
+          user.id === userId ? { ...user, member: input.checked } : user
+        ));
+        renderSourceMembershipModal();
       }
     });
 

@@ -382,7 +382,16 @@ async fn admin_can_manage_subscriptions_on_users() {
             .iter()
             .filter(|source| source["subscribed"] == true)
             .count(),
-        2
+        1
+    );
+    assert_eq!(
+        subscriptions["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|source| source["id"] == "alerts")
+            .unwrap()["subscribed"],
+        false
     );
 
     let (status, updated) = app

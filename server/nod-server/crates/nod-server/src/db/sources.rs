@@ -73,17 +73,6 @@ pub async fn create_source(
     .execute(pool)
     .await?;
 
-    sqlx::query(
-        r#"
-        INSERT OR IGNORE INTO user_source_subscriptions (user_id, source_id, subscribed, updated_at)
-        SELECT id, ?, 1, ? FROM users
-        "#,
-    )
-    .bind(&req.id)
-    .bind(now_string())
-    .execute(pool)
-    .await?;
-
     get_source(pool, &req.id).await
 }
 
