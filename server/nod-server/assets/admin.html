@@ -84,6 +84,20 @@
       align-items: end;
     }
 
+    form.source-form {
+      display: grid;
+      grid-template-columns: auto minmax(260px, 1.6fr) minmax(180px, .8fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+
+    form.user-form {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.4fr) minmax(180px, .8fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+
     form.compact {
       display: grid;
       grid-template-columns: 1fr 1.4fr auto;
@@ -109,7 +123,13 @@
     .full { grid-column: 1 / -1; }
     textarea.tall { min-height: 90px; }
 
-    label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+    label,
+    .field-label {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
     fieldset {
       margin: 0;
       min-height: 34px;
@@ -156,6 +176,27 @@
     th, td { padding: 8px 9px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
     th { color: var(--muted); font-size: 12px; font-weight: 650; background: var(--surface-2); }
     tr:last-child td { border-bottom: 0; }
+    .sources-table {
+      table-layout: auto;
+    }
+    .sources-table .emoji-col { width: 52px; }
+    .sources-table .id-col { width: 220px; }
+    .sources-table .actions-col { width: 120px; }
+    .users-table .name-col { min-width: 220px; }
+    .users-table .id-col { width: 220px; }
+    .users-table .count-col { width: 100px; }
+    .users-table .created-col { width: 190px; }
+    .users-table .actions-col { width: 120px; }
+    .source-emoji-cell {
+      width: 52px;
+      font-size: 18px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .source-name-cell {
+      min-width: 220px;
+    }
+    .source-actions-cell { width: 120px; white-space: nowrap; }
     code {
       display: inline-block;
       max-width: 360px;
@@ -177,17 +218,89 @@
       font-size: 11px;
     }
     .field-note.error { color: var(--danger); }
-    .emoji-picker {
+    .emoji-control {
+      position: relative;
       display: grid;
-      grid-template-columns: repeat(8, minmax(30px, 1fr));
       gap: 4px;
-      margin-top: 4px;
+      justify-items: start;
     }
-    .emoji-picker button {
-      min-height: 30px;
-      padding: 3px;
-      font-size: 18px;
+    .source-emoji-control {
+      padding-top: 20px;
+    }
+    .emoji-icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      min-width: 34px;
+      min-height: 34px;
+      padding: 0;
+      border-color: var(--border);
+      background: #fff;
+      font-size: 24px;
       line-height: 1;
+    }
+    .emoji-icon-button:hover,
+    .emoji-icon-button:focus-visible {
+      border-color: var(--border);
+      background: #eef4ff;
+    }
+    .emoji-popover {
+      position: absolute;
+      z-index: 30;
+      top: calc(100% + 6px);
+      left: 0;
+      width: min(390px, calc(100vw - 32px));
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 18px 36px rgba(15, 23, 42, .18);
+    }
+    emoji-picker {
+      width: 100%;
+      height: 370px;
+      --border-color: var(--border);
+      --button-hover-background: #eef4ff;
+      --button-active-background: #dbeafe;
+      --category-emoji-padding: 6px;
+      --indicator-color: var(--accent);
+      --input-border-color: var(--border);
+      --input-font-color: var(--text);
+    }
+    .slug-field {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .slug-display {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 34px;
+      overflow-wrap: anywhere;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 7px 9px;
+      background: #f8fafc;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+    }
+    .slug-display.empty {
+      color: var(--muted);
+      font-family: inherit;
+    }
+    .slug-display.error {
+      border-color: var(--danger);
+      background: #fff7f7;
+      color: var(--danger);
+    }
+    form.source-form > button[type="submit"] {
+      margin-top: 20px;
+    }
+    form.user-form > button[type="submit"] {
+      margin-top: 20px;
     }
     .secret {
       display: grid;
@@ -275,6 +388,21 @@
       box-shadow: 0 18px 48px rgba(15, 23, 42, .22);
     }
 
+    .modal.compact-modal {
+      width: min(560px, 100%);
+      grid-template-rows: auto auto auto;
+    }
+
+    .modal.user-modal {
+      width: min(760px, 100%);
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .modal.source-modal {
+      width: min(620px, 100%);
+      grid-template-rows: auto auto;
+    }
+
     .modal-body {
       min-height: 260px;
       overflow: auto;
@@ -304,6 +432,25 @@
     .subscription-row input,
     .recipient-list input,
     .checks input { width: auto; min-height: auto; }
+
+    .user-devices-list {
+      min-height: 0;
+    }
+
+    #userModalDevicesSection {
+      min-height: 0;
+    }
+
+    .user-device-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(120px, .7fr) minmax(150px, .9fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .user-device-row:last-child { border-bottom: 0; }
 
     .modal-actions {
       display: flex;
@@ -380,10 +527,16 @@
       .settings-grid { grid-template-columns: 1fr; }
       .recipient-list { grid-template-columns: 1fr; }
       form.inline-grid, form.compact, form.token-grid, form.test-grid { grid-template-columns: 1fr; }
+      form.source-form { grid-template-columns: auto minmax(0, 1fr); }
+      form.user-form { grid-template-columns: 1fr; }
+      .slug-field,
+      form.source-form > button[type="submit"] { grid-column: 1 / -1; }
+      .user-device-row { grid-template-columns: 1fr; align-items: start; }
       .wide, .full { grid-column: auto; }
       header { align-items: flex-start; }
     }
   </style>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.0/index.js"></script>
 </head>
 <body>
   <header>
@@ -409,18 +562,14 @@
     </section>
 
     <div id="adminView" class="hidden stack">
+      <section class="summary" id="summary" aria-label="Status summary"></section>
+
       <nav id="adminTabs" class="tabs" aria-label="Admin sections">
-        <button class="tab-button" type="button" data-tab="overview">Overview</button>
         <button class="tab-button" type="button" data-tab="users-devices">Users & Devices</button>
         <button class="tab-button" type="button" data-tab="sources">Sources</button>
         <button class="tab-button" type="button" data-tab="test-request">Test Request</button>
-        <button class="tab-button" type="button" data-tab="issuer-tokens">Issuer Tokens</button>
         <button class="tab-button" type="button" data-tab="settings">Settings</button>
       </nav>
-
-      <div class="tab-panel stack" data-tab-panel="overview">
-        <section class="summary" id="summary"></section>
-      </div>
 
       <div class="tab-panel stack" data-tab-panel="users-devices">
         <section class="panel stack">
@@ -428,27 +577,16 @@
             <h2>Users</h2>
             <button id="resetUserForm" type="button">New user</button>
           </div>
-          <form id="userForm" class="compact">
-            <label>Slug
-              <input id="userId" autocomplete="off" spellcheck="false" readonly required>
-              <span id="userSlugHelp" class="field-note">Generated from name</span>
-            </label>
-            <label>Name
-              <input id="userName" autocomplete="off" required>
-            </label>
-            <button id="userSubmit" class="primary" type="submit">Save</button>
-          </form>
-          <div id="enrollmentSecret"></div>
           <div class="table-wrap">
-            <table>
+            <table class="users-table">
               <thead>
                 <tr>
-                  <th>Id</th>
-                  <th>Name</th>
-                  <th>Devices</th>
-                  <th>Subscriptions</th>
-                  <th>Created</th>
-                  <th></th>
+                  <th class="name-col">Name</th>
+                  <th class="id-col">Id</th>
+                  <th class="count-col">Devices</th>
+                  <th class="count-col">Subscriptions</th>
+                  <th class="created-col">Created</th>
+                  <th class="actions-col"></th>
                 </tr>
               </thead>
               <tbody id="usersBody"></tbody>
@@ -459,7 +597,10 @@
         <section class="panel stack">
           <div class="split">
             <h2>Devices</h2>
-            <button id="refreshDevicesButton" type="button">Refresh devices</button>
+            <div class="row">
+              <button id="openDeviceEnrollmentModal" class="primary" type="button">Add device</button>
+              <button id="refreshDevicesButton" type="button">Refresh devices</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
@@ -487,40 +628,39 @@
             <h2>Sources</h2>
             <button id="resetSourceForm" type="button">New source</button>
           </div>
-          <form id="sourceForm" class="inline-grid">
-            <label>Slug
-              <input id="sourceId" autocomplete="off" spellcheck="false" readonly required>
-              <span id="sourceSlugHelp" class="field-note">Generated from name</span>
-            </label>
-            <label>Name
-              <input id="sourceName" autocomplete="off" required>
-            </label>
-            <label>Emoji
-              <input id="sourceEmoji" autocomplete="off" spellcheck="false" value="🔔">
-              <div class="emoji-picker" aria-label="Emoji picker">
-                <button type="button" data-source-emoji="🔔">🔔</button>
-                <button type="button" data-source-emoji="🤖">🤖</button>
-                <button type="button" data-source-emoji="🚀">🚀</button>
-                <button type="button" data-source-emoji="🛡️">🛡️</button>
-                <button type="button" data-source-emoji="💻">💻</button>
-                <button type="button" data-source-emoji="🧪">🧪</button>
-                <button type="button" data-source-emoji="🏠">🏠</button>
-                <button type="button" data-source-emoji="⚙️">⚙️</button>
-              </div>
-            </label>
-            <button id="sourceSubmit" class="primary" type="submit">Save</button>
-          </form>
+          <div class="table-wrap">
+            <table class="sources-table">
+              <thead>
+                <tr>
+                  <th class="emoji-col">Emoji</th>
+                  <th>Id</th>
+                  <th>Name</th>
+                  <th class="actions-col"></th>
+                </tr>
+              </thead>
+              <tbody id="sourcesBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel stack">
+          <div class="split">
+            <h2>Access tokens</h2>
+            <button id="openTokenModal" class="primary" type="button">Create token</button>
+          </div>
+          <div id="tokenSecret"></div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Id</th>
                   <th>Name</th>
-                  <th>Emoji</th>
+                  <th>Source / scopes</th>
+                  <th>Created</th>
+                  <th>Status</th>
                   <th></th>
                 </tr>
               </thead>
-              <tbody id="sourcesBody"></tbody>
+              <tbody id="tokensBody"></tbody>
             </table>
           </div>
         </section>
@@ -611,49 +751,6 @@
         </section>
       </div>
 
-      <div class="tab-panel stack" data-tab-panel="issuer-tokens">
-        <section class="panel stack">
-          <div class="split">
-            <h2>Issuer Tokens</h2>
-          </div>
-          <form id="tokenForm" class="token-grid">
-            <label>Name
-              <input id="tokenName" autocomplete="off" required>
-            </label>
-            <label>Source
-              <select id="tokenSource" required></select>
-            </label>
-            <fieldset>
-              <legend>Permissions</legend>
-              <div class="checks">
-                <label><input id="tokenCanWrite" type="checkbox" checked> Write requests</label>
-                <label><input id="tokenCanRead" type="checkbox" checked> Read decisions</label>
-                <label><input id="tokenCanCancel" type="checkbox"> Cancel own requests</label>
-              </div>
-            </fieldset>
-            <label>Extra scopes
-              <input id="tokenExtraScopes" autocomplete="off" spellcheck="false" placeholder="optional">
-            </label>
-            <button class="primary" type="submit">Create token</button>
-          </form>
-          <div id="tokenSecret"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Scopes</th>
-                  <th>Created</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="tokensBody"></tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
       <div class="tab-panel stack" data-tab-panel="settings">
         <section class="panel stack">
           <div class="split">
@@ -662,6 +759,64 @@
           <div id="settingsBody" class="settings-grid"></div>
         </section>
       </div>
+    </div>
+
+    <div id="userModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal user-modal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+        <div class="split">
+          <h2 id="userModalTitle">User</h2>
+          <button id="closeUserModal" type="button">Close</button>
+        </div>
+        <form id="userForm" class="user-form">
+          <label>Name
+            <input id="userName" autocomplete="off" required>
+          </label>
+          <div class="slug-field">
+            <span class="field-label">Slug ID</span>
+            <input id="userId" type="hidden">
+            <div id="userSlugDisplay" class="slug-display empty">generated-from-name</div>
+            <span id="userSlugHelp" class="field-note"></span>
+          </div>
+          <button id="userSubmit" class="primary" type="submit">Save</button>
+        </form>
+        <section id="userModalDevicesSection" class="stack hidden">
+          <div class="split">
+            <h3>Devices</h3>
+            <span id="userModalDeviceSummary" class="muted"></span>
+          </div>
+          <div id="userModalDevices" class="modal-body user-devices-list"></div>
+        </section>
+      </section>
+    </div>
+
+    <div id="sourceModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal source-modal" role="dialog" aria-modal="true" aria-labelledby="sourceModalTitle">
+        <div class="split">
+          <h2 id="sourceModalTitle">Source</h2>
+          <button id="closeSourceModal" type="button">Close</button>
+        </div>
+        <form id="sourceForm" class="source-form">
+          <div class="emoji-control source-emoji-control">
+            <input id="sourceEmoji" type="hidden" value="🔔">
+            <button id="emojiPickerToggle" class="emoji-icon-button" type="button" aria-label="Choose source emoji" aria-expanded="false" aria-controls="emojiPickerPopover">
+              <span id="sourceEmojiPreview" aria-hidden="true">🔔</span>
+            </button>
+            <div id="emojiPickerPopover" class="emoji-popover hidden" aria-label="Emoji picker">
+              <emoji-picker id="sourceEmojiPicker"></emoji-picker>
+            </div>
+          </div>
+          <label>Name
+            <input id="sourceName" autocomplete="off" required>
+          </label>
+          <div class="slug-field">
+            <span class="field-label">Slug ID</span>
+            <input id="sourceId" type="hidden">
+            <div id="sourceSlugDisplay" class="slug-display empty">generated-from-name</div>
+            <span id="sourceSlugHelp" class="field-note"></span>
+          </div>
+          <button id="sourceSubmit" class="primary" type="submit">Save</button>
+        </form>
+      </section>
     </div>
 
     <div id="subscriptionModalBackdrop" class="modal-backdrop hidden">
@@ -701,13 +856,59 @@
         </div>
       </section>
     </div>
+
+    <div id="deviceEnrollmentModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="deviceEnrollmentModalTitle">
+        <div class="split">
+          <h2 id="deviceEnrollmentModalTitle">Add device</h2>
+          <button id="closeDeviceEnrollmentModal" type="button">Close</button>
+        </div>
+        <form id="deviceEnrollmentForm" class="stack">
+          <label>User
+            <select id="deviceEnrollmentUser" required></select>
+          </label>
+          <button id="createDeviceEnrollmentCode" class="primary" type="submit">Create enrollment code</button>
+        </form>
+        <div id="deviceEnrollmentSecret"></div>
+      </section>
+    </div>
+
+    <div id="tokenModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="tokenModalTitle">
+        <div class="split">
+          <h2 id="tokenModalTitle">Create access token</h2>
+          <button id="closeTokenModal" type="button">Close</button>
+        </div>
+        <form id="tokenForm" class="stack">
+          <label>Name
+            <input id="tokenName" autocomplete="off" required>
+          </label>
+          <label>Source
+            <select id="tokenSource" required></select>
+          </label>
+          <fieldset>
+            <legend>Permissions</legend>
+            <div class="checks">
+              <label><input id="tokenCanWrite" type="checkbox" checked> Write requests</label>
+              <label><input id="tokenCanRead" type="checkbox" checked> Read decisions</label>
+              <label><input id="tokenCanCancel" type="checkbox"> Cancel own requests</label>
+            </div>
+          </fieldset>
+          <label>Extra scopes
+            <input id="tokenExtraScopes" autocomplete="off" spellcheck="false" placeholder="optional">
+          </label>
+          <button id="createTokenButton" class="primary" type="submit">Create token</button>
+        </form>
+      </section>
+    </div>
   </main>
 
   <script>
     const basePath = location.pathname.replace(/\/admin\/?$/, "");
     const adminBase = `${basePath}/admin`;
     const apiBase = `${basePath}/api/v1/admin`;
-    const tabIds = ["overview", "users-devices", "sources", "test-request", "issuer-tokens", "settings"];
+    const defaultTab = "users-devices";
+    const tabIds = [defaultTab, "sources", "test-request", "settings"];
     const state = {
       users: [],
       sources: [],
@@ -717,7 +918,8 @@
       summary: null,
       editingUserId: null,
       editingSourceId: null,
-      activeTab: "overview",
+      activeTab: defaultTab,
+      emojiPickerOpen: false,
       subscriptionModal: {
         userId: null,
         userName: "",
@@ -743,6 +945,18 @@
       $("status").textContent = message;
     }
 
+    function setSourceEmoji(value) {
+      const emoji = value || "🔔";
+      $("sourceEmoji").value = emoji;
+      $("sourceEmojiPreview").textContent = emoji;
+    }
+
+    function setEmojiPickerOpen(open) {
+      state.emojiPickerOpen = open;
+      $("emojiPickerPopover").classList.toggle("hidden", !open);
+      $("emojiPickerToggle").setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
     function showLogin() {
       $("loginView").classList.remove("hidden");
       $("adminView").classList.add("hidden");
@@ -760,11 +974,11 @@
 
     function tabFromHash() {
       const tab = location.hash.replace(/^#/, "");
-      return tabIds.includes(tab) ? tab : "overview";
+      return tabIds.includes(tab) ? tab : defaultTab;
     }
 
     function setActiveTab(tab, updateHash = true) {
-      state.activeTab = tabIds.includes(tab) ? tab : "overview";
+      state.activeTab = tabIds.includes(tab) ? tab : defaultTab;
       document.querySelectorAll("[data-tab]").forEach((button) => {
         button.classList.toggle("active", button.dataset.tab === state.activeTab);
       });
@@ -870,7 +1084,7 @@
         metric("Users", summary.users ?? 0),
         metric("Sources", summary.sources ?? 0),
         metric("Devices", summary.devices ?? 0),
-        metric("Active issuer tokens", summary.active_issuer_tokens ?? 0),
+        metric("Active access tokens", summary.active_issuer_tokens ?? 0),
         metric("Pending requests", summary.pending_requests ?? 0)
       ].join("");
     }
@@ -878,16 +1092,18 @@
     function renderUsers() {
       $("usersBody").innerHTML = state.users.map((user) => `
         <tr>
-          <td><code>${esc(user.id)}</code></td>
-          <td>${esc(user.name)}</td>
-          <td>${esc(user.device_count)}</td>
-          <td>${esc(user.subscribed_source_count ?? 0)} / ${esc(state.sources.length)}</td>
-          <td>${esc(formatDate(user.created_at))}</td>
-          <td>
+          <td class="name-col">${esc(user.name)}</td>
+          <td class="id-col"><code>${esc(user.id)}</code></td>
+          <td class="count-col">${esc(user.device_count)}</td>
+          <td class="count-col">
+            <button class="link" data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}" aria-label="Manage subscriptions for ${esc(user.name)}" title="Manage subscriptions">
+              ${esc(user.subscribed_source_count ?? 0)} / ${esc(state.sources.length)}
+            </button>
+          </td>
+          <td class="created-col">${esc(formatDate(user.created_at))}</td>
+          <td class="actions-col">
             <div class="actions-cell">
               <button class="link" data-edit-user="${esc(user.id)}">Edit</button>
-              <button data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}">Manage subscriptions</button>
-              <button data-enroll-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Enrollment code</button>
               ${user.id === "owner" ? "" : `<button class="danger" data-delete-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Delete</button>`}
             </div>
           </td>
@@ -898,10 +1114,10 @@
     function renderSources() {
       $("sourcesBody").innerHTML = state.sources.map((source) => `
         <tr>
-          <td><code>${esc(source.id)}</code></td>
-          <td>${esc(source.name)}</td>
-          <td>${esc(source.emoji || "🔔")}</td>
-          <td>
+          <td class="source-emoji-cell">${esc(source.emoji || "🔔")}</td>
+          <td class="id-col"><code>${esc(source.id)}</code></td>
+          <td class="source-name-cell">${esc(source.name)}</td>
+          <td class="source-actions-cell">
             <div class="actions-cell">
               <button class="link" data-edit-source="${esc(source.id)}">Edit</button>
               <button class="danger" data-delete-source="${esc(source.id)}" data-source-name="${esc(source.name)}">Delete</button>
@@ -926,24 +1142,128 @@
       `).join("") || `<tr><td colspan="8" class="muted">No registered devices</td></tr>`;
     }
 
+    function renderDeviceEnrollmentUsers() {
+      const select = $("deviceEnrollmentUser");
+      const previous = select.value;
+      const users = [...state.users].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      select.innerHTML = users.map((user) => `
+        <option value="${esc(user.id)}">${esc(user.name)} (${esc(user.id)})</option>
+      `).join("");
+      if (previous && users.some((user) => user.id === previous)) {
+        select.value = previous;
+      }
+      $("createDeviceEnrollmentCode").disabled = users.length === 0;
+    }
+
+    function sourceById(sourceId) {
+      return state.sources.find((source) => source.id === sourceId);
+    }
+
+    function tokenSourceIds(token) {
+      const ids = new Set();
+      (token.scopes || []).forEach((scope) => {
+        const match = String(scope).match(/^requests:(?:write|read|cancel):(.+)$/);
+        if (match) ids.add(match[1]);
+      });
+      return Array.from(ids);
+    }
+
+    function renderTokenSourceScopes(token) {
+      const sourceIds = tokenSourceIds(token);
+      const sourceLabel = sourceIds.length
+        ? sourceIds.map((sourceId) => {
+          const source = sourceById(sourceId);
+          return source ? `${source.emoji || "🔔"} ${source.name}` : sourceId;
+        }).join(", ")
+        : "custom scopes";
+      const scopes = (token.scopes || []).map((scope) => `<code>${esc(scope)}</code>`).join(" ");
+      return `<strong>${esc(sourceLabel)}</strong><br>${scopes || `<span class="muted">No scopes</span>`}`;
+    }
+
+    function renderUserModalDevices() {
+      const userId = state.editingUserId;
+      if (!userId || $("userModalBackdrop").classList.contains("hidden")) {
+        $("userModalDevicesSection").classList.add("hidden");
+        return;
+      }
+
+      const devices = state.devices.filter((device) => device.user_id === userId);
+      $("userModalDevicesSection").classList.remove("hidden");
+      $("userModalDeviceSummary").textContent = `${devices.length} registered device${devices.length === 1 ? "" : "s"}`;
+      $("userModalDevices").innerHTML = devices.map((device) => `
+        <div class="user-device-row">
+          <div>${esc(device.name)}<br><code>${esc(device.id)}</code></div>
+          <div>${esc(device.platform)}</div>
+          <div>${esc(formatDate(device.last_seen_at)) || `<span class="muted">never seen</span>`}</div>
+          <button class="danger" data-revoke-device="${esc(device.id)}">Revoke</button>
+        </div>
+      `).join("") || `<div class="user-device-row"><span class="muted">No registered devices</span></div>`;
+    }
+
+    function openUserModal(userId = null) {
+      const user = userId ? state.users.find((item) => item.id === userId) : null;
+      state.editingUserId = user ? user.id : null;
+      $("userModalTitle").textContent = user ? `Edit ${user.name}` : "New user";
+      $("userId").value = user ? user.id : "";
+      $("userName").value = user ? user.name : "";
+      $("userModalBackdrop").classList.remove("hidden");
+      updateUserSlug();
+      renderUserModalDevices();
+      $("userName").focus();
+    }
+
+    function closeUserModal() {
+      state.editingUserId = null;
+      $("userModalBackdrop").classList.add("hidden");
+      $("userId").value = "";
+      $("userName").value = "";
+      $("userModalTitle").textContent = "User";
+      $("userModalDevicesSection").classList.add("hidden");
+      updateUserSlug();
+    }
+
+    function openSourceModal(sourceId = null) {
+      const source = sourceId ? state.sources.find((item) => item.id === sourceId) : null;
+      state.editingSourceId = source ? source.id : null;
+      $("sourceModalTitle").textContent = source ? `Edit ${source.name}` : "New source";
+      $("sourceId").value = source ? source.id : "";
+      $("sourceName").value = source ? source.name : "";
+      setSourceEmoji(source ? source.emoji || "🔔" : "🔔");
+      setEmojiPickerOpen(false);
+      $("sourceModalBackdrop").classList.remove("hidden");
+      updateSourceSlug();
+      $("sourceName").focus();
+    }
+
+    function closeSourceModal() {
+      state.editingSourceId = null;
+      $("sourceModalBackdrop").classList.add("hidden");
+      $("sourceId").value = "";
+      $("sourceName").value = "";
+      setSourceEmoji("🔔");
+      setEmojiPickerOpen(false);
+      $("sourceModalTitle").textContent = "Source";
+      updateSourceSlug();
+    }
+
     function renderTokens() {
       $("tokensBody").innerHTML = state.tokens.map((token) => {
         const active = !token.revoked_at;
         return `
           <tr>
             <td>${esc(token.name)}<br><code>${esc(token.id)}</code></td>
-            <td>${(token.scopes || []).map((scope) => `<code>${esc(scope)}</code>`).join(" ")}</td>
+            <td>${renderTokenSourceScopes(token)}</td>
             <td>${esc(formatDate(token.created_at))}</td>
             <td class="${active ? "ok" : "muted"}">${active ? "active" : `revoked ${formatDate(token.revoked_at)}`}</td>
             <td>${active ? `<button class="danger" data-revoke-token="${esc(token.id)}">Revoke</button>` : ""}</td>
           </tr>
         `;
-      }).join("") || `<tr><td colspan="5" class="muted">No issuer tokens</td></tr>`;
+      }).join("") || `<tr><td colspan="5" class="muted">No access tokens</td></tr>`;
     }
 
-    function renderTokenSourceOptions() {
+    function renderTokenSourceOptions(preferred = "") {
       const select = $("tokenSource");
-      const previous = select.value;
+      const previous = preferred || select.value;
       select.innerHTML = state.sources.map((source) => `
         <option value="${esc(source.id)}">${esc(source.name)} (${esc(source.id)})</option>
       `).join("");
@@ -1039,6 +1359,8 @@
       renderUsers();
       renderSources();
       renderDevices();
+      renderDeviceEnrollmentUsers();
+      renderUserModalDevices();
       renderTokens();
       renderTokenSourceOptions();
       renderTestSourceOptions();
@@ -1050,20 +1372,11 @@
     }
 
     function resetUserForm() {
-      state.editingUserId = null;
-      $("userId").value = "";
-      $("userName").value = "";
-      updateUserSlug();
-      $("userName").focus();
+      openUserModal();
     }
 
     function resetSourceForm() {
-      state.editingSourceId = null;
-      $("sourceId").value = "";
-      $("sourceName").value = "";
-      $("sourceEmoji").value = "🔔";
-      updateSourceSlug();
-      $("sourceName").focus();
+      openSourceModal();
     }
 
     function showSecret(targetId, label, value) {
@@ -1158,6 +1471,38 @@
       renderSubscriptionModal();
     }
 
+    function openDeviceEnrollmentModal() {
+      renderDeviceEnrollmentUsers();
+      $("deviceEnrollmentSecret").innerHTML = "";
+      $("deviceEnrollmentModalBackdrop").classList.remove("hidden");
+      $("deviceEnrollmentUser").focus();
+    }
+
+    function closeDeviceEnrollmentModal() {
+      $("deviceEnrollmentModalBackdrop").classList.add("hidden");
+      $("deviceEnrollmentSecret").innerHTML = "";
+    }
+
+    function resetTokenForm(sourceId = "") {
+      $("tokenName").value = "";
+      $("tokenCanWrite").checked = true;
+      $("tokenCanRead").checked = true;
+      $("tokenCanCancel").checked = false;
+      $("tokenExtraScopes").value = "";
+      renderTokenSourceOptions(sourceId);
+    }
+
+    function openTokenModal(sourceId = "") {
+      resetTokenForm(sourceId);
+      $("tokenModalBackdrop").classList.remove("hidden");
+      $("tokenName").focus();
+    }
+
+    function closeTokenModal() {
+      $("tokenModalBackdrop").classList.add("hidden");
+      resetTokenForm();
+    }
+
     function setSubscriptionState(sourceIds, subscribed) {
       const ids = new Set(sourceIds);
       state.subscriptionModal.sources = state.subscriptionModal.sources.map((source) => (
@@ -1191,19 +1536,23 @@
 
     function updateUserSlug() {
       const help = $("userSlugHelp");
+      const display = $("userSlugDisplay");
       const submit = $("userSubmit");
       const slug = state.editingUserId || slugify($("userName").value);
       $("userId").value = slug;
       help.classList.remove("error");
+      display.classList.remove("empty", "error");
+      display.textContent = slug || "generated-from-name";
 
       if (state.editingUserId) {
-        help.textContent = "Existing user slug";
+        help.textContent = "Existing user ID";
         submit.disabled = false;
         return;
       }
 
       if (!slug) {
-        help.textContent = "Generated from name";
+        display.classList.add("empty");
+        help.textContent = "";
         submit.disabled = true;
         return;
       }
@@ -1211,29 +1560,34 @@
       if (userSlugExists(slug)) {
         help.textContent = "A user with this slug already exists";
         help.classList.add("error");
+        display.classList.add("error");
         submit.disabled = true;
         return;
       }
 
-      help.textContent = "Generated from name";
+      help.textContent = "";
       submit.disabled = false;
     }
 
     function updateSourceSlug() {
       const help = $("sourceSlugHelp");
+      const display = $("sourceSlugDisplay");
       const submit = $("sourceSubmit");
       const slug = state.editingSourceId || slugify($("sourceName").value);
       $("sourceId").value = slug;
       help.classList.remove("error");
+      display.classList.remove("empty", "error");
+      display.textContent = slug || "generated-from-name";
 
       if (state.editingSourceId) {
-        help.textContent = "Existing source slug";
+        help.textContent = "Existing source ID";
         submit.disabled = false;
         return;
       }
 
       if (!slug) {
-        help.textContent = "Generated from name";
+        display.classList.add("empty");
+        help.textContent = "";
         submit.disabled = true;
         return;
       }
@@ -1241,11 +1595,12 @@
       if (sourceSlugExists(slug)) {
         help.textContent = "A source with this slug already exists";
         help.classList.add("error");
+        display.classList.add("error");
         submit.disabled = true;
         return;
       }
 
-      help.textContent = "Generated from name";
+      help.textContent = "";
       submit.disabled = false;
     }
 
@@ -1459,6 +1814,12 @@
         .then(() => setStatus("Devices refreshed", "ok"))
         .catch((err) => setStatus(err.message, "danger-text"));
     });
+    $("openDeviceEnrollmentModal").addEventListener("click", openDeviceEnrollmentModal);
+    $("closeDeviceEnrollmentModal").addEventListener("click", closeDeviceEnrollmentModal);
+    $("closeUserModal").addEventListener("click", closeUserModal);
+    $("closeSourceModal").addEventListener("click", closeSourceModal);
+    $("openTokenModal").addEventListener("click", () => openTokenModal());
+    $("closeTokenModal").addEventListener("click", closeTokenModal);
 
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => setActiveTab(button.dataset.tab));
@@ -1466,11 +1827,40 @@
 
     window.addEventListener("hashchange", () => setActiveTab(tabFromHash(), false));
     window.addEventListener("popstate", () => setActiveTab(tabFromHash(), false));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.emojiPickerOpen) {
+        setEmojiPickerOpen(false);
+        $("emojiPickerToggle").focus();
+      }
+      if (event.key === "Escape" && !$("deviceEnrollmentModalBackdrop").classList.contains("hidden")) {
+        closeDeviceEnrollmentModal();
+        $("openDeviceEnrollmentModal").focus();
+      }
+      if (event.key === "Escape" && !$("userModalBackdrop").classList.contains("hidden")) {
+        closeUserModal();
+        $("resetUserForm").focus();
+      }
+      if (event.key === "Escape" && !$("sourceModalBackdrop").classList.contains("hidden")) {
+        closeSourceModal();
+        $("resetSourceForm").focus();
+      }
+      if (event.key === "Escape" && !$("tokenModalBackdrop").classList.contains("hidden")) {
+        closeTokenModal();
+        $("openTokenModal").focus();
+      }
+    });
 
     $("resetUserForm").addEventListener("click", resetUserForm);
     $("userName").addEventListener("input", updateUserSlug);
     $("resetSourceForm").addEventListener("click", resetSourceForm);
     $("sourceName").addEventListener("input", updateSourceSlug);
+    $("sourceEmojiPicker").addEventListener("emoji-click", (event) => {
+      const unicode = event.detail && event.detail.unicode;
+      if (!unicode) return;
+      setSourceEmoji(unicode);
+      setEmojiPickerOpen(false);
+      $("emojiPickerToggle").focus();
+    });
     $("testSource").addEventListener("change", renderTestRecipients);
     document.querySelectorAll("input[name='testRecipientMode']").forEach((input) => {
       input.addEventListener("change", renderTestRecipients);
@@ -1520,8 +1910,35 @@
       }
     });
 
+    $("deviceEnrollmentForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const userId = $("deviceEnrollmentUser").value;
+      const user = state.users.find((item) => item.id === userId);
+      if (!userId) {
+        setStatus("Choose a user", "danger-text");
+        return;
+      }
+      try {
+        setStatus("Creating enrollment code");
+        const data = await api(`/users/${encodeURIComponent(userId)}/enrollment-codes`, {
+          method: "POST",
+          body: JSON.stringify({ expires_in_seconds: 600 })
+        });
+        const name = user ? user.name : userId;
+        showSecret(
+          "deviceEnrollmentSecret",
+          `Enrollment code for ${name}, expires ${formatDate(data.expires_at)}`,
+          data.code
+        );
+        setStatus("Enrollment code created", "ok");
+      } catch (err) {
+        setStatus(err.message, "danger-text");
+      }
+    });
+
     $("userForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+      const wasEditing = Boolean(state.editingUserId);
       const userId = state.editingUserId || slugify($("userName").value);
       if (!userId) {
         setStatus("User name must produce a slug", "danger-text");
@@ -1542,8 +1959,14 @@
         } else {
           await api("/users", { method: "POST", body: JSON.stringify(payload) });
         }
-        resetUserForm();
         await loadAll();
+        if (wasEditing) {
+          const user = state.users.find((item) => item.id === userId);
+          $("userModalTitle").textContent = user ? `Edit ${user.name}` : "Edit user";
+          renderUserModalDevices();
+        } else {
+          closeUserModal();
+        }
         setStatus("User saved", "ok");
       } catch (err) {
         setStatus(err.message, "danger-text");
@@ -1552,6 +1975,7 @@
 
     $("sourceForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+      const wasEditing = Boolean(state.editingSourceId);
       const sourceId = state.editingSourceId || slugify($("sourceName").value);
       if (!sourceId) {
         setStatus("Source name must produce a slug", "danger-text");
@@ -1569,8 +1993,9 @@
       };
       try {
         await api("/sources", { method: "POST", body: JSON.stringify(payload) });
-        resetSourceForm();
         await loadAll();
+        closeSourceModal();
+        setStatus(wasEditing ? "Source saved" : "Source created", "ok");
       } catch (err) {
         setStatus(err.message, "danger-text");
       }
@@ -1601,21 +2026,28 @@
             scopes: tokenScopesFromForm()
           })
         });
-        showSecret("tokenSecret", "Issuer token", data.token);
-        $("tokenName").value = "";
-        $("tokenCanWrite").checked = true;
-        $("tokenCanRead").checked = true;
-        $("tokenCanCancel").checked = false;
-        $("tokenExtraScopes").value = "";
+        showSecret("tokenSecret", "Access token", data.token);
+        closeTokenModal();
         await loadAll();
+        setActiveTab("sources");
       } catch (err) {
         setStatus(err.message, "danger-text");
       }
     });
 
     document.addEventListener("click", async (event) => {
-      const button = event.target.closest("button");
+      const target = event.target instanceof Element ? event.target : event.target.parentElement;
+      if (state.emojiPickerOpen && target && !target.closest(".emoji-control")) {
+        setEmojiPickerOpen(false);
+      }
+
+      const button = target ? target.closest("button") : null;
       if (!button) return;
+
+      if (button.id === "emojiPickerToggle") {
+        setEmojiPickerOpen(!state.emojiPickerOpen);
+        return;
+      }
 
       if (button.dataset.copySecret) {
         await navigator.clipboard.writeText(button.dataset.copySecret);
@@ -1623,19 +2055,8 @@
         return;
       }
 
-      if (button.dataset.sourceEmoji) {
-        $("sourceEmoji").value = button.dataset.sourceEmoji;
-        return;
-      }
-
       if (button.dataset.editUser) {
-        const user = state.users.find((item) => item.id === button.dataset.editUser);
-        if (!user) return;
-        state.editingUserId = user.id;
-        $("userId").value = user.id;
-        $("userName").value = user.name;
-        updateUserSlug();
-        $("userName").focus();
+        openUserModal(button.dataset.editUser);
         return;
       }
 
@@ -1649,22 +2070,6 @@
         return;
       }
 
-      if (button.dataset.enrollUser) {
-        const userId = button.dataset.enrollUser;
-        try {
-          const data = await api(`/users/${encodeURIComponent(userId)}/enrollment-codes`, {
-            method: "POST",
-            body: JSON.stringify({ expires_in_seconds: 600 })
-          });
-          const name = button.dataset.userName || userId;
-          showSecret("enrollmentSecret", `Enrollment code for ${name}, expires ${formatDate(data.expires_at)}`, data.code);
-          setStatus("Enrollment code created", "ok");
-        } catch (err) {
-          setStatus(err.message, "danger-text");
-        }
-        return;
-      }
-
       if (button.dataset.deleteUser) {
         const userId = button.dataset.deleteUser;
         const userName = button.dataset.userName || userId;
@@ -1672,7 +2077,7 @@
         try {
           await api(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
           if (state.editingUserId === userId) {
-            resetUserForm();
+            closeUserModal();
           }
           await loadAll();
           setStatus("User deleted", "ok");
@@ -1683,14 +2088,7 @@
       }
 
       if (button.dataset.editSource) {
-        const source = state.sources.find((item) => item.id === button.dataset.editSource);
-        if (!source) return;
-        state.editingSourceId = source.id;
-        $("sourceId").value = source.id;
-        $("sourceName").value = source.name;
-        $("sourceEmoji").value = source.emoji || "🔔";
-        updateSourceSlug();
-        $("sourceName").focus();
+        openSourceModal(button.dataset.editSource);
         return;
       }
 
@@ -1701,7 +2099,7 @@
         try {
           await api(`/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" });
           if (state.editingSourceId === sourceId) {
-            resetSourceForm();
+            closeSourceModal();
           }
           $("testRequestResult").innerHTML = "";
           await loadAll();
@@ -1724,7 +2122,7 @@
       }
 
       if (button.dataset.revokeToken) {
-        if (!confirm("Revoke this issuer token?")) return;
+        if (!confirm("Revoke this access token?")) return;
         try {
           await api(`/issuer-tokens/${encodeURIComponent(button.dataset.revokeToken)}`, { method: "DELETE" });
           await loadAll();

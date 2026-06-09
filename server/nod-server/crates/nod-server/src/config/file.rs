@@ -160,7 +160,7 @@ mod tests {
             mode = "report_only"
             team_id = "TEAMID"
             bundle_ids = ["com.example.Nod", "com.example.NodMac"]
-            environment = "development"
+            environment = "production"
             "#,
         )
         .unwrap();
@@ -211,7 +211,7 @@ mod tests {
                 .apple_app_attest
                 .environment
                 .as_str(),
-            "development"
+            "production"
         );
         assert_eq!(config.admin_token(), "");
         assert!(config.notifications.apns_relay.client_enabled());

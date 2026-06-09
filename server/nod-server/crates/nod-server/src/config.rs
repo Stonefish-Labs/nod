@@ -118,7 +118,7 @@ impl Default for AppleAppAttestConfig {
             mode: DeviceAttestationMode::ReportOnly,
             team_id: None,
             bundle_ids: Vec::new(),
-            environment: AppAttestEnvironment::Development,
+            environment: AppAttestEnvironment::Production,
         }
     }
 }

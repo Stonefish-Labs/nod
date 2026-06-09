@@ -50,6 +50,55 @@ append_env_line() {
   printf '%s\n' "$line" >>"$file"
 }
 
+replace_env_line() {
+  local file="$1"
+  local name="$2"
+  local value="$3"
+  local tmp
+
+  tmp="$(mktemp)"
+  awk -v name="$name" -v value="$value" '
+    BEGIN { replaced = 0 }
+    $0 ~ "^[[:space:]]*" name "=" {
+      if (!replaced) {
+        print name "=" value
+        replaced = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (!replaced) {
+        print name "=" value
+      }
+    }
+  ' "$file" >"$tmp"
+  cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
+ensure_env_default() {
+  local file="$1"
+  local name="$2"
+  local value="$3"
+
+  if ! env_file_has_value "$file" "$name"; then
+    append_env_line "$file" "$name=$value"
+  fi
+}
+
+ensure_env_value() {
+  local file="$1"
+  local name="$2"
+  local value="$3"
+
+  if [[ -f "$file" ]] && grep -Eq "^[[:space:]]*${name}=" "$file"; then
+    replace_env_line "$file" "$name" "$value"
+  else
+    append_env_line "$file" "$name=$value"
+  fi
+}
+
 env_file_has_value() {
   local file="$1"
   local name="$2"
@@ -81,6 +130,27 @@ env_file_value() {
     esac
     printf '%s\n' "$value"
   fi
+}
+
+ensure_app_attest_defaults() {
+  ensure_env_default "$NOD_SECRETS_ENV" \
+    "NOD_APPLE_APP_ATTEST_MODE" \
+    "report_only"
+  ensure_env_default "$NOD_SECRETS_ENV" \
+    "NOD_APPLE_APP_ATTEST_TEAM_ID" \
+    "Y734633UDM"
+  ensure_env_default "$NOD_SECRETS_ENV" \
+    "NOD_APPLE_APP_ATTEST_BUNDLE_IDS" \
+    "com.batteryshark.Nod,com.batteryshark.NodMac"
+
+  case "$(env_file_value "$NOD_SECRETS_ENV" NOD_APPLE_APP_ATTEST_ENVIRONMENT)" in
+    "" )
+      append_env_line "$NOD_SECRETS_ENV" "NOD_APPLE_APP_ATTEST_ENVIRONMENT=production"
+      ;;
+    development|sandbox )
+      ensure_env_value "$NOD_SECRETS_ENV" "NOD_APPLE_APP_ATTEST_ENVIRONMENT" "production"
+      ;;
+  esac
 }
 
 ensure_relay_env() {
@@ -223,6 +293,7 @@ derive_relay_native_app_id() {
 }
 
 ensure_admin_token
+ensure_app_attest_defaults
 
 with_apns_relay=false
 dev=false

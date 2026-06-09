@@ -19,6 +19,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=build /app/target/release/nod-server /usr/local/bin/nod-server
+COPY assets ./assets
 
 ENV NOD_BIND=0.0.0.0:8767 \
     NOD_DATABASE_URL=sqlite:///data/nod.sqlite \

@@ -16,4 +16,4 @@ ca_cert_path = ""
 mode = "report_only"
 team_id = "Y734633UDM"
 bundle_ids = ["com.batteryshark.Nod", "com.batteryshark.NodMac"]
-environment = "development"
+environment = "production"

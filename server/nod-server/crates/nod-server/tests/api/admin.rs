@@ -129,7 +129,7 @@ async fn admin_settings_redacts_secrets() {
     );
     assert_eq!(
         settings["device_attestation"]["apple_app_attest"]["environment"],
-        "development"
+        "production"
     );
 
     let text = settings.to_string();

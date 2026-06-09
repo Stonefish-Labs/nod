@@ -1,1 +1,5 @@
-scripts/nod-dev up -d --force-recreate nod
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$DIR/scripts/nod-dev" --with-apns-relay up -d --force-recreate nod

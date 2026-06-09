@@ -73,8 +73,12 @@ Configure Apple App Attest explicitly:
 mode = "report_only"
 team_id = "Y734633UDM"
 bundle_ids = ["com.batteryshark.Nod", "com.batteryshark.NodMac"]
-environment = "development"
+environment = "production"
 ```
+
+TestFlight, App Store, and Apple Developer Enterprise Program distributions
+operate in the production App Attest environment, so paired release builds should
+be verified against `production`.
 
 `native_app_id` is required whenever `push_provider` and `push_token` are
 present. For Apple APNs it must be the bundle id/APNs topic, such as

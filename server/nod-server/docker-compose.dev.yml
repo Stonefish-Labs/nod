@@ -11,6 +11,7 @@ services:
       RUST_LOG: "${RUST_LOG:-nod_server=info,tower_http=info}"
     volumes:
       - .:/workspace
+      - ./assets:/workspace/assets:ro
       - nod-cargo-registry:/usr/local/cargo/registry
       - nod-cargo-git:/usr/local/cargo/git
       - nod-target:/workspace/target
