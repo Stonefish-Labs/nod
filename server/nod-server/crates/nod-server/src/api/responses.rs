@@ -5,7 +5,7 @@ use crate::{
         AdminDevice, AdminIssuerToken, AdminUser, CreateIssuerTokenResponse,
         CreatedDecisionRequest, DecisionRequest, EnrollmentCodeResponse, Source, User, UserDevice,
     },
-    views::{RequestDecisionView, RequestView},
+    views::RequestDecisionView,
 };
 
 #[derive(Debug, Serialize)]
@@ -81,7 +81,7 @@ pub(super) type IssuerTokenResponse = CreateIssuerTokenResponse;
 pub(super) struct CreateRequestResponse {
     request_id: String,
     deduped: bool,
-    request: RequestView,
+    request: nod_proto::Request,
 }
 
 impl CreateRequestResponse {
@@ -89,33 +89,33 @@ impl CreateRequestResponse {
         Self {
             request_id: response.request_id.clone(),
             deduped: response.deduped,
-            request: RequestView::from_request(&response.request),
+            request: response.request.to_wire(),
         }
     }
 }
 
 #[derive(Debug, Serialize)]
 pub(super) struct RequestsResponse {
-    requests: Vec<RequestView>,
+    requests: Vec<nod_proto::Request>,
 }
 
 impl RequestsResponse {
     pub(super) fn from_requests(requests: &[DecisionRequest]) -> Self {
         Self {
-            requests: requests.iter().map(RequestView::from_request).collect(),
+            requests: requests.iter().map(DecisionRequest::to_wire).collect(),
         }
     }
 }
 
 #[derive(Debug, Serialize)]
 pub(super) struct RequestResponse {
-    request: RequestView,
+    request: nod_proto::Request,
 }
 
 impl RequestResponse {
     pub(super) fn from_request(request: &DecisionRequest) -> Self {
         Self {
-            request: RequestView::from_request(request),
+            request: request.to_wire(),
         }
     }
 }

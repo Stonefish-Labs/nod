@@ -1,3 +1,6 @@
+# Built from the repo ROOT context (the server is a member of the root Cargo
+# workspace, so the build needs the workspace manifest, lockfile, nod-proto, and
+# the sibling member manifests). See docker-compose.yml (context: ../..).
 ARG RUST_VERSION=1.94
 FROM rust:${RUST_VERSION}-slim AS build
 WORKDIR /app
@@ -6,8 +9,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY Cargo.toml Cargo.lock ./
-COPY crates ./crates
+# Whole workspace (trimmed by .dockerignore). Only nod-server and its deps
+# (including nod-proto) are compiled; the client crates are resolved, not built.
+COPY . .
 RUN cargo build --release --locked -p nod-server
 
 FROM debian:trixie-slim
@@ -19,7 +23,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=build /app/target/release/nod-server /usr/local/bin/nod-server
-COPY assets ./assets
+COPY --from=build /app/server/nod-server/assets ./assets
 
 ENV NOD_BIND=0.0.0.0:8767 \
     NOD_DATABASE_URL=sqlite:///data/nod.sqlite \

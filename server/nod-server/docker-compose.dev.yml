@@ -1,8 +1,8 @@
 services:
   nod:
     build:
-      context: .
-      dockerfile: Dockerfile.dev
+      context: ../..
+      dockerfile: server/nod-server/Dockerfile.dev
     image: nod-server-dev:local
     working_dir: /workspace
     command: ["cargo", "run", "-p", "nod-server"]
@@ -10,7 +10,7 @@ services:
       CARGO_TARGET_DIR: /workspace/target
       RUST_LOG: "${RUST_LOG:-nod_server=info,tower_http=info}"
     volumes:
-      - .:/workspace
+      - ../..:/workspace
       - ./assets:/workspace/assets:ro
       - nod-cargo-registry:/usr/local/cargo/registry
       - nod-cargo-git:/usr/local/cargo/git

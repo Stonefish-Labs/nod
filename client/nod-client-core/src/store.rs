@@ -7,19 +7,15 @@ use std::{
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tokio::fs;
 
 use crate::models::ServerProfile;
 use crate::signing::StoredSigningKey;
 
 const KEYRING_SERVICE: &str = "nod-client-core";
-const CONFIG_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedConfig {
-    #[serde(default = "current_schema_version")]
-    pub schema_version: u32,
     #[serde(default)]
     pub servers: Vec<ServerProfile>,
     #[serde(default)]
@@ -35,7 +31,6 @@ pub struct PersistedConfig {
 impl Default for PersistedConfig {
     fn default() -> Self {
         Self {
-            schema_version: CONFIG_SCHEMA_VERSION,
             servers: Vec::new(),
             selected_server_id: None,
             notification_sound: default_notification_sound(),
@@ -74,16 +69,7 @@ impl Store {
         let raw = fs::read(&self.path)
             .await
             .with_context(|| format!("read {}", self.path.display()))?;
-        let value: Value = serde_json::from_slice(&raw)?;
-        let schema_version = value
-            .get("schema_version")
-            .and_then(Value::as_u64)
-            .and_then(|version| u32::try_from(version).ok())
-            .unwrap_or_default();
-        let config: PersistedConfig = serde_json::from_value(value)?;
-        if schema_version != CONFIG_SCHEMA_VERSION {
-            return self.reset_legacy_config(config).await;
-        }
+        let config: PersistedConfig = serde_json::from_slice(&raw)?;
         Ok(config)
     }
 
@@ -146,25 +132,6 @@ impl Store {
         &self.path
     }
 
-    async fn reset_legacy_config(&self, mut config: PersistedConfig) -> Result<PersistedConfig> {
-        let server_ids: Vec<_> = config
-            .servers
-            .iter()
-            .map(|server| server.id.clone())
-            .collect();
-        for server_id in server_ids {
-            self.credentials.delete_token(&mut config, &server_id)?;
-            self.credentials
-                .delete_signing_key(&mut config, &server_id)?;
-        }
-
-        let mut reset = PersistedConfig::default();
-        if !config.notification_sound.trim().is_empty() {
-            reset.notification_sound = config.notification_sound;
-        }
-        self.save(reset.clone()).await?;
-        Ok(reset)
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -280,6 +247,3 @@ fn default_notification_sound() -> String {
     "default".to_string()
 }
 
-fn current_schema_version() -> u32 {
-    CONFIG_SCHEMA_VERSION
-}

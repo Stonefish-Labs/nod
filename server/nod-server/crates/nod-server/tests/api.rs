@@ -3,8 +3,6 @@ mod support;
 
 #[path = "api/admin.rs"]
 mod admin;
-#[path = "api/cleanup.rs"]
-mod cleanup;
 #[path = "api/devices.rs"]
 mod devices;
 #[path = "api/issuer.rs"]

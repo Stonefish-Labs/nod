@@ -1,0 +1,23 @@
+# Root workspace spanning the server, the APNs relay, every Rust client, and the
+# shared nod-proto protocol crate. A single workspace means one Cargo.lock and
+# one dependency graph, so `cargo check` at the root validates the server AND the
+# clients together — which is what makes a protocol rename a single mechanical
+# change instead of a per-repo hunt. See ARCHITECTURE_NOTES.md.
+[workspace]
+resolver = "2"
+members = [
+    "nod-proto",
+    "server/nod-server/crates/nod-server",
+    "server/nod-apns-relay",
+    "client/nod-client-core",
+    "client/nod-tui",
+    "client/nod-desktop/src-tauri",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Stonefish-Labs/nod"
+
+[workspace.dependencies]
+nod-proto = { path = "nod-proto" }

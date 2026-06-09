@@ -1,0 +1,24 @@
+# The server image builds from the repo ROOT context (the server is a member of
+# the root Cargo workspace). Exclude everything not needed to
+# `cargo build -p nod-server`, but KEEP every crate's source so workspace
+# resolution succeeds.
+**/target/
+.git/
+
+# Native Apple client (Swift, not a Cargo member) and JS frontend artifacts.
+client/nod-apple/
+**/node_modules/
+client/nod-desktop/src-tauri/gen/
+client/nod-desktop/dist/
+
+# Local state, secrets, editor and OS cruft.
+.nod/
+.boop/
+**/secrets/*
+**/*.sqlite
+.env
+DerivedData/
+*.xcuserdata/
+*.xcuserstate
+__pycache__/
+**/.DS_Store

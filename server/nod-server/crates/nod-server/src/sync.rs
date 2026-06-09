@@ -3,10 +3,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::broadcast;
 
-use crate::{
-    models::{DecisionRequest, Source, SyncEnvelope},
-    views::RequestView,
-};
+use crate::models::{DecisionRequest, Source, SyncEnvelope};
 
 pub type SyncSender = broadcast::Sender<SyncEnvelope>;
 
@@ -59,7 +56,7 @@ pub fn targeted_envelope<T: Serialize>(
 
 fn request_payload(request: &DecisionRequest) -> RequestUpdate {
     RequestUpdate {
-        request: RequestView::from_request(request),
+        request: request.to_wire(),
     }
 }
 
@@ -69,7 +66,7 @@ fn to_payload<T: Serialize>(payload: T) -> Value {
 
 #[derive(Serialize)]
 struct RequestUpdate {
-    request: RequestView,
+    request: nod_proto::Request,
 }
 
 #[derive(Serialize)]
@@ -85,7 +82,7 @@ mod tests {
     use crate::models::{DecisionResolution, RequestStatus};
 
     #[test]
-    fn request_sync_payload_uses_the_shared_request_view() {
+    fn request_sync_payload_embeds_the_wire_request() {
         let now = Utc::now();
         let request = DecisionRequest {
             id: "request-1".to_string(),
@@ -112,11 +109,8 @@ mod tests {
         };
 
         let envelope = request_payload(&request);
-        let shared_view = serde_json::to_value(RequestView::from_request(&request)).unwrap();
+        let wire = serde_json::to_value(request.to_wire()).unwrap();
 
-        assert_eq!(
-            serde_json::to_value(envelope).unwrap()["request"],
-            shared_view
-        );
+        assert_eq!(serde_json::to_value(envelope).unwrap()["request"], wire);
     }
 }

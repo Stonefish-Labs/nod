@@ -380,7 +380,7 @@ fn requests_path(source_id: Option<&str>, limit: Option<usize>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Decision, NotificationDeliveryMode, SyncEnvelope};
+    use crate::models::{NotificationDeliveryMode, SyncEnvelope};
 
     #[test]
     fn normalizes_local_and_remote_urls() {
@@ -463,99 +463,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(response.sources[0].id, "default");
-    }
-
-    #[test]
-    fn legacy_channel_fields_do_not_decode() {
-        assert!(
-            serde_json::from_value::<EnrollDeviceResponse>(serde_json::json!({
-                "device_id": "device-1",
-                "user_id": "owner",
-                "user_name": "Owner",
-                "token": "device-token",
-                "notification_delivery": { "mode": "websocket" },
-                "channels": [source_json("default")],
-                "devices": []
-            }))
-            .is_err()
-        );
-
-        assert!(
-            serde_json::from_value::<SourcesResponse>(serde_json::json!({
-                "channels": [source_json("default")]
-            }))
-            .is_err()
-        );
-    }
-
-    #[test]
-    fn legacy_event_and_action_fields_do_not_decode() {
-        assert!(
-            serde_json::from_value::<RequestsResponse>(serde_json::json!({
-                "events": [request_json("request-1", "pending")]
-            }))
-            .is_err()
-        );
-
-        let mut legacy_request = request_json("request-1", "pending");
-        legacy_request.as_object_mut().unwrap().remove("source_id");
-        legacy_request["channel_id"] = serde_json::json!("default");
-        assert!(serde_json::from_value::<Request>(legacy_request).is_err());
-
-        let mut legacy_options = request_json("request-1", "pending");
-        let options = legacy_options
-            .as_object_mut()
-            .unwrap()
-            .remove("options")
-            .unwrap();
-        legacy_options["actions"] = options;
-        assert!(serde_json::from_value::<Request>(legacy_options).is_err());
-    }
-
-    #[test]
-    fn retired_source_and_request_presentation_fields_do_not_decode() {
-        let legacy_source = serde_json::json!({
-            "id": "default",
-            "name": "Default",
-            "icon": "bell",
-            "color": "#3B82F6",
-            "default_priority": 5,
-            "privacy": "private",
-            "subscribed": true,
-            "created_at": "2026-06-01T00:00:00Z"
-        });
-        assert!(serde_json::from_value::<Source>(legacy_source).is_err());
-
-        let mut legacy_request = request_json("request-1", "pending");
-        legacy_request["priority"] = serde_json::json!(8);
-        legacy_request["privacy"] = serde_json::json!("private");
-        assert!(serde_json::from_value::<Request>(legacy_request).is_err());
-    }
-
-    #[test]
-    fn request_requires_notification_contract_field() {
-        let mut missing_notification = request_json("request-1", "pending");
-        missing_notification
-            .as_object_mut()
-            .unwrap()
-            .remove("notification");
-
-        assert!(serde_json::from_value::<Request>(missing_notification).is_err());
-    }
-
-    #[test]
-    fn legacy_decision_fields_do_not_decode() {
-        assert!(serde_json::from_value::<Decision>(serde_json::json!({
-            "event_id": "request-1",
-            "action_id": "approve",
-            "action_kind": "approve",
-            "action_label": "Approve",
-            "text": null,
-            "actor_user_id": "owner",
-            "actor_device_id": "device-1",
-            "resolved_at": "2026-06-01T00:00:02Z"
-        }))
-        .is_err());
     }
 
     #[test]

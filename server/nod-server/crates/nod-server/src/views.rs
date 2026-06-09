@@ -1,82 +1,16 @@
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::{
-    models::{
-        CardField, CardLink, Decision, DecisionRequest, DecisionResolution,
-        DecisionSignatureRecord, OptionKind, RequestNotification, RequestOption, RequestStatus,
-        UserDecision,
-    },
-    signing,
-};
+use crate::models::{Decision, DecisionRequest, DecisionResolution, RequestStatus, UserDecision};
 
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct RequestView {
-    pub id: String,
-    pub request_id: String,
-    pub source_id: String,
-    pub recipients: Vec<String>,
-    pub decision_resolution: DecisionResolution,
-    pub title: String,
-    pub summary: String,
-    pub body_markdown: String,
-    pub fields: Vec<CardField>,
-    pub links: Vec<CardLink>,
-    pub image_url: Option<String>,
-    pub notification: RequestNotification,
-    pub dedupe_key: Option<String>,
-    pub expires_at: Option<DateTime<Utc>>,
-    pub status: RequestStatus,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub resolved_at: Option<DateTime<Utc>>,
-    pub decision: Option<DecisionView>,
-    pub decisions: Vec<UserDecisionView>,
-    pub callback_url: Option<String>,
-    pub options: Vec<RequestOption>,
-    pub request_digest: Option<String>,
-}
-
-impl RequestView {
-    pub(crate) fn from_request(request: &DecisionRequest) -> Self {
-        Self {
-            id: request.id.clone(),
-            request_id: request.id.clone(),
-            source_id: request.source_id.clone(),
-            recipients: request.recipients.clone(),
-            decision_resolution: request.decision_resolution.clone(),
-            title: request.title.clone(),
-            summary: request.summary.clone(),
-            body_markdown: request.body_markdown.clone(),
-            fields: request.fields.clone(),
-            links: request.links.clone(),
-            image_url: request.image_url.clone(),
-            notification: request.notification.clone(),
-            dedupe_key: request.dedupe_key.clone(),
-            expires_at: request.expires_at,
-            status: request.status.clone(),
-            created_at: request.created_at,
-            updated_at: request.updated_at,
-            resolved_at: request.resolved_at,
-            decision: request.decision.as_ref().map(DecisionView::from),
-            decisions: request
-                .user_decisions
-                .iter()
-                .map(UserDecisionView::from)
-                .collect(),
-            callback_url: request.callback_url.clone(),
-            options: request.options.clone(),
-            request_digest: signing::request_digest(request).ok(),
-        }
-    }
-}
-
+/// Decision-focused projection of a request (status, recorded decisions, and the
+/// digest), used by the decision/callback responses. The full request wire shape
+/// is `nod_proto::Request`, built via `DecisionRequest::to_wire`.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RequestDecisionView {
     pub request_id: String,
     pub status: RequestStatus,
-    pub decision: Option<DecisionView>,
-    pub decisions: Vec<UserDecisionView>,
+    pub decision: Option<Decision>,
+    pub decisions: Vec<UserDecision>,
     pub decision_resolution: DecisionResolution,
     pub recipients: Vec<String>,
     pub pending_recipients: Vec<String>,
@@ -87,19 +21,16 @@ pub(crate) struct RequestDecisionView {
 
 impl RequestDecisionView {
     pub(crate) fn from_request(request: &DecisionRequest) -> Self {
+        let wire: nod_proto::Request = request.into();
         Self {
             request_id: request.id.clone(),
             status: request.status.clone(),
-            decision: request.decision.as_ref().map(DecisionView::from),
-            decisions: request
-                .user_decisions
-                .iter()
-                .map(UserDecisionView::from)
-                .collect(),
+            decision: request.decision.clone(),
+            decisions: request.user_decisions.clone(),
             decision_resolution: request.decision_resolution.clone(),
             recipients: request.recipients.clone(),
             pending_recipients: pending_recipients(request),
-            request_digest: signing::request_digest(request).ok(),
+            request_digest: nod_proto::request_digest(&wire).ok(),
             timed_out: None,
         }
     }
@@ -114,8 +45,8 @@ pub(crate) struct CallbackPayload {
     pub request_id: String,
     pub source_id: String,
     pub status: RequestStatus,
-    pub decision: Option<DecisionView>,
-    pub decisions: Vec<UserDecisionView>,
+    pub decision: Option<Decision>,
+    pub decisions: Vec<UserDecision>,
     pub decision_resolution: DecisionResolution,
 }
 
@@ -129,50 +60,6 @@ impl CallbackPayload {
             decision: decision_view.decision,
             decisions: decision_view.decisions,
             decision_resolution: decision_view.decision_resolution,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct DecisionView {
-    pub request_id: String,
-    pub option_id: String,
-    pub option_kind: OptionKind,
-    pub option_label: String,
-    pub text: Option<String>,
-    pub actor_user_id: Option<String>,
-    pub actor_device_id: Option<String>,
-    pub signature: Option<DecisionSignatureRecord>,
-    pub resolved_at: DateTime<Utc>,
-}
-
-impl From<&Decision> for DecisionView {
-    fn from(decision: &Decision) -> Self {
-        Self {
-            request_id: decision.request_id.clone(),
-            option_id: decision.option_id.clone(),
-            option_kind: decision.option_kind.clone(),
-            option_label: decision.option_label.clone(),
-            text: decision.text.clone(),
-            actor_user_id: decision.actor_user_id.clone(),
-            actor_device_id: decision.actor_device_id.clone(),
-            signature: decision.signature.clone(),
-            resolved_at: decision.resolved_at,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct UserDecisionView {
-    pub user_id: String,
-    pub decision: DecisionView,
-}
-
-impl From<&UserDecision> for UserDecisionView {
-    fn from(decision: &UserDecision) -> Self {
-        Self {
-            user_id: decision.user_id.clone(),
-            decision: DecisionView::from(&decision.decision),
         }
     }
 }

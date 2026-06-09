@@ -11,6 +11,7 @@ chrono = { version = "0.4", features = ["serde"] }
 directories = "5.0"
 futures-util = "0.3"
 keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync-secret-service"] }
+nod-proto = { workspace = true }
 p256 = { version = "0.13", features = ["ecdsa"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

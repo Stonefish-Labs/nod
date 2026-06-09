@@ -2,8 +2,8 @@ services:
   nod:
     image: nod-server:local
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: server/nod-server/Dockerfile
     container_name: nod
     restart: unless-stopped
     ports:

@@ -76,3 +76,5 @@ server/PROJECT.md
 client/nod-tui/PROJECT.md
 client/nod-desktop/PROJECT.md
 client/nod-client-core/PROJECT.md
+*.pyc
+ARCHITECTURE_NOTES.md
