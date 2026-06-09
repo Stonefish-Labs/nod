@@ -1,10 +1,13 @@
-// These DTOs mirror the Rust serde payloads, so field names stay snake_case.
+// Frontend wire + view types. These mirror the Rust serde payloads (snake_case),
+// but intentionally encode the *practical* contract the Tauri backend guarantees:
+// fields the backend always populates are required here, so the UI reads them
+// without defensive `?.` noise.
 //
-// The canonical definitions live in Rust (nod-proto + nod-client-core); the
-// typeshare projection of them is `./generated.ts` (run scripts/generate-types.sh).
-// These interfaces track that projection but use string-literal unions and
-// `| null` (matching the wire, which sends JSON `null`) rather than typeshare's
-// TS enums / `undefined`, so the UI can compare against string literals.
+// The canonical definitions live in Rust (nod-proto + nod-client-core) under
+// `#[typeshare]`; `scripts/generate-types.sh` projects them to a throwaway
+// `generated.ts` you can diff against these to catch drift. (We don't import the
+// generated types directly: typeshare turns every `#[serde(default)]` field into
+// an optional, which the backend never actually omits.)
 export type DevicePlatform =
   | "ios"
   | "macos"

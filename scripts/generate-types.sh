@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
-# Generate the Swift + TypeScript types from the Rust source of truth using
-# typeshare, so the clients can't drift from nod-proto / nod-client-core:
-#   - Swift  (NodKit):  nod-proto wire types          -> Generated/NodProtoTypes.swift
-#   - TS (nod-desktop): nod-proto + nod-client-core    -> src/dto/generated.ts
+# Generate the desktop frontend's TypeScript wire/view types from the Rust source
+# of truth (nod-proto wire types + nod-client-core view types) via typeshare, so
+# the frontend can't drift from Rust. Output -> client/nod-desktop/src/dto/generated.ts
+# (committed; src/dto/models.ts re-exports it). Re-run whenever an annotated Rust
+# type changes. Requires the typeshare CLI (`cargo install typeshare-cli`).
 #
-# Re-run whenever an annotated Rust type changes. Requires the typeshare CLI
-# (`cargo install typeshare-cli`). Both outputs are committed.
+# Swift is intentionally not generated: typeshare emits snake_case, which clashes
+# with NodKit's camelCase Codable models, and NodKit's security-critical crypto is
+# already shared from Rust via UniFFI (nod-proto-ffi). NodKit's wire types stay
+# hand-written and are verified by its build + tests; nod-proto is the contract.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
-# Reference projection only (NOT compiled into NodKit): typeshare emits
-# snake_case Swift, which clashes with NodKit's camelCase Codable models, so the
-# Swift client keeps its hand-written wire types. This file documents the
-# canonical shapes the hand-written models must track.
-SWIFT_OUT="client/nod-apple/Generated/NodProtoTypes.swift"
 TS_OUT="client/nod-desktop/src/dto/generated.ts"
-
-mkdir -p "$(dirname "${SWIFT_OUT}")" "$(dirname "${TS_OUT}")"
-
-echo "==> Swift (nod-proto wire types) -> ${SWIFT_OUT}"
-typeshare nod-proto/src --lang swift --output-file "${SWIFT_OUT}"
+mkdir -p "$(dirname "${TS_OUT}")"
 
 echo "==> TypeScript (nod-proto + nod-client-core view types) -> ${TS_OUT}"
 typeshare nod-proto/src client/nod-client-core/src --lang typescript --output-file "${TS_OUT}"
