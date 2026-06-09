@@ -169,6 +169,20 @@
     button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     button.danger { color: var(--danger); }
     button.link { min-height: 0; padding: 0; border: 0; background: transparent; color: var(--accent); }
+    button.table-action {
+      min-height: 30px;
+      padding: 5px 8px;
+      background: #fbfcfe;
+      color: var(--accent);
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    button.table-action:hover,
+    button.table-action:focus-visible {
+      border-color: var(--accent);
+      background: #eef4ff;
+    }
     button:disabled { opacity: .55; cursor: not-allowed; }
 
     .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
@@ -1151,8 +1165,8 @@
           <td class="created-col">${esc(formatDate(user.created_at))}</td>
           <td class="actions-col">
             <div class="actions-cell">
-              <button class="link" data-edit-user="${esc(user.id)}">Edit</button>
-              <button class="link" data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}">Subscriptions</button>
+              <button class="table-action" data-edit-user="${esc(user.id)}">Edit</button>
+              <button class="table-action" data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}">Subscriptions</button>
               ${user.id === "owner" ? "" : `<button class="danger" data-delete-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Delete</button>`}
             </div>
           </td>
@@ -1173,8 +1187,8 @@
           </td>
           <td class="channel-actions-cell">
             <div class="actions-cell">
-              <button class="link" data-edit-channel="${esc(channel.id)}">Edit</button>
-              <button class="link" data-manage-channel-members="${esc(channel.id)}" data-channel-name="${esc(channel.name)}">Members</button>
+              <button class="table-action" data-edit-channel="${esc(channel.id)}">Edit</button>
+              <button class="table-action" data-manage-channel-members="${esc(channel.id)}" data-channel-name="${esc(channel.name)}">Members</button>
               <button class="danger" data-delete-channel="${esc(channel.id)}" data-channel-name="${esc(channel.name)}">Delete</button>
             </div>
           </td>

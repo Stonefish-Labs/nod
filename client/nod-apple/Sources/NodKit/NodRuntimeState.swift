@@ -104,43 +104,45 @@ public enum NodRuntimeMessage: Sendable {
   case transientError(message: String)
 
   public init(from data: Data) throws {
-    // `.nod` carries the ISO-8601 date strategy the wire models require.
-    let envelope = try JSONDecoder.nod.decode(Envelope.self, from: data)
-    switch envelope.kind {
+    // `.nod` carries the ISO-8601 date strategy the wire models require. Each
+    // payload is decoded DIRECTLY into its concrete type from the original bytes
+    // (no type-erased round-trip), so nothing is lost and a failure carries the
+    // real underlying `DecodingError` rather than a generic "malformed".
+    let decoder = JSONDecoder.nod
+    let kind = try decoder.decode(KindEnvelope.self, from: data).kind
+    switch kind {
     case "ready":
-      self = .ready(statePath: envelope.payload.decode(ReadyPayload.self)?.statePath ?? "")
+      self = .ready(
+        statePath: (try? decoder.decode(Envelope<ReadyPayload>.self, from: data))?.payload.statePath
+          ?? "")
     case "state":
-      guard let state = envelope.payload.decode(NodRuntimeState.self) else {
-        throw NodRuntimeMessageError.malformed("state")
-      }
-      self = .state(state)
+      self = .state(try decoder.decode(Envelope<NodRuntimeState>.self, from: data).payload)
     case "notification_candidate":
-      guard let payload = envelope.payload.decode(NotificationCandidatePayload.self) else {
-        throw NodRuntimeMessageError.malformed("notification_candidate")
-      }
-      self = .notificationCandidate(payload.request)
+      self = .notificationCandidate(
+        try decoder.decode(Envelope<NotificationCandidatePayload>.self, from: data).payload.request)
     case "notification_removed":
       self = .notificationRemoved(
-        requestId: envelope.payload.decode(NotificationRemovedPayload.self)?.requestId ?? "")
+        requestId: try decoder.decode(Envelope<NotificationRemovedPayload>.self, from: data)
+          .payload.requestId)
     case "sync_status":
       self = .syncStatus(
-        connected: envelope.payload.decode(SyncStatusPayload.self)?.connected ?? false)
+        connected: try decoder.decode(Envelope<SyncStatusPayload>.self, from: data).payload
+          .connected)
     case "auth_revoked":
       self = .authRevoked
     case "resync_required":
       self = .resyncRequired
     case "transient_error":
       self = .transientError(
-        message: envelope.payload.decode(TransientErrorPayload.self)?.message ?? "")
+        message: (try? decoder.decode(Envelope<TransientErrorPayload>.self, from: data))?.payload
+          .message ?? "")
     default:
-      throw NodRuntimeMessageError.unknownKind(envelope.kind)
+      throw NodRuntimeMessageError.unknownKind(kind)
     }
   }
 
-  private struct Envelope: Decodable {
-    let kind: String
-    let payload: RawJSON
-  }
+  private struct KindEnvelope: Decodable { let kind: String }
+  private struct Envelope<P: Decodable>: Decodable { let payload: P }
 
   private struct ReadyPayload: Decodable {
     let statePath: String
@@ -158,66 +160,4 @@ public enum NodRuntimeMessage: Sendable {
 public enum NodRuntimeMessageError: Error {
   case malformed(String)
   case unknownKind(String)
-}
-
-/// Holds an arbitrary JSON value so a payload can be decoded lazily into the
-/// concrete shape each message kind expects.
-struct RawJSON: Decodable {
-  let data: Data
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    if let value = try? container.decode(AnyCodable.self) {
-      data = (try? JSONEncoder().encode(value)) ?? Data("null".utf8)
-    } else {
-      data = Data("null".utf8)
-    }
-  }
-
-  func decode<T: Decodable>(_ type: T.Type) -> T? {
-    // `.nod` so nested wire models (which have ISO-8601 `Date` fields) decode.
-    try? JSONDecoder.nod.decode(type, from: data)
-  }
-}
-
-/// Minimal type-erased JSON for round-tripping an opaque payload.
-private struct AnyCodable: Codable {
-  let value: Any
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    if container.decodeNil() {
-      value = NSNull()
-    } else if let bool = try? container.decode(Bool.self) {
-      value = bool
-    } else if let int = try? container.decode(Int.self) {
-      value = int
-    } else if let double = try? container.decode(Double.self) {
-      value = double
-    } else if let string = try? container.decode(String.self) {
-      value = string
-    } else if let array = try? container.decode([AnyCodable].self) {
-      value = array.map(\.value)
-    } else if let dict = try? container.decode([String: AnyCodable].self) {
-      value = dict.mapValues(\.value)
-    } else {
-      value = NSNull()
-    }
-  }
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    switch value {
-    case is NSNull: try container.encodeNil()
-    case let bool as Bool: try container.encode(bool)
-    case let int as Int: try container.encode(int)
-    case let double as Double: try container.encode(double)
-    case let string as String: try container.encode(string)
-    case let array as [Any]: try container.encode(array.map(AnyCodable.init(value:)))
-    case let dict as [String: Any]: try container.encode(dict.mapValues(AnyCodable.init(value:)))
-    default: try container.encodeNil()
-    }
-  }
-
-  init(value: Any) { self.value = value }
 }

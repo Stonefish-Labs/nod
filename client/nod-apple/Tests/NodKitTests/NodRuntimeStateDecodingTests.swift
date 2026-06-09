@@ -67,7 +67,7 @@ final class NodRuntimeStateDecodingTests: XCTestCase {
               "created_at": "2026-05-31T12:00:00.000Z"
             }
           ],
-          "pending_counts_by_channel": { "deployments": 2 },
+          "pending_counts_by_channel": { "deployments": 1, "alerts": 0 },
           "requests": [
             {
               "id": "request-1",
@@ -125,7 +125,11 @@ final class NodRuntimeStateDecodingTests: XCTestCase {
     XCTAssertTrue(state.isRegistered)
     XCTAssertTrue(state.isSyncConnected)
     XCTAssertEqual(state.notificationDeliveryMode, .push)
-    XCTAssertEqual(state.totalPendingCount, 2)
+    // A count of 1 (and 0) is the regression trigger: the old AnyCodable
+    // round-trip decoded JSON 1/0 as Bool, corrupting the [String:Int] map.
+    XCTAssertEqual(state.pendingCountsByChannel["deployments"], 1)
+    XCTAssertEqual(state.pendingCountsByChannel["alerts"], 0)
+    XCTAssertEqual(state.totalPendingCount, 1)
 
     let server = try XCTUnwrap(state.selectedServer)
     XCTAssertEqual(server.baseUrlString, "https://nod.example.test")

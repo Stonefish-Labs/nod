@@ -58,14 +58,14 @@ public final class NodRuntimeClient: ObservableObject {
 
   // MARK: - RPCs (mirror nod-client-core's runtime methods)
 
-  public func refresh() async throws { applyStateResult(try await call("refresh")) }
+  public func refresh() async throws { try await callApplyingState("refresh") }
 
   public func selectServer(_ serverId: String) async throws {
-    applyStateResult(try await call("select_server", ["server_id": serverId]))
+    try await callApplyingState("select_server", ["server_id": serverId])
   }
 
   public func forgetServer(_ serverId: String) async throws {
-    applyStateResult(try await call("forget_server", ["server_id": serverId]))
+    try await callApplyingState("forget_server", ["server_id": serverId])
   }
 
   public func enroll(
@@ -92,7 +92,7 @@ public final class NodRuntimeClient: ObservableObject {
     if let pushProvider { params["push_provider"] = pushProvider }
     if let pushToken { params["push_token"] = pushToken }
     if let attestation { params["attestation"] = attestation }
-    applyStateResult(try await call("enroll", params))
+    try await callApplyingState("enroll", params)
   }
 
   public func submitOption(requestId: String, optionId: String, text: String?) async throws {
@@ -102,32 +102,31 @@ public final class NodRuntimeClient: ObservableObject {
   }
 
   public func setSubscription(channelId: String, subscribed: Bool) async throws {
-    applyStateResult(
-      try await call("set_subscription", ["channel_id": channelId, "subscribed": subscribed]))
+    try await callApplyingState(
+      "set_subscription", ["channel_id": channelId, "subscribed": subscribed])
   }
 
   public func setNotificationPreference(sound: String) async throws {
-    applyStateResult(try await call("set_notification_preference", ["notification_sound": sound]))
+    try await callApplyingState("set_notification_preference", ["notification_sound": sound])
   }
 
   /// Register/refresh the APNs push token across every enrolled server.
   public func registerPushToken(provider: String, nativeAppId: String, token: String) async throws {
-    applyStateResult(
-      try await call(
-        "register_push_token",
-        ["provider": provider, "native_app_id": nativeAppId, "token": token]))
+    try await callApplyingState(
+      "register_push_token",
+      ["provider": provider, "native_app_id": nativeAppId, "token": token])
   }
 
   public func clearChannel(_ channelId: String) async throws {
-    applyStateResult(try await call("clear_channel", ["channel_id": channelId]))
+    try await callApplyingState("clear_channel", ["channel_id": channelId])
   }
 
   public func selectChannel(_ channelId: String) async throws {
-    applyStateResult(try await call("select_channel", ["channel_id": channelId]))
+    try await callApplyingState("select_channel", ["channel_id": channelId])
   }
 
   public func selectRequest(_ requestId: String) async throws {
-    applyStateResult(try await call("select_request", ["request_id": requestId]))
+    try await callApplyingState("select_request", ["request_id": requestId])
   }
 
   public func renameDevice(deviceId: String, name: String) async throws {
@@ -135,7 +134,7 @@ public final class NodRuntimeClient: ObservableObject {
   }
 
   public func revokeDevice(_ deviceId: String) async throws {
-    applyStateResult(try await call("revoke_device", ["device_id": deviceId]))
+    try await callApplyingState("revoke_device", ["device_id": deviceId])
   }
 
   public func connectSync() async throws { try await call("connect_sync") }
@@ -154,31 +153,35 @@ public final class NodRuntimeClient: ObservableObject {
 
   // MARK: - Internals
 
-  @discardableResult
-  private func call(_ method: String, _ params: [String: Any] = [:]) async throws -> Data? {
+  private func send(_ method: String, _ params: [String: Any]) async throws -> Data {
     guard let client else { throw NodRuntimeError.notStarted }
     let body: [String: Any] = ["id": UUID().uuidString, "method": method, "params": params]
     let requestData = try JSONSerialization.data(withJSONObject: body)
     let responseJSON = await client.request(requestJson: String(decoding: requestData, as: UTF8.self))
-    let response = try JSONDecoder().decode(RpcResponseEnvelope.self, from: Data(responseJSON.utf8))
+    return Data(responseJSON.utf8)
+  }
+
+  /// Fire an RPC whose result the caller ignores; throws on a failure response.
+  private func call(_ method: String, _ params: [String: Any] = [:]) async throws {
+    let response = try JSONDecoder().decode(StatusEnvelope.self, from: try await send(method, params))
     guard response.ok else {
       throw NodRuntimeError.rpc(response.error ?? "request failed")
     }
-    return response.result?.data
   }
 
-  /// Apply the `ClientState` an RPC returned directly, rather than waiting for
-  /// the async observer event. The state-mutating RPCs (`enroll`, `refresh`,
-  /// `select_server`, …) return the new `ClientState` as their result — applying
-  /// it here makes the UI update synchronously with the call (mirroring the old
-  /// hand-written client) instead of depending on the event pipeline landing.
-  private func applyStateResult(_ data: Data?) {
-    guard let data else { return }
-    do {
-      state = try JSONDecoder.nod.decode(NodRuntimeState.self, from: data)
-    } catch {
-      // Surface rather than swallow — a decode failure here is a real drift bug.
-      lastTransientError = "Failed to decode client state: \(error)"
+  /// Run a state-returning RPC (`enroll`, `refresh`, `select_server`, …) and
+  /// apply the `ClientState` it returns directly — decoded straight into the
+  /// type from the response bytes — so the UI updates synchronously with the
+  /// call (mirroring the old hand-written client) instead of depending on the
+  /// async observer event landing.
+  private func callApplyingState(_ method: String, _ params: [String: Any] = [:]) async throws {
+    let response = try JSONDecoder.nod.decode(
+      StateEnvelope.self, from: try await send(method, params))
+    guard response.ok else {
+      throw NodRuntimeError.rpc(response.error ?? "request failed")
+    }
+    if let state = response.result {
+      self.state = state
     }
   }
 
@@ -204,10 +207,15 @@ public final class NodRuntimeClient: ObservableObject {
     }
   }
 
-  private struct RpcResponseEnvelope: Decodable {
+  private struct StatusEnvelope: Decodable {
     let ok: Bool
     let error: String?
-    let result: RawJSON?
+  }
+
+  private struct StateEnvelope: Decodable {
+    let ok: Bool
+    let error: String?
+    let result: NodRuntimeState?
   }
 }
 
