@@ -298,6 +298,58 @@ async fn enrollment_request_option_flow_updates_decision() {
 }
 
 #[tokio::test]
+async fn text_capable_options_accept_empty_text() {
+    let app = TestApp::new().await;
+    let (_device_id, device_token) = app.enroll_device("Phone", "ios").await;
+    let issuer_token = app.issuer_token().await;
+
+    let (status, created) = app
+        .request(
+            Method::POST,
+            "/api/v1/requests",
+            Some(&issuer_token),
+            Some(json!({
+                "source_id": "default",
+                "title": "Review deploy",
+                "summary": "Rejecting can include a reason, but does not require one.",
+                "options": [
+                    {
+                        "id": "reject_reason",
+                        "label": "Reject with reason",
+                        "kind": "reject_with_text",
+                        "text_placeholder": "Why?"
+                    }
+                ]
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(created["request"]["options"][0]["requires_text"], true);
+    let request_id = created["request_id"].as_str().unwrap();
+
+    let (status, resolved) = app
+        .request(
+            Method::POST,
+            &format!("/api/v1/requests/{request_id}/options/reject_reason"),
+            Some(&device_token),
+            Some(json!({ "text": "" })),
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "{resolved}");
+    assert_eq!(resolved["request"]["status"], "resolved");
+    assert_eq!(
+        resolved["request"]["decision"]["option_id"],
+        "reject_reason"
+    );
+    assert_eq!(
+        resolved["request"]["decision"]["option_kind"],
+        "reject_with_text"
+    );
+    assert!(resolved["request"]["decision"]["text"].is_null());
+}
+
+#[tokio::test]
 async fn v1_signed_decision_records_verified_signature() {
     let app = TestApp::new().await;
     let rng = SystemRandom::new();

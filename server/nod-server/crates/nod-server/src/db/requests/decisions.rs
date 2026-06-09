@@ -51,18 +51,6 @@ pub async fn record_decision(
         .cloned()
         .or_else(|| implicit_dismiss_option(&request, option_id))
         .ok_or(ApiError::NotFound)?;
-    if option.requires_text
-        && submitted_decision
-            .text
-            .as_deref()
-            .unwrap_or("")
-            .trim()
-            .is_empty()
-    {
-        return Err(ApiError::BadRequest(
-            "this option requires text".to_string(),
-        ));
-    }
     if !matches!(request.status, RequestStatus::Pending) {
         return Err(ApiError::Conflict(
             "request is no longer pending".to_string(),
