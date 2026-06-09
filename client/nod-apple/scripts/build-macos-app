@@ -4,7 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-CONFIGURATION="${CONFIGURATION:-Release}"
+# Pinned to Release: this script is the macOS test build. A Debug bundle from
+# Xcode shares the bundle id + state dir, so two builds register as the same
+# device and fight over notifications/decisions. Keeping this Release-only means
+# the script can never produce that second build. (Run the iOS scheme in Xcode
+# for iOS dev — different platform, no collision.)
+CONFIGURATION="Release"
 BUILD_DIR="${NOD_MAC_BUILD_DIR:-${ROOT_DIR}/build/DerivedData/Build}"
 PRODUCTS_DIR="${BUILD_DIR}/Products"
 CONFIGURATION_BUILD_DIR="${PRODUCTS_DIR}/${CONFIGURATION}"

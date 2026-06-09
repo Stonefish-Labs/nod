@@ -123,6 +123,10 @@ public final class NodStore: ObservableObject {
   /// isn't replayed as a burst. The runtime de-dups candidates, this guards a
   /// second time across app restarts within a session.
   var presentedNotificationRequestIds = Set<String>()
+  /// Informational requests already auto-dismissed this session, so the
+  /// read-receipt dismiss fires at most once per request (a second submit would
+  /// 409 "request is no longer pending").
+  private var informationalDismissSubmissions = Set<String>()
   /// The latest APNs token, cached so re-enrollment can forward it again.
   var pushToken: String?
 
@@ -344,6 +348,11 @@ public final class NodStore: ObservableObject {
     // Informational items (pending with no options) are dismissed on open as a
     // read receipt. Best-effort: a failed acknowledgement should not surface.
     guard request.status == .pending, request.options.isEmpty else {
+      return
+    }
+    // Fire at most once per request: the detail view auto-dismisses on open and
+    // a manual tap can also reach here; a second dismiss would 409.
+    guard informationalDismissSubmissions.insert(request.id).inserted else {
       return
     }
     do {
