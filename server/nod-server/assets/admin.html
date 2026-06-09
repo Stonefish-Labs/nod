@@ -84,7 +84,7 @@
       align-items: end;
     }
 
-    form.source-form {
+    form.channel-form {
       display: grid;
       grid-template-columns: auto minmax(260px, 1.6fr) minmax(180px, .8fr) auto;
       gap: 8px;
@@ -176,29 +176,29 @@
     th, td { padding: 8px 9px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
     th { color: var(--muted); font-size: 12px; font-weight: 650; background: var(--surface-2); }
     tr:last-child td { border-bottom: 0; }
-    .sources-table {
+    .channels-table {
       table-layout: auto;
     }
-    .sources-table .emoji-col { width: 52px; }
-    .sources-table .id-col { width: 220px; }
-    .sources-table .members-col { width: 110px; }
-    .sources-table .actions-col { width: 170px; }
+    .channels-table .emoji-col { width: 52px; }
+    .channels-table .id-col { width: 220px; }
+    .channels-table .members-col { width: 110px; }
+    .channels-table .actions-col { width: 170px; }
     .users-table .name-col { min-width: 220px; }
     .users-table .id-col { width: 220px; }
     .users-table .count-col { width: 100px; }
     .users-table .created-col { width: 190px; }
     .users-table .actions-col { width: 120px; }
-    .source-emoji-cell {
+    .channel-emoji-cell {
       width: 52px;
       font-size: 18px;
       line-height: 1.2;
       white-space: nowrap;
     }
-    .source-name-cell {
+    .channel-name-cell {
       min-width: 220px;
     }
-    .source-members-cell { width: 110px; white-space: nowrap; }
-    .source-actions-cell { width: 170px; white-space: nowrap; }
+    .channel-members-cell { width: 110px; white-space: nowrap; }
+    .channel-actions-cell { width: 170px; white-space: nowrap; }
     code {
       display: inline-block;
       max-width: 360px;
@@ -226,7 +226,7 @@
       gap: 4px;
       justify-items: start;
     }
-    .source-emoji-control {
+    .channel-emoji-control {
       padding-top: 20px;
     }
     .emoji-icon-button {
@@ -298,7 +298,7 @@
       background: #fff7f7;
       color: var(--danger);
     }
-    form.source-form > button[type="submit"] {
+    form.channel-form > button[type="submit"] {
       margin-top: 20px;
     }
     form.user-form > button[type="submit"] {
@@ -400,7 +400,7 @@
       grid-template-rows: auto auto minmax(0, 1fr);
     }
 
-    .modal.source-modal {
+    .modal.channel-modal {
       width: min(620px, 100%);
       grid-template-rows: auto auto;
     }
@@ -529,10 +529,10 @@
       .settings-grid { grid-template-columns: 1fr; }
       .recipient-list { grid-template-columns: 1fr; }
       form.inline-grid, form.compact, form.token-grid, form.test-grid { grid-template-columns: 1fr; }
-      form.source-form { grid-template-columns: auto minmax(0, 1fr); }
+      form.channel-form { grid-template-columns: auto minmax(0, 1fr); }
       form.user-form { grid-template-columns: 1fr; }
       .slug-field,
-      form.source-form > button[type="submit"] { grid-column: 1 / -1; }
+      form.channel-form > button[type="submit"] { grid-column: 1 / -1; }
       .user-device-row { grid-template-columns: 1fr; align-items: start; }
       .wide, .full { grid-column: auto; }
       header { align-items: flex-start; }
@@ -568,7 +568,7 @@
 
       <nav id="adminTabs" class="tabs" aria-label="Admin sections">
         <button class="tab-button" type="button" data-tab="users-devices">Users & Devices</button>
-        <button class="tab-button" type="button" data-tab="sources">Sources</button>
+        <button class="tab-button" type="button" data-tab="channels">Channels</button>
         <button class="tab-button" type="button" data-tab="test-request">Test Request</button>
         <button class="tab-button" type="button" data-tab="settings">Settings</button>
       </nav>
@@ -624,14 +624,14 @@
         </section>
       </div>
 
-      <div class="tab-panel stack" data-tab-panel="sources">
+      <div class="tab-panel stack" data-tab-panel="channels">
         <section class="panel stack">
           <div class="split">
-            <h2>Sources</h2>
-            <button id="resetSourceForm" type="button">New source</button>
+            <h2>Channels</h2>
+            <button id="resetChannelForm" type="button">New channel</button>
           </div>
           <div class="table-wrap">
-            <table class="sources-table">
+            <table class="channels-table">
               <thead>
                 <tr>
                   <th class="emoji-col">Emoji</th>
@@ -641,7 +641,7 @@
                   <th class="actions-col"></th>
                 </tr>
               </thead>
-              <tbody id="sourcesBody"></tbody>
+              <tbody id="channelsBody"></tbody>
             </table>
           </div>
         </section>
@@ -657,7 +657,7 @@
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Source / scopes</th>
+                  <th>Channel / scopes</th>
                   <th>Created</th>
                   <th>Status</th>
                   <th></th>
@@ -675,8 +675,8 @@
             <h2>Test Request</h2>
           </div>
           <form id="testRequestForm" class="test-grid">
-            <label>Source
-              <select id="testSource" required></select>
+            <label>Channel
+              <select id="testChannel" required></select>
             </label>
             <label>Options
               <select id="testOptionPreset">
@@ -791,32 +791,32 @@
       </section>
     </div>
 
-    <div id="sourceModalBackdrop" class="modal-backdrop hidden">
-      <section class="modal source-modal" role="dialog" aria-modal="true" aria-labelledby="sourceModalTitle">
+    <div id="channelModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal channel-modal" role="dialog" aria-modal="true" aria-labelledby="channelModalTitle">
         <div class="split">
-          <h2 id="sourceModalTitle">Source</h2>
-          <button id="closeSourceModal" type="button">Close</button>
+          <h2 id="channelModalTitle">Channel</h2>
+          <button id="closeChannelModal" type="button">Close</button>
         </div>
-        <form id="sourceForm" class="source-form">
-          <div class="emoji-control source-emoji-control">
-            <input id="sourceEmoji" type="hidden" value="🔔">
-            <button id="emojiPickerToggle" class="emoji-icon-button" type="button" aria-label="Choose source emoji" aria-expanded="false" aria-controls="emojiPickerPopover">
-              <span id="sourceEmojiPreview" aria-hidden="true">🔔</span>
+        <form id="channelForm" class="channel-form">
+          <div class="emoji-control channel-emoji-control">
+            <input id="channelEmoji" type="hidden" value="🔔">
+            <button id="emojiPickerToggle" class="emoji-icon-button" type="button" aria-label="Choose channel emoji" aria-expanded="false" aria-controls="emojiPickerPopover">
+              <span id="channelEmojiPreview" aria-hidden="true">🔔</span>
             </button>
             <div id="emojiPickerPopover" class="emoji-popover hidden" aria-label="Emoji picker">
-              <emoji-picker id="sourceEmojiPicker"></emoji-picker>
+              <emoji-picker id="channelEmojiPicker"></emoji-picker>
             </div>
           </div>
           <label>Name
-            <input id="sourceName" autocomplete="off" required>
+            <input id="channelName" autocomplete="off" required>
           </label>
           <div class="slug-field">
             <span class="field-label">Slug ID</span>
-            <input id="sourceId" type="hidden">
-            <div id="sourceSlugDisplay" class="slug-display empty">generated-from-name</div>
-            <span id="sourceSlugHelp" class="field-note"></span>
+            <input id="channelId" type="hidden">
+            <div id="channelSlugDisplay" class="slug-display empty">generated-from-name</div>
+            <span id="channelSlugHelp" class="field-note"></span>
           </div>
-          <button id="sourceSubmit" class="primary" type="submit">Save</button>
+          <button id="channelSubmit" class="primary" type="submit">Save</button>
         </form>
       </section>
     </div>
@@ -859,39 +859,39 @@
       </section>
     </div>
 
-    <div id="sourceMembershipModalBackdrop" class="modal-backdrop hidden">
-      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="sourceMembershipModalTitle">
+    <div id="channelMembershipModalBackdrop" class="modal-backdrop hidden">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="channelMembershipModalTitle">
         <div class="split">
           <div>
-            <h2 id="sourceMembershipModalTitle">Members</h2>
-            <div id="sourceMembershipModalSummary" class="muted"></div>
+            <h2 id="channelMembershipModalTitle">Members</h2>
+            <div id="channelMembershipModalSummary" class="muted"></div>
           </div>
-          <button id="closeSourceMembershipModal" type="button">Close</button>
+          <button id="closeChannelMembershipModal" type="button">Close</button>
         </div>
         <div class="row">
           <label class="wide">Search
-            <input id="sourceMembershipSearch" autocomplete="off" spellcheck="false">
+            <input id="channelMembershipSearch" autocomplete="off" spellcheck="false">
           </label>
           <label>Filter
-            <select id="sourceMembershipFilter">
+            <select id="channelMembershipFilter">
               <option value="all">all</option>
               <option value="member">members</option>
               <option value="nonmember">not members</option>
             </select>
           </label>
         </div>
-        <div id="sourceMembershipList" class="modal-body"></div>
+        <div id="channelMembershipList" class="modal-body"></div>
         <div class="modal-actions">
           <div class="row">
-            <button id="addVisibleSourceMembers" type="button">Add visible</button>
-            <button id="removeVisibleSourceMembers" type="button">Remove visible</button>
-            <button id="addAllSourceMembers" type="button">Add all</button>
-            <button id="removeAllSourceMembers" type="button">Remove all</button>
+            <button id="addVisibleChannelMembers" type="button">Add visible</button>
+            <button id="removeVisibleChannelMembers" type="button">Remove visible</button>
+            <button id="addAllChannelMembers" type="button">Add all</button>
+            <button id="removeAllChannelMembers" type="button">Remove all</button>
           </div>
           <div class="row">
-            <span id="sourceMembershipDirtyState" class="muted"></span>
-            <button id="cancelSourceMembershipChanges" type="button">Cancel</button>
-            <button id="saveSourceMembershipChanges" class="primary" type="button">Save</button>
+            <span id="channelMembershipDirtyState" class="muted"></span>
+            <button id="cancelChannelMembershipChanges" type="button">Cancel</button>
+            <button id="saveChannelMembershipChanges" class="primary" type="button">Save</button>
           </div>
         </div>
       </section>
@@ -923,8 +923,8 @@
           <label>Name
             <input id="tokenName" autocomplete="off" required>
           </label>
-          <label>Source
-            <select id="tokenSource" required></select>
+          <label>Channel
+            <select id="tokenChannel" required></select>
           </label>
           <fieldset>
             <legend>Permissions</legend>
@@ -948,28 +948,28 @@
     const adminBase = `${basePath}/admin`;
     const apiBase = `${basePath}/api/v1/admin`;
     const defaultTab = "users-devices";
-    const tabIds = [defaultTab, "sources", "test-request", "settings"];
+    const tabIds = [defaultTab, "channels", "test-request", "settings"];
     const state = {
       users: [],
-      sources: [],
+      channels: [],
       devices: [],
       tokens: [],
       settings: null,
       summary: null,
       editingUserId: null,
-      editingSourceId: null,
+      editingChannelId: null,
       activeTab: defaultTab,
       emojiPickerOpen: false,
       subscriptionModal: {
         userId: null,
         userName: "",
-        sources: [],
+        channels: [],
         original: {},
         visibleIds: []
       },
-      sourceMembershipModal: {
-        sourceId: null,
-        sourceName: "",
+      channelMembershipModal: {
+        channelId: null,
+        channelName: "",
         users: [],
         original: {},
         visibleIds: []
@@ -992,10 +992,10 @@
       $("status").textContent = message;
     }
 
-    function setSourceEmoji(value) {
+    function setChannelEmoji(value) {
       const emoji = value || "🔔";
-      $("sourceEmoji").value = emoji;
-      $("sourceEmojiPreview").textContent = emoji;
+      $("channelEmoji").value = emoji;
+      $("channelEmojiPreview").textContent = emoji;
     }
 
     function setEmojiPickerOpen(open) {
@@ -1065,17 +1065,17 @@
 
     async function loadAll() {
       setStatus("Loading");
-      const [summary, users, sources, devices, tokens, settings] = await Promise.all([
+      const [summary, users, channels, devices, tokens, settings] = await Promise.all([
         api("/summary"),
         api("/users"),
-        api("/sources"),
+        api("/channels"),
         api("/devices"),
         api("/issuer-tokens"),
         api("/settings")
       ]);
       state.summary = summary;
       state.users = users.users || [];
-      state.sources = sources.sources || [];
+      state.channels = channels.channels || [];
       state.devices = devices.devices || [];
       state.tokens = tokens.tokens || [];
       state.settings = settings;
@@ -1130,7 +1130,7 @@
       const summary = state.summary || {};
       $("summary").innerHTML = [
         metric("Users", summary.users ?? 0),
-        metric("Sources", summary.sources ?? 0),
+        metric("Channels", summary.channels ?? 0),
         metric("Devices", summary.devices ?? 0),
         metric("Active access tokens", summary.active_issuer_tokens ?? 0),
         metric("Pending requests", summary.pending_requests ?? 0)
@@ -1145,7 +1145,7 @@
           <td class="count-col">${esc(user.device_count)}</td>
           <td class="count-col">
             <button class="link" data-manage-subscriptions="${esc(user.id)}" data-user-name="${esc(user.name)}" aria-label="Manage subscriptions for ${esc(user.name)}" title="Manage subscriptions">
-              ${esc(user.subscribed_source_count ?? 0)} / ${esc(state.sources.length)}
+              ${esc(user.subscribed_channel_count ?? 0)} / ${esc(state.channels.length)}
             </button>
           </td>
           <td class="created-col">${esc(formatDate(user.created_at))}</td>
@@ -1159,25 +1159,25 @@
       `).join("") || `<tr><td colspan="6" class="muted">No users</td></tr>`;
     }
 
-    function renderSources() {
-      $("sourcesBody").innerHTML = state.sources.map((source) => `
+    function renderChannels() {
+      $("channelsBody").innerHTML = state.channels.map((channel) => `
         <tr>
-          <td class="source-emoji-cell">${esc(source.emoji || "🔔")}</td>
-          <td class="id-col"><code>${esc(source.id)}</code></td>
-          <td class="source-name-cell">${esc(source.name)}</td>
-          <td class="source-members-cell">
-            <button class="link" data-manage-source-members="${esc(source.id)}" data-source-name="${esc(source.name)}" aria-label="Manage members for ${esc(source.name)}" title="Manage members">
-              ${esc(sourceMemberCount(source.id))} / ${esc(state.users.length)}
+          <td class="channel-emoji-cell">${esc(channel.emoji || "🔔")}</td>
+          <td class="id-col"><code>${esc(channel.id)}</code></td>
+          <td class="channel-name-cell">${esc(channel.name)}</td>
+          <td class="channel-members-cell">
+            <button class="link" data-manage-channel-members="${esc(channel.id)}" data-channel-name="${esc(channel.name)}" aria-label="Manage members for ${esc(channel.name)}" title="Manage members">
+              ${esc(channelMemberCount(channel.id))} / ${esc(state.users.length)}
             </button>
           </td>
-          <td class="source-actions-cell">
+          <td class="channel-actions-cell">
             <div class="actions-cell">
-              <button class="link" data-edit-source="${esc(source.id)}">Edit</button>
-              <button class="danger" data-delete-source="${esc(source.id)}" data-source-name="${esc(source.name)}">Delete</button>
+              <button class="link" data-edit-channel="${esc(channel.id)}">Edit</button>
+              <button class="danger" data-delete-channel="${esc(channel.id)}" data-channel-name="${esc(channel.name)}">Delete</button>
             </div>
           </td>
         </tr>
-      `).join("") || `<tr><td colspan="5" class="muted">No sources</td></tr>`;
+      `).join("") || `<tr><td colspan="5" class="muted">No channels</td></tr>`;
     }
 
     function renderDevices() {
@@ -1208,11 +1208,11 @@
       $("createDeviceEnrollmentCode").disabled = users.length === 0;
     }
 
-    function sourceById(sourceId) {
-      return state.sources.find((source) => source.id === sourceId);
+    function channelById(channelId) {
+      return state.channels.find((channel) => channel.id === channelId);
     }
 
-    function tokenSourceIds(token) {
+    function tokenChannelIds(token) {
       const ids = new Set();
       (token.scopes || []).forEach((scope) => {
         const match = String(scope).match(/^requests:(?:write|read|cancel):(.+)$/);
@@ -1221,16 +1221,16 @@
       return Array.from(ids);
     }
 
-    function renderTokenSourceScopes(token) {
-      const sourceIds = tokenSourceIds(token);
-      const sourceLabel = sourceIds.length
-        ? sourceIds.map((sourceId) => {
-          const source = sourceById(sourceId);
-          return source ? `${source.emoji || "🔔"} ${source.name}` : sourceId;
+    function renderTokenChannelScopes(token) {
+      const channelIds = tokenChannelIds(token);
+      const channelLabel = channelIds.length
+        ? channelIds.map((channelId) => {
+          const channel = channelById(channelId);
+          return channel ? `${channel.emoji || "🔔"} ${channel.name}` : channelId;
         }).join(", ")
         : "custom scopes";
       const scopes = (token.scopes || []).map((scope) => `<code>${esc(scope)}</code>`).join(" ");
-      return `<strong>${esc(sourceLabel)}</strong><br>${scopes || `<span class="muted">No scopes</span>`}`;
+      return `<strong>${esc(channelLabel)}</strong><br>${scopes || `<span class="muted">No scopes</span>`}`;
     }
 
     function renderUserModalDevices() {
@@ -1275,28 +1275,28 @@
       updateUserSlug();
     }
 
-    function openSourceModal(sourceId = null) {
-      const source = sourceId ? state.sources.find((item) => item.id === sourceId) : null;
-      state.editingSourceId = source ? source.id : null;
-      $("sourceModalTitle").textContent = source ? `Edit ${source.name}` : "New source";
-      $("sourceId").value = source ? source.id : "";
-      $("sourceName").value = source ? source.name : "";
-      setSourceEmoji(source ? source.emoji || "🔔" : "🔔");
+    function openChannelModal(channelId = null) {
+      const channel = channelId ? state.channels.find((item) => item.id === channelId) : null;
+      state.editingChannelId = channel ? channel.id : null;
+      $("channelModalTitle").textContent = channel ? `Edit ${channel.name}` : "New channel";
+      $("channelId").value = channel ? channel.id : "";
+      $("channelName").value = channel ? channel.name : "";
+      setChannelEmoji(channel ? channel.emoji || "🔔" : "🔔");
       setEmojiPickerOpen(false);
-      $("sourceModalBackdrop").classList.remove("hidden");
-      updateSourceSlug();
-      $("sourceName").focus();
+      $("channelModalBackdrop").classList.remove("hidden");
+      updateChannelSlug();
+      $("channelName").focus();
     }
 
-    function closeSourceModal() {
-      state.editingSourceId = null;
-      $("sourceModalBackdrop").classList.add("hidden");
-      $("sourceId").value = "";
-      $("sourceName").value = "";
-      setSourceEmoji("🔔");
+    function closeChannelModal() {
+      state.editingChannelId = null;
+      $("channelModalBackdrop").classList.add("hidden");
+      $("channelId").value = "";
+      $("channelName").value = "";
+      setChannelEmoji("🔔");
       setEmojiPickerOpen(false);
-      $("sourceModalTitle").textContent = "Source";
-      updateSourceSlug();
+      $("channelModalTitle").textContent = "Channel";
+      updateChannelSlug();
     }
 
     function renderTokens() {
@@ -1305,7 +1305,7 @@
         return `
           <tr>
             <td>${esc(token.name)}<br><code>${esc(token.id)}</code></td>
-            <td>${renderTokenSourceScopes(token)}</td>
+            <td>${renderTokenChannelScopes(token)}</td>
             <td>${esc(formatDate(token.created_at))}</td>
             <td class="${active ? "ok" : "muted"}">${active ? "active" : `revoked ${formatDate(token.revoked_at)}`}</td>
             <td>${active ? `<button class="danger" data-revoke-token="${esc(token.id)}">Revoke</button>` : ""}</td>
@@ -1314,44 +1314,44 @@
       }).join("") || `<tr><td colspan="5" class="muted">No access tokens</td></tr>`;
     }
 
-    function renderTokenSourceOptions(preferred = "") {
-      const select = $("tokenSource");
+    function renderTokenChannelOptions(preferred = "") {
+      const select = $("tokenChannel");
       const previous = preferred || select.value;
-      select.innerHTML = state.sources.map((source) => `
-        <option value="${esc(source.id)}">${esc(source.name)} (${esc(source.id)})</option>
+      select.innerHTML = state.channels.map((channel) => `
+        <option value="${esc(channel.id)}">${esc(channel.name)} (${esc(channel.id)})</option>
       `).join("");
-      if (previous && state.sources.some((source) => source.id === previous)) {
+      if (previous && state.channels.some((channel) => channel.id === previous)) {
         select.value = previous;
       }
-      const hasSources = state.sources.length > 0;
-      select.disabled = !hasSources;
-      $("tokenForm").querySelector("button[type='submit']").disabled = !hasSources;
+      const hasChannels = state.channels.length > 0;
+      select.disabled = !hasChannels;
+      $("tokenForm").querySelector("button[type='submit']").disabled = !hasChannels;
     }
 
-    function renderTestSourceOptions() {
-      const select = $("testSource");
+    function renderTestChannelOptions() {
+      const select = $("testChannel");
       const previous = select.value;
-      select.innerHTML = state.sources.map((source) => `
-        <option value="${esc(source.id)}">${esc(source.name)} (${esc(source.id)})</option>
+      select.innerHTML = state.channels.map((channel) => `
+        <option value="${esc(channel.id)}">${esc(channel.name)} (${esc(channel.id)})</option>
       `).join("");
-      if (previous && state.sources.some((source) => source.id === previous)) {
+      if (previous && state.channels.some((channel) => channel.id === previous)) {
         select.value = previous;
       }
-      const hasSources = state.sources.length > 0;
-      select.disabled = !hasSources;
-      $("testRequestSubmit").disabled = !hasSources;
+      const hasChannels = state.channels.length > 0;
+      select.disabled = !hasChannels;
+      $("testRequestSubmit").disabled = !hasChannels;
     }
 
     function testRecipientMode() {
       return document.querySelector("input[name='testRecipientMode']:checked")?.value || "all";
     }
 
-    function userSubscribedToSource(user, sourceId) {
-      return (user.subscribed_source_ids || []).includes(sourceId);
+    function userSubscribedToChannel(user, channelId) {
+      return (user.subscribed_channel_ids || []).includes(channelId);
     }
 
-    function sourceMemberCount(sourceId) {
-      return state.users.filter((user) => userSubscribedToSource(user, sourceId)).length;
+    function channelMemberCount(channelId) {
+      return state.users.filter((user) => userSubscribedToChannel(user, channelId)).length;
     }
 
     function selectedTestRecipientIds() {
@@ -1360,10 +1360,10 @@
     }
 
     function renderTestRecipients() {
-      const sourceId = $("testSource").value;
+      const channelId = $("testChannel").value;
       const specific = testRecipientMode() === "specific";
       const previous = new Set(selectedTestRecipientIds());
-      const subscribedUsers = state.users.filter((user) => userSubscribedToSource(user, sourceId));
+      const subscribedUsers = state.users.filter((user) => userSubscribedToChannel(user, channelId));
       const subscribedIds = new Set(subscribedUsers.map((user) => user.id));
       const selectedIds = state.users
         .filter((user) => previous.has(user.id) && subscribedIds.has(user.id))
@@ -1414,26 +1414,26 @@
       setActiveTab(state.activeTab || tabFromHash(), false);
       renderSummary();
       renderUsers();
-      renderSources();
+      renderChannels();
       renderDevices();
       renderDeviceEnrollmentUsers();
       renderUserModalDevices();
       renderTokens();
-      renderTokenSourceOptions();
-      renderTestSourceOptions();
+      renderTokenChannelOptions();
+      renderTestChannelOptions();
       renderTestRecipients();
       renderSettings();
       renderSubscriptionModal();
       updateUserSlug();
-      updateSourceSlug();
+      updateChannelSlug();
     }
 
     function resetUserForm() {
       openUserModal();
     }
 
-    function resetSourceForm() {
-      openSourceModal();
+    function resetChannelForm() {
+      openChannelModal();
     }
 
     function showSecret(targetId, label, value) {
@@ -1447,21 +1447,21 @@
 
     function subscriptionDiffs() {
       const modal = state.subscriptionModal;
-      return modal.sources
-        .filter((source) => Boolean(source.subscribed) !== Boolean(modal.original[source.id]))
-        .map((source) => ({ source_id: source.id, subscribed: Boolean(source.subscribed) }));
+      return modal.channels
+        .filter((channel) => Boolean(channel.subscribed) !== Boolean(modal.original[channel.id]))
+        .map((channel) => ({ channel_id: channel.id, subscribed: Boolean(channel.subscribed) }));
     }
 
-    function filteredSubscriptionSources() {
+    function filteredSubscriptionChannels() {
       const modal = state.subscriptionModal;
       const query = $("subscriptionSearch").value.trim().toLowerCase();
       const filter = $("subscriptionFilter").value;
-      return modal.sources.filter((source) => {
-        const subscribed = Boolean(source.subscribed);
+      return modal.channels.filter((channel) => {
+        const subscribed = Boolean(channel.subscribed);
         if (filter === "subscribed" && !subscribed) return false;
         if (filter === "unsubscribed" && subscribed) return false;
         if (!query) return true;
-        return [source.name, source.id, source.emoji]
+        return [channel.name, channel.id, channel.emoji]
           .some((value) => String(value || "").toLowerCase().includes(query));
       });
     }
@@ -1475,44 +1475,44 @@
 
       $("subscriptionModalBackdrop").classList.remove("hidden");
       $("subscriptionModalTitle").textContent = `Subscriptions for ${modal.userName || modal.userId}`;
-      const subscribedCount = modal.sources.filter((source) => source.subscribed).length;
+      const subscribedCount = modal.channels.filter((channel) => channel.subscribed).length;
       const diffs = subscriptionDiffs();
-      $("subscriptionModalSummary").textContent = `${subscribedCount} of ${modal.sources.length} sources subscribed`;
+      $("subscriptionModalSummary").textContent = `${subscribedCount} of ${modal.channels.length} channels subscribed`;
       $("subscriptionDirtyState").textContent = diffs.length ? `${diffs.length} pending change${diffs.length === 1 ? "" : "s"}` : "No changes";
       $("saveSubscriptionChanges").disabled = diffs.length === 0;
 
-      const visible = filteredSubscriptionSources();
-      modal.visibleIds = visible.map((source) => source.id);
-      $("subscriptionList").innerHTML = visible.map((source) => `
+      const visible = filteredSubscriptionChannels();
+      modal.visibleIds = visible.map((channel) => channel.id);
+      $("subscriptionList").innerHTML = visible.map((channel) => `
         <div class="subscription-row">
           <label>
-            <input type="checkbox" data-user-subscription-source="${esc(source.id)}" ${source.subscribed ? "checked" : ""}>
-            <span>${esc(source.name)} <code>${esc(source.id)}</code></span>
+            <input type="checkbox" data-user-subscription-channel="${esc(channel.id)}" ${channel.subscribed ? "checked" : ""}>
+            <span>${esc(channel.name)} <code>${esc(channel.id)}</code></span>
           </label>
-          <span class="muted">${esc(source.emoji || "🔔")}</span>
+          <span class="muted">${esc(channel.emoji || "🔔")}</span>
         </div>
-      `).join("") || `<div class="subscription-row"><span class="muted">No matching sources</span></div>`;
+      `).join("") || `<div class="subscription-row"><span class="muted">No matching channels</span></div>`;
     }
 
     async function openSubscriptionModal(userId, userName) {
       state.subscriptionModal = {
         userId,
         userName: userName || userId,
-        sources: [],
+        channels: [],
         original: {},
         visibleIds: []
       };
       $("subscriptionSearch").value = "";
       $("subscriptionFilter").value = "all";
-      $("subscriptionList").innerHTML = `<div class="subscription-row"><span class="muted">Loading sources</span></div>`;
+      $("subscriptionList").innerHTML = `<div class="subscription-row"><span class="muted">Loading channels</span></div>`;
       renderSubscriptionModal();
       const data = await api(`/users/${encodeURIComponent(userId)}/subscriptions`);
-      const sources = data.sources || [];
+      const channels = data.channels || [];
       const original = {};
-      sources.forEach((source) => {
-        original[source.id] = Boolean(source.subscribed);
+      channels.forEach((channel) => {
+        original[channel.id] = Boolean(channel.subscribed);
       });
-      state.subscriptionModal.sources = sources;
+      state.subscriptionModal.channels = channels;
       state.subscriptionModal.original = original;
       renderSubscriptionModal();
     }
@@ -1521,24 +1521,24 @@
       state.subscriptionModal = {
         userId: null,
         userName: "",
-        sources: [],
+        channels: [],
         original: {},
         visibleIds: []
       };
       renderSubscriptionModal();
     }
 
-    function sourceMembershipDiffs() {
-      const modal = state.sourceMembershipModal;
+    function channelMembershipDiffs() {
+      const modal = state.channelMembershipModal;
       return modal.users
         .filter((user) => Boolean(user.member) !== Boolean(modal.original[user.id]))
         .map((user) => ({ user_id: user.id, subscribed: Boolean(user.member) }));
     }
 
-    function filteredSourceMembershipUsers() {
-      const modal = state.sourceMembershipModal;
-      const query = $("sourceMembershipSearch").value.trim().toLowerCase();
-      const filter = $("sourceMembershipFilter").value;
+    function filteredChannelMembershipUsers() {
+      const modal = state.channelMembershipModal;
+      const query = $("channelMembershipSearch").value.trim().toLowerCase();
+      const filter = $("channelMembershipFilter").value;
       return modal.users.filter((user) => {
         const member = Boolean(user.member);
         if (filter === "member" && !member) return false;
@@ -1549,27 +1549,27 @@
       });
     }
 
-    function renderSourceMembershipModal() {
-      const modal = state.sourceMembershipModal;
-      if (!modal.sourceId) {
-        $("sourceMembershipModalBackdrop").classList.add("hidden");
+    function renderChannelMembershipModal() {
+      const modal = state.channelMembershipModal;
+      if (!modal.channelId) {
+        $("channelMembershipModalBackdrop").classList.add("hidden");
         return;
       }
 
-      $("sourceMembershipModalBackdrop").classList.remove("hidden");
-      $("sourceMembershipModalTitle").textContent = `Members for ${modal.sourceName || modal.sourceId}`;
+      $("channelMembershipModalBackdrop").classList.remove("hidden");
+      $("channelMembershipModalTitle").textContent = `Members for ${modal.channelName || modal.channelId}`;
       const memberCount = modal.users.filter((user) => user.member).length;
-      const diffs = sourceMembershipDiffs();
-      $("sourceMembershipModalSummary").textContent = `${memberCount} of ${modal.users.length} users included`;
-      $("sourceMembershipDirtyState").textContent = diffs.length ? `${diffs.length} pending change${diffs.length === 1 ? "" : "s"}` : "No changes";
-      $("saveSourceMembershipChanges").disabled = diffs.length === 0;
+      const diffs = channelMembershipDiffs();
+      $("channelMembershipModalSummary").textContent = `${memberCount} of ${modal.users.length} users included`;
+      $("channelMembershipDirtyState").textContent = diffs.length ? `${diffs.length} pending change${diffs.length === 1 ? "" : "s"}` : "No changes";
+      $("saveChannelMembershipChanges").disabled = diffs.length === 0;
 
-      const visible = filteredSourceMembershipUsers();
+      const visible = filteredChannelMembershipUsers();
       modal.visibleIds = visible.map((user) => user.id);
-      $("sourceMembershipList").innerHTML = visible.map((user) => `
+      $("channelMembershipList").innerHTML = visible.map((user) => `
         <div class="subscription-row">
           <label>
-            <input type="checkbox" data-source-member-user="${esc(user.id)}" ${user.member ? "checked" : ""}>
+            <input type="checkbox" data-channel-member-user="${esc(user.id)}" ${user.member ? "checked" : ""}>
             <span>${esc(user.name)} <code>${esc(user.id)}</code></span>
           </label>
           <span class="muted">${esc(user.device_count ?? 0)} device${Number(user.device_count ?? 0) === 1 ? "" : "s"}</span>
@@ -1577,36 +1577,36 @@
       `).join("") || `<div class="subscription-row"><span class="muted">No matching users</span></div>`;
     }
 
-    function openSourceMembershipModal(sourceId, sourceName) {
-      const source = findSource(sourceId);
+    function openChannelMembershipModal(channelId, channelName) {
+      const channel = channelById(channelId);
       const original = {};
       const users = state.users.map((user) => {
-        const member = userSubscribedToSource(user, sourceId);
+        const member = userSubscribedToChannel(user, channelId);
         original[user.id] = member;
         return { ...user, member };
       });
 
-      state.sourceMembershipModal = {
-        sourceId,
-        sourceName: sourceName || source?.name || sourceId,
+      state.channelMembershipModal = {
+        channelId,
+        channelName: channelName || channel?.name || channelId,
         users,
         original,
         visibleIds: []
       };
-      $("sourceMembershipSearch").value = "";
-      $("sourceMembershipFilter").value = "all";
-      renderSourceMembershipModal();
+      $("channelMembershipSearch").value = "";
+      $("channelMembershipFilter").value = "all";
+      renderChannelMembershipModal();
     }
 
-    function closeSourceMembershipModal() {
-      state.sourceMembershipModal = {
-        sourceId: null,
-        sourceName: "",
+    function closeChannelMembershipModal() {
+      state.channelMembershipModal = {
+        channelId: null,
+        channelName: "",
         users: [],
         original: {},
         visibleIds: []
       };
-      renderSourceMembershipModal();
+      renderChannelMembershipModal();
     }
 
     function openDeviceEnrollmentModal() {
@@ -1621,17 +1621,17 @@
       $("deviceEnrollmentSecret").innerHTML = "";
     }
 
-    function resetTokenForm(sourceId = "") {
+    function resetTokenForm(channelId = "") {
       $("tokenName").value = "";
       $("tokenCanWrite").checked = true;
       $("tokenCanRead").checked = true;
       $("tokenCanCancel").checked = false;
       $("tokenExtraScopes").value = "";
-      renderTokenSourceOptions(sourceId);
+      renderTokenChannelOptions(channelId);
     }
 
-    function openTokenModal(sourceId = "") {
-      resetTokenForm(sourceId);
+    function openTokenModal(channelId = "") {
+      resetTokenForm(channelId);
       $("tokenModalBackdrop").classList.remove("hidden");
       $("tokenName").focus();
     }
@@ -1641,20 +1641,20 @@
       resetTokenForm();
     }
 
-    function setSubscriptionState(sourceIds, subscribed) {
-      const ids = new Set(sourceIds);
-      state.subscriptionModal.sources = state.subscriptionModal.sources.map((source) => (
-        ids.has(source.id) ? { ...source, subscribed } : source
+    function setSubscriptionState(channelIds, subscribed) {
+      const ids = new Set(channelIds);
+      state.subscriptionModal.channels = state.subscriptionModal.channels.map((channel) => (
+        ids.has(channel.id) ? { ...channel, subscribed } : channel
       ));
       renderSubscriptionModal();
     }
 
-    function setSourceMembershipState(userIds, member) {
+    function setChannelMembershipState(userIds, member) {
       const ids = new Set(userIds);
-      state.sourceMembershipModal.users = state.sourceMembershipModal.users.map((user) => (
+      state.channelMembershipModal.users = state.channelMembershipModal.users.map((user) => (
         ids.has(user.id) ? { ...user, member } : user
       ));
-      renderSourceMembershipModal();
+      renderChannelMembershipModal();
     }
 
     function parseScopes(value) {
@@ -1672,8 +1672,8 @@
         .slice(0, 80);
     }
 
-    function sourceSlugExists(slug) {
-      return state.sources.some((source) => source.id === slug && source.id !== state.editingSourceId);
+    function channelSlugExists(slug) {
+      return state.channels.some((channel) => channel.id === slug && channel.id !== state.editingChannelId);
     }
 
     function userSlugExists(slug) {
@@ -1715,18 +1715,18 @@
       submit.disabled = false;
     }
 
-    function updateSourceSlug() {
-      const help = $("sourceSlugHelp");
-      const display = $("sourceSlugDisplay");
-      const submit = $("sourceSubmit");
-      const slug = state.editingSourceId || slugify($("sourceName").value);
-      $("sourceId").value = slug;
+    function updateChannelSlug() {
+      const help = $("channelSlugHelp");
+      const display = $("channelSlugDisplay");
+      const submit = $("channelSubmit");
+      const slug = state.editingChannelId || slugify($("channelName").value);
+      $("channelId").value = slug;
       help.classList.remove("error");
       display.classList.remove("empty", "error");
       display.textContent = slug || "generated-from-name";
 
-      if (state.editingSourceId) {
-        help.textContent = "Existing source ID";
+      if (state.editingChannelId) {
+        help.textContent = "Existing channel ID";
         submit.disabled = false;
         return;
       }
@@ -1738,8 +1738,8 @@
         return;
       }
 
-      if (sourceSlugExists(slug)) {
-        help.textContent = "A source with this slug already exists";
+      if (channelSlugExists(slug)) {
+        help.textContent = "A channel with this slug already exists";
         help.classList.add("error");
         display.classList.add("error");
         submit.disabled = true;
@@ -1751,14 +1751,14 @@
     }
 
     function tokenScopesFromForm() {
-      const sourceId = $("tokenSource").value;
-      if (!sourceId) {
-        throw new Error("Choose a source for this token");
+      const channelId = $("tokenChannel").value;
+      if (!channelId) {
+        throw new Error("Choose a channel for this token");
       }
       const scopes = [];
-      if ($("tokenCanWrite").checked) scopes.push(`requests:write:${sourceId}`);
-      if ($("tokenCanRead").checked) scopes.push(`requests:read:${sourceId}`);
-      if ($("tokenCanCancel").checked) scopes.push(`requests:cancel:${sourceId}`);
+      if ($("tokenCanWrite").checked) scopes.push(`requests:write:${channelId}`);
+      if ($("tokenCanRead").checked) scopes.push(`requests:read:${channelId}`);
+      if ($("tokenCanCancel").checked) scopes.push(`requests:cancel:${channelId}`);
       scopes.push(...parseScopes($("tokenExtraScopes").value));
       if (scopes.length === 0) {
         throw new Error("Choose at least one permission");
@@ -1864,12 +1864,12 @@
     }
 
     function buildTestRequestPayload() {
-      const sourceId = $("testSource").value;
-      if (!sourceId) {
-        throw new Error("Choose a source for this test request");
+      const channelId = $("testChannel").value;
+      if (!channelId) {
+        throw new Error("Choose a channel for this test request");
       }
       const payload = {
-        source_id: sourceId,
+        channel_id: channelId,
         title: $("testTitle").value.trim(),
         summary: $("testSummary").value.trim(),
         body_markdown: $("testBody").value.trim(),
@@ -1961,8 +1961,8 @@
     $("openDeviceEnrollmentModal").addEventListener("click", openDeviceEnrollmentModal);
     $("closeDeviceEnrollmentModal").addEventListener("click", closeDeviceEnrollmentModal);
     $("closeUserModal").addEventListener("click", closeUserModal);
-    $("closeSourceModal").addEventListener("click", closeSourceModal);
-    $("closeSourceMembershipModal").addEventListener("click", closeSourceMembershipModal);
+    $("closeChannelModal").addEventListener("click", closeChannelModal);
+    $("closeChannelMembershipModal").addEventListener("click", closeChannelMembershipModal);
     $("openTokenModal").addEventListener("click", () => openTokenModal());
     $("closeTokenModal").addEventListener("click", closeTokenModal);
 
@@ -1985,12 +1985,12 @@
         closeUserModal();
         $("resetUserForm").focus();
       }
-      if (event.key === "Escape" && !$("sourceModalBackdrop").classList.contains("hidden")) {
-        closeSourceModal();
-        $("resetSourceForm").focus();
+      if (event.key === "Escape" && !$("channelModalBackdrop").classList.contains("hidden")) {
+        closeChannelModal();
+        $("resetChannelForm").focus();
       }
-      if (event.key === "Escape" && !$("sourceMembershipModalBackdrop").classList.contains("hidden")) {
-        closeSourceMembershipModal();
+      if (event.key === "Escape" && !$("channelMembershipModalBackdrop").classList.contains("hidden")) {
+        closeChannelMembershipModal();
       }
       if (event.key === "Escape" && !$("tokenModalBackdrop").classList.contains("hidden")) {
         closeTokenModal();
@@ -2000,16 +2000,16 @@
 
     $("resetUserForm").addEventListener("click", resetUserForm);
     $("userName").addEventListener("input", updateUserSlug);
-    $("resetSourceForm").addEventListener("click", resetSourceForm);
-    $("sourceName").addEventListener("input", updateSourceSlug);
-    $("sourceEmojiPicker").addEventListener("emoji-click", (event) => {
+    $("resetChannelForm").addEventListener("click", resetChannelForm);
+    $("channelName").addEventListener("input", updateChannelSlug);
+    $("channelEmojiPicker").addEventListener("emoji-click", (event) => {
       const unicode = event.detail && event.detail.unicode;
       if (!unicode) return;
-      setSourceEmoji(unicode);
+      setChannelEmoji(unicode);
       setEmojiPickerOpen(false);
       $("emojiPickerToggle").focus();
     });
-    $("testSource").addEventListener("change", renderTestRecipients);
+    $("testChannel").addEventListener("change", renderTestRecipients);
     document.querySelectorAll("input[name='testRecipientMode']").forEach((input) => {
       input.addEventListener("change", renderTestRecipients);
     });
@@ -2037,8 +2037,8 @@
     $("cancelSubscriptionChanges").addEventListener("click", closeSubscriptionModal);
     $("subscribeVisible").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.visibleIds, true));
     $("unsubscribeVisible").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.visibleIds, false));
-    $("subscribeAll").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.sources.map((source) => source.id), true));
-    $("unsubscribeAll").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.sources.map((source) => source.id), false));
+    $("subscribeAll").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.channels.map((channel) => channel.id), true));
+    $("unsubscribeAll").addEventListener("click", () => setSubscriptionState(state.subscriptionModal.channels.map((channel) => channel.id), false));
 
     $("saveSubscriptionChanges").addEventListener("click", async () => {
       const modal = state.subscriptionModal;
@@ -2058,29 +2058,29 @@
       }
     });
 
-    $("sourceMembershipSearch").addEventListener("input", renderSourceMembershipModal);
-    $("sourceMembershipFilter").addEventListener("change", renderSourceMembershipModal);
-    $("cancelSourceMembershipChanges").addEventListener("click", closeSourceMembershipModal);
-    $("addVisibleSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.visibleIds, true));
-    $("removeVisibleSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.visibleIds, false));
-    $("addAllSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.users.map((user) => user.id), true));
-    $("removeAllSourceMembers").addEventListener("click", () => setSourceMembershipState(state.sourceMembershipModal.users.map((user) => user.id), false));
+    $("channelMembershipSearch").addEventListener("input", renderChannelMembershipModal);
+    $("channelMembershipFilter").addEventListener("change", renderChannelMembershipModal);
+    $("cancelChannelMembershipChanges").addEventListener("click", closeChannelMembershipModal);
+    $("addVisibleChannelMembers").addEventListener("click", () => setChannelMembershipState(state.channelMembershipModal.visibleIds, true));
+    $("removeVisibleChannelMembers").addEventListener("click", () => setChannelMembershipState(state.channelMembershipModal.visibleIds, false));
+    $("addAllChannelMembers").addEventListener("click", () => setChannelMembershipState(state.channelMembershipModal.users.map((user) => user.id), true));
+    $("removeAllChannelMembers").addEventListener("click", () => setChannelMembershipState(state.channelMembershipModal.users.map((user) => user.id), false));
 
-    $("saveSourceMembershipChanges").addEventListener("click", async () => {
-      const modal = state.sourceMembershipModal;
-      const updates = sourceMembershipDiffs();
-      if (!modal.sourceId || updates.length === 0) return;
+    $("saveChannelMembershipChanges").addEventListener("click", async () => {
+      const modal = state.channelMembershipModal;
+      const updates = channelMembershipDiffs();
+      if (!modal.channelId || updates.length === 0) return;
       try {
-        setStatus("Saving source members");
+        setStatus("Saving channel members");
         await Promise.all(updates.map((update) => api(`/users/${encodeURIComponent(update.user_id)}/subscriptions`, {
           method: "PUT",
           body: JSON.stringify({
-            updates: [{ source_id: modal.sourceId, subscribed: update.subscribed }]
+            updates: [{ channel_id: modal.channelId, subscribed: update.subscribed }]
           })
         })));
-        closeSourceMembershipModal();
+        closeChannelMembershipModal();
         await loadAll();
-        setStatus("Source members saved", "ok");
+        setStatus("Channel members saved", "ok");
       } catch (err) {
         setStatus(err.message, "danger-text");
       }
@@ -2149,29 +2149,29 @@
       }
     });
 
-    $("sourceForm").addEventListener("submit", async (event) => {
+    $("channelForm").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const wasEditing = Boolean(state.editingSourceId);
-      const sourceId = state.editingSourceId || slugify($("sourceName").value);
-      if (!sourceId) {
-        setStatus("Source name must produce a slug", "danger-text");
+      const wasEditing = Boolean(state.editingChannelId);
+      const channelId = state.editingChannelId || slugify($("channelName").value);
+      if (!channelId) {
+        setStatus("Channel name must produce a slug", "danger-text");
         return;
       }
-      if (!state.editingSourceId && sourceSlugExists(sourceId)) {
-        setStatus("A source with this slug already exists", "danger-text");
-        updateSourceSlug();
+      if (!state.editingChannelId && channelSlugExists(channelId)) {
+        setStatus("A channel with this slug already exists", "danger-text");
+        updateChannelSlug();
         return;
       }
       const payload = {
-        id: sourceId,
-        name: $("sourceName").value.trim(),
-        emoji: $("sourceEmoji").value.trim() || "🔔"
+        id: channelId,
+        name: $("channelName").value.trim(),
+        emoji: $("channelEmoji").value.trim() || "🔔"
       };
       try {
-        await api("/sources", { method: "POST", body: JSON.stringify(payload) });
+        await api("/channels", { method: "POST", body: JSON.stringify(payload) });
         await loadAll();
-        closeSourceModal();
-        setStatus(wasEditing ? "Source saved" : "Source created", "ok");
+        closeChannelModal();
+        setStatus(wasEditing ? "Channel saved" : "Channel created", "ok");
       } catch (err) {
         setStatus(err.message, "danger-text");
       }
@@ -2205,7 +2205,7 @@
         showSecret("tokenSecret", "Access token", data.token);
         closeTokenModal();
         await loadAll();
-        setActiveTab("sources");
+        setActiveTab("channels");
       } catch (err) {
         setStatus(err.message, "danger-text");
       }
@@ -2263,31 +2263,31 @@
         return;
       }
 
-      if (button.dataset.editSource) {
-        openSourceModal(button.dataset.editSource);
+      if (button.dataset.editChannel) {
+        openChannelModal(button.dataset.editChannel);
         return;
       }
 
-      if (button.dataset.manageSourceMembers) {
-        openSourceMembershipModal(button.dataset.manageSourceMembers, button.dataset.sourceName);
+      if (button.dataset.manageChannelMembers) {
+        openChannelMembershipModal(button.dataset.manageChannelMembers, button.dataset.channelName);
         return;
       }
 
-      if (button.dataset.deleteSource) {
-        const sourceId = button.dataset.deleteSource;
-        const sourceName = button.dataset.sourceName || sourceId;
-        if (!confirm(`Delete source "${sourceName}" and all of its request history?`)) return;
+      if (button.dataset.deleteChannel) {
+        const channelId = button.dataset.deleteChannel;
+        const channelName = button.dataset.channelName || channelId;
+        if (!confirm(`Delete channel "${channelName}" and all of its request history?`)) return;
         try {
-          await api(`/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" });
-          if (state.editingSourceId === sourceId) {
-            closeSourceModal();
+          await api(`/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" });
+          if (state.editingChannelId === channelId) {
+            closeChannelModal();
           }
-          if (state.sourceMembershipModal.sourceId === sourceId) {
-            closeSourceMembershipModal();
+          if (state.channelMembershipModal.channelId === channelId) {
+            closeChannelMembershipModal();
           }
           $("testRequestResult").innerHTML = "";
           await loadAll();
-          setStatus("Source deleted", "ok");
+          setStatus("Channel deleted", "ok");
         } catch (err) {
           setStatus(err.message, "danger-text");
         }
@@ -2318,19 +2318,19 @@
 
     document.addEventListener("change", async (event) => {
       const input = event.target;
-      if (input.matches("[data-user-subscription-source]")) {
-        const sourceId = input.dataset.userSubscriptionSource;
-        state.subscriptionModal.sources = state.subscriptionModal.sources.map((source) => (
-          source.id === sourceId ? { ...source, subscribed: input.checked } : source
+      if (input.matches("[data-user-subscription-channel]")) {
+        const channelId = input.dataset.userSubscriptionChannel;
+        state.subscriptionModal.channels = state.subscriptionModal.channels.map((channel) => (
+          channel.id === channelId ? { ...channel, subscribed: input.checked } : channel
         ));
         renderSubscriptionModal();
       }
-      if (input.matches("[data-source-member-user]")) {
-        const userId = input.dataset.sourceMemberUser;
-        state.sourceMembershipModal.users = state.sourceMembershipModal.users.map((user) => (
+      if (input.matches("[data-channel-member-user]")) {
+        const userId = input.dataset.channelMemberUser;
+        state.channelMembershipModal.users = state.channelMembershipModal.users.map((user) => (
           user.id === userId ? { ...user, member: input.checked } : user
         ));
-        renderSourceMembershipModal();
+        renderChannelMembershipModal();
       }
     });
 
