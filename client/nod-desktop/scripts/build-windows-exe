@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Cross-compile the Windows desktop exe from macOS in about a minute
+# (incremental) using cargo-xwin: clang targets MSVC against the xwin-fetched
+# Windows SDK, so no VM or CI round-trip is needed for iteration.
+#
+# One-time setup:
+#   brew install llvm && cargo install cargo-xwin
+#   rustup target add x86_64-pc-windows-msvc
+#
+# Output: prints the exe path; pass a directory to also copy it there, e.g.
+#   scripts/build-windows-exe ~/Desktop/nod-release-staging
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+
+for tool in clang-cl lld-link cargo-xwin; do
+  command -v "$tool" >/dev/null || {
+    echo "error: $tool missing — brew install llvm && cargo install cargo-xwin" >&2
+    exit 1
+  }
+done
+
+npm run tauri build -- --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle
+
+EXE="$(find ../../target/x86_64-pc-windows-msvc/release -maxdepth 1 \
+  \( -name 'Nod.exe' -o -name 'nod-desktop.exe' \) | head -1)"
+[ -n "$EXE" ] || { echo "error: built exe not found" >&2; exit 1; }
+
+echo
+echo "Built: $EXE"
+if [ $# -ge 1 ]; then
+  mkdir -p "$1"
+  cp "$EXE" "$1/Nod.exe"
+  echo "Copied to: $1/Nod.exe"
+fi

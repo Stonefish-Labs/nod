@@ -9,7 +9,7 @@
   hardware), verified against the immutable request snapshot, with nonce
   replay rejection.
 - Clients: native macOS app (notarized DMG), iOS via TestFlight, Windows
-  desktop app (Tauri, unsigned MSI), terminal UI.
+  desktop app (Tauri, zipped unsigned exe), terminal UI.
 - Apple push via an in-process APNs route or a credential-isolating mTLS
   relay; WebSocket sync + local notifications everywhere else.
 - Self-contained server binaries for macOS/Linux/Windows and a Docker image

@@ -9,7 +9,8 @@ name: Release
 #   (client/nod-apple/scripts/release-macos); the DMG is uploaded to the same
 #   draft release by hand, and its checksum appended to SHA256SUMS.
 # - Windows/Linux signing: v1 ships unsigned; the SmartScreen flow and
-#   checksum verification are documented in the release notes.
+#   checksum verification are documented in the release notes. The desktop
+#   app ships as a zipped exe, not an installer, by design.
 # - Linux desktop bundles: deferred until there's a Linux test environment.
 
 on:
@@ -76,37 +77,43 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  windows-msi:
-    name: desktop MSI (unsigned)
+  windows-desktop:
+    name: desktop exe (unsigned, zipped)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: windows-msi
+          key: windows-desktop
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: client/nod-desktop/package-lock.json
-      - name: Build MSI
+      # A bare zipped exe instead of an installer: WebView2 ships with
+      # Windows 10/11, the exe is self-contained, and users put it wherever
+      # they want.
+      - name: Build exe
         working-directory: client/nod-desktop
         run: |
           npm ci
-          npm run tauri build -- --bundles msi
-      - name: Collect MSI
+          npm run tauri build -- --no-bundle
+      - name: Zip exe
         shell: bash
         run: |
-          mkdir -p dist
-          # Workspace members emit bundles under the workspace target dir.
-          find target client/nod-desktop/src-tauri/target -path '*bundle/msi/*.msi' -exec cp {} dist/ \; 2>/dev/null || true
+          VERSION="${GITHUB_REF_NAME}"
+          [ "${GITHUB_REF_TYPE}" = "tag" ] || VERSION="dev-${GITHUB_SHA::7}"
+          mkdir -p dist stage
+          EXE="$(find target client/nod-desktop/src-tauri/target -maxdepth 3 -path '*release*' \( -name 'Nod.exe' -o -name 'nod-desktop.exe' \) | head -1)"
+          [ -n "$EXE" ]
+          cp "$EXE" stage/Nod.exe
+          7z a "dist/nod-desktop-${VERSION}-x86_64-pc-windows-msvc.zip" ./stage/Nod.exe > /dev/null
           ls -l dist/
-          [ -n "$(ls dist/)" ]
       - uses: actions/upload-artifact@v5
         with:
-          name: windows-msi
-          path: dist/*.msi
+          name: windows-desktop
+          path: dist/*.zip
           if-no-files-found: error
 
   docker:
@@ -142,7 +149,7 @@ jobs:
   release:
     name: draft release
     if: github.ref_type == 'tag'
-    needs: [server-tui, windows-msi, docker]
+    needs: [server-tui, windows-desktop, docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write

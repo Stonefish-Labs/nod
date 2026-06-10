@@ -35,7 +35,7 @@ Docker, run-at-login, and remote access over Tailscale) are in
 | --- | --- | --- |
 | Native app (`client/nod-apple`) | macOS | Notarized DMG on the release page |
 | Native app (`client/nod-apple`) | iPhone / iPad | TestFlight |
-| Desktop app (`client/nod-desktop`) | Windows | MSI on the release page (unsigned — see SmartScreen note in [docs/deploy.md](docs/deploy.md)) |
+| Desktop app (`client/nod-desktop`) | Windows | Zipped `Nod.exe` on the release page — put it anywhere (unsigned; see SmartScreen note in [docs/deploy.md](docs/deploy.md)) |
 | Terminal UI (`client/nod-tui`) | macOS / Linux / Windows | Binary on the release page |
 
 Every client enrolls the same way: server URL + enrollment code. Decisions are

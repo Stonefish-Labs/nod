@@ -21,8 +21,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          # Shares the MSI job's cache so iteration builds stay warm.
-          key: windows-msi
+          # Shares the release desktop job's cache so builds stay warm.
+          key: windows-desktop
       - uses: actions/setup-node@v4
         with:
           node-version: 22

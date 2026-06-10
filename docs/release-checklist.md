@@ -46,21 +46,23 @@ server/nod-server/scripts/nod-smoke
 - [ ] Visual pass in your daily terminals (Terminal.app, iTerm2): colors,
       glyphs, bell behavior — subjective "is it what we want"
 
-## Windows desktop (Tauri) — run in the Windows VM with the CI-built MSI
+## Windows desktop (Tauri) — run in the Windows VM with the release-built exe
 
 - [ ] VM reaches host server: `http://<host-ip>:8767/health` from the VM
       browser (Parallels/VMware shared net → host LAN IP; UTM → `10.0.2.2`)
-- [ ] `Get-FileHash` of the downloaded MSI matches the published SHA-256
-- [ ] SmartScreen "More info → Run anyway" flow — screenshot it (feeds
-      deploy docs + release notes)
-- [ ] Install → app launches; tray icon shows the nod head (first visual
-      check on Windows); tooltip + Show/Quit menu work, light + dark taskbar
+- [ ] `Get-FileHash` of the downloaded zip matches the published SHA-256
+- [ ] SmartScreen "More info → Run anyway" flow on first run of the
+      downloaded exe — screenshot it (feeds deploy docs + release notes)
+- [ ] Unzip anywhere → `Nod.exe` launches with no console window; taskbar
+      shows the head icon; pending count badges the taskbar icon
+- [ ] Tray (notification area) shows the head glyph; tooltip + Show/Quit
+      menu work, light + dark taskbar
 - [ ] Enroll to the host server; request arrives; Windows toast shows
-- [ ] Approve with text; reject; verify both on the server
+- [ ] Approve with notes; reject; verify both on the server (notes ride
+      with either decision)
 - [ ] Quit + relaunch → still enrolled (Credential Manager)
 - [ ] VM reboot → still enrolled; autostart behaves as configured
 - [ ] Server restart while app open → sync reconnects
-- [ ] Uninstall removes the tray entry; reinstall works
 
 ## macOS app — run from the stapled DMG, fresh copy in /Applications
 
@@ -82,7 +84,7 @@ server/nod-server/scripts/nod-smoke
 2. Push main; CI green (T-007)
 3. `git tag -a v1.0.0 -m "Nod 1.0.0" && git push origin v1.0.0` → draft
    release builds artifacts + SHA256SUMS (T-007)
-4. Quick MSI reinstall sanity in the VM (T-010)
+4. Quick exe relaunch sanity in the VM (T-010)
 5. `client/nod-apple/scripts/release-macos` (T-011) →
    `gh release upload v1.0.0 Nod-1.0.0.dmg`
 6. Append the DMG line to SHA256SUMS, `gh release upload v1.0.0 SHA256SUMS --clobber`

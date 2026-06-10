@@ -1,7 +1,8 @@
 # Nod Desktop
 
-Tauri 2 desktop client for Nod. Windows is the shipped platform (unsigned MSI;
-Linux bundles are configured but not yet released). It runs fine on macOS for
+Tauri 2 desktop client for Nod. Windows is the shipped platform — a zipped,
+unsigned `Nod.exe` users place wherever they want (no installer; Linux bundles
+are configured but not yet released). It runs fine on macOS for
 development, but macOS users get the native app in `client/nod-apple` instead —
 that one signs decisions with the Secure Enclave.
 
@@ -20,8 +21,9 @@ npm run tauri dev
 npm run tauri build
 ```
 
-Release MSIs are produced by the GitHub release workflow (T-007 on the board)
-with `npm run tauri build -- --bundles msi`.
+The release workflow ships the bare exe (`npm run tauri build -- --no-bundle`)
+zipped; `windows-exe.yml` builds the same artifact on demand for VM testing,
+and `scripts/build-windows-exe` cross-compiles it locally from macOS.
 
 ## Test
 
