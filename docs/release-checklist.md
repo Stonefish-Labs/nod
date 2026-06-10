@@ -5,13 +5,17 @@ Check items off per release; date the section header when a full pass
 completes. Automated coverage is noted next to each item — "scripted" items
 re-verify on every test run, the rest need a human pass.
 
-## Green gate (run before everything)
+Items tagged `(T-NNN)` reference tooling that lands with that board task in
+`tasks/`; they become executable once that task is done.
+
+## Green gate (run before everything, from the repo root)
 
 ```bash
 cargo test --workspace
 cargo fmt --check && cargo clippy --all-targets -- -D warnings
-cd client/nod-apple && swift test
-cd client/nod-desktop && npm run typecheck && npm test && npm run drift-check
+(cd client/nod-apple && swift test)
+(cd client/nod-desktop && npm run typecheck && npm test)
+(cd client/nod-desktop && npm run drift-check)   # (T-005)
 server/nod-server/scripts/nod-smoke
 ```
 
@@ -75,14 +79,17 @@ server/nod-server/scripts/nod-smoke
 ## Cut runbook (v1.0.0)
 
 1. Green gate above, all sections checked for the surfaces shipping
-2. Push main; CI green
+2. Push main; CI green (T-007)
 3. `git tag -a v1.0.0 -m "Nod 1.0.0" && git push origin v1.0.0` → draft
-   release builds artifacts + SHA256SUMS
-4. Quick MSI reinstall sanity in the VM
-5. `client/nod-apple/scripts/release-macos` → `gh release upload v1.0.0 Nod-1.0.0.dmg`
+   release builds artifacts + SHA256SUMS (T-007)
+4. Quick MSI reinstall sanity in the VM (T-010)
+5. `client/nod-apple/scripts/release-macos` (T-011) →
+   `gh release upload v1.0.0 Nod-1.0.0.dmg`
 6. Append the DMG line to SHA256SUMS, `gh release upload v1.0.0 SHA256SUMS --clobber`
    (CI checksums do not cover the locally built DMG)
 7. Publish the draft; verify every download link from a browser; `shasum -c`
    one artifact per OS family
-8. `docker run ghcr.io/batteryshark/nod-server:v1.0.0` boots, `/health` answers
-9. Walk docs/deploy.md Path A using the published release on a clean account
+8. `docker run ghcr.io/batteryshark/nod-server:v1.0.0` boots, `/health`
+   answers (T-007)
+9. Walk docs/deploy.md Path A (T-009) using the published release on a clean
+   account

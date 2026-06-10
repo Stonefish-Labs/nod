@@ -84,7 +84,11 @@ async fn event_loop_smoke_enroll_render_submit() {
         RequestStatus::Resolved,
         "the submitted decision replaces the cached request"
     );
-    render_to_text(&app);
+    let screen = render_to_text(&app);
+    assert!(
+        screen.contains("resolved"),
+        "resolved status should render:\n{screen}"
+    );
 }
 
 fn approvable_state() -> nod_client_core::models::ClientState {
