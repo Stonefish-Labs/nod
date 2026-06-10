@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "drift-check": "bash ../../scripts/generate-types.sh && node scripts/check-drift.mjs",
     "tauri": "tauri"
   },
   "dependencies": {

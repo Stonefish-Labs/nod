@@ -68,6 +68,18 @@ export function orderedRequests(requests: readonly NodRequest[]): NodRequest[] {
   });
 }
 
+// The decision result replaces its request in place — by id, other entries
+// untouched, and an id the cache doesn't know is dropped rather than appended
+// (a submit always targets a cached request; growth comes from state syncs).
+export function replaceRequest(
+  requests: readonly NodRequest[],
+  updated: NodRequest,
+): NodRequest[] {
+  return requests.map((candidate) =>
+    candidate.id === updated.id ? updated : candidate,
+  );
+}
+
 export function selectedRequest(state: ClientState): NodRequest | undefined {
   return (
     state.requests.find((request) => request.id === state.selected_request_id) ??

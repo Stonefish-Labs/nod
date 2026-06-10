@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  replaceRequest,
   submittableOptions,
   optionRequiresText,
   canSubmitEnrollment,
@@ -226,5 +227,26 @@ describe("domain helpers", () => {
         code: "ABC",
       }),
     ).toBe(false);
+  });
+});
+
+describe("replaceRequest", () => {
+  it("replaces the matching request in place and leaves the rest untouched", () => {
+    const other: NodRequest = { ...baseRequest, id: "other", request_id: "other" };
+    const resolved: NodRequest = { ...baseRequest, status: "resolved" };
+
+    const next = replaceRequest([baseRequest, other], resolved);
+
+    expect(next).toHaveLength(2);
+    expect(next[0]).toBe(resolved);
+    expect(next[1]).toBe(other);
+  });
+
+  it("drops an update whose id is not in the cache", () => {
+    const stranger: NodRequest = { ...baseRequest, id: "stranger", request_id: "stranger" };
+
+    const next = replaceRequest([baseRequest], stranger);
+
+    expect(next).toEqual([baseRequest]);
   });
 });

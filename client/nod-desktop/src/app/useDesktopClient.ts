@@ -17,7 +17,7 @@ import {
   submitOption,
 } from "../commands";
 import { listenForRuntimeMessages } from "../events";
-import { selectedChannel, selectedRequest } from "../domain";
+import { replaceRequest, selectedChannel, selectedRequest } from "../domain";
 import type {
   Channel,
   ClientState,
@@ -166,9 +166,7 @@ export function useDesktopClient(): DesktopClient {
       });
       setState((current) => ({
         ...current,
-        requests: current.requests.map((candidate) =>
-          candidate.id === updated.id ? updated : candidate,
-        ),
+        requests: replaceRequest(current.requests, updated),
       }));
     } catch (reason) {
       setError(String(reason));

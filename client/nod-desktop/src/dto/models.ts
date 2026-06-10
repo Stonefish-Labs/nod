@@ -44,6 +44,20 @@ export interface User {
   updated_at: string;
 }
 
+export type DeviceAttestationStatus = "verified" | "failed";
+
+// The public attestation summary the server reports for a device.
+export interface DeviceAttestationSummary {
+  provider: string;
+  status: DeviceAttestationStatus;
+  key_id?: string | null;
+  team_id?: string | null;
+  bundle_id?: string | null;
+  environment?: string | null;
+  verified_at?: string | null;
+  failure_reason?: string | null;
+}
+
 export interface UserDevice {
   id: string;
   user_id: string;
@@ -52,6 +66,8 @@ export interface UserDevice {
   native_app_id?: string | null;
   push_provider?: string | null;
   has_push_token: boolean;
+  has_signing_key: boolean;
+  attestation?: DeviceAttestationSummary | null;
   notification_sound: string;
   last_seen_at: string;
   created_at: string;
@@ -88,6 +104,19 @@ export interface RequestOption {
   foreground: boolean;
 }
 
+// The signature record the server stores and republishes on a decision:
+// the client-submitted signature plus the server's verification verdict.
+export interface DecisionSignatureRecord {
+  key_id: string;
+  algorithm: string;
+  nonce: string;
+  signed_at: string;
+  request_digest: string;
+  signing_payload: string;
+  signature: string;
+  verified: boolean;
+}
+
 export interface Decision {
   request_id: string;
   option_id: string;
@@ -96,6 +125,7 @@ export interface Decision {
   text?: string | null;
   actor_user_id?: string | null;
   actor_device_id?: string | null;
+  signature?: DecisionSignatureRecord | null;
   resolved_at: string;
 }
 
@@ -104,6 +134,9 @@ export interface UserDecision {
   decision: Decision;
 }
 
+// Rust calls this `Request`; the frontend renames it because `Request` is
+// already the Fetch API's global type — importing the wire name shadows it
+// and invites silent type confusion in browser code.
 export interface NodRequest {
   id: string;
   request_id: string;
