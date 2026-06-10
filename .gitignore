@@ -90,3 +90,4 @@ client/nod-client-core/PROJECT.md
 *.pyc
 ARCHITECTURE_NOTES.md
 /.project
+/tasks

@@ -3362,6 +3362,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tokio",
  "windows 0.58.0",
+ "winreg 0.55.0",
  "zbus",
 ]
 
