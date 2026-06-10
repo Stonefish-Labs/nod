@@ -1,9 +1,12 @@
-use std::{sync::Arc, time::Duration};
+use std::{io::ErrorKind, sync::Arc, time::Duration};
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 use futures_util::StreamExt;
 use tokio::sync::Mutex;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{error::ProtocolError, Error as WebSocketError, Message},
+};
 use url::Url;
 
 use crate::{
@@ -42,19 +45,50 @@ impl NodClientRuntime {
 }
 
 async fn run_sync_loop(url: Url, reducer: SharedReducer, tx: Outbox) {
+    let mut has_connected = false;
+
     loop {
-        if let Err(error) = run_connection(&url, &reducer, &tx).await {
-            emit_to(
-                &tx,
-                NodClientMessage::TransientError {
-                    message: error.to_string(),
-                },
-            )
-            .await;
+        match run_connection(&url, &reducer, &tx).await {
+            Ok(()) => has_connected = true,
+            Err(error) if is_expected_reconnect_error(&error, has_connected) => {}
+            Err(error) => {
+                emit_to(
+                    &tx,
+                    NodClientMessage::TransientError {
+                        message: error.to_string(),
+                    },
+                )
+                .await;
+            }
+        }
+
+        if reducer.lock().await.state.is_sync_connected {
+            has_connected = true;
         }
 
         publish_connection_state(&reducer, &tx, false).await;
         tokio::time::sleep(RECONNECT_DELAY).await;
+    }
+}
+
+fn is_expected_reconnect_error(error: &Error, has_connected: bool) -> bool {
+    let Some(websocket_error) = error.downcast_ref::<WebSocketError>() else {
+        return false;
+    };
+
+    match websocket_error {
+        WebSocketError::ConnectionClosed => true,
+        WebSocketError::Protocol(ProtocolError::ResetWithoutClosingHandshake) => true,
+        WebSocketError::Io(error) if has_connected => matches!(
+            error.kind(),
+            ErrorKind::ConnectionAborted
+                | ErrorKind::ConnectionRefused
+                | ErrorKind::ConnectionReset
+                | ErrorKind::NotConnected
+                | ErrorKind::TimedOut
+                | ErrorKind::UnexpectedEof
+        ),
+        _ => false,
     }
 }
 
@@ -176,6 +210,9 @@ fn should_resync_after(envelope: &SyncEnvelope) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
+    use anyhow::anyhow;
     use chrono::Utc;
 
     use super::*;
@@ -219,5 +256,39 @@ mod tests {
             notification_delivery_mode_for(&envelope),
             Some(NotificationDeliveryMode::Push)
         );
+    }
+
+    #[test]
+    fn treats_reset_without_close_handshake_as_reconnect_condition() {
+        let error = Error::new(WebSocketError::Protocol(
+            ProtocolError::ResetWithoutClosingHandshake,
+        ));
+
+        assert!(is_expected_reconnect_error(&error, false));
+    }
+
+    #[test]
+    fn treats_refused_connection_after_success_as_reconnect_condition() {
+        let error = Error::new(WebSocketError::Io(io::Error::from(
+            ErrorKind::ConnectionRefused,
+        )));
+
+        assert!(is_expected_reconnect_error(&error, true));
+    }
+
+    #[test]
+    fn surfaces_refused_connection_before_first_success() {
+        let error = Error::new(WebSocketError::Io(io::Error::from(
+            ErrorKind::ConnectionRefused,
+        )));
+
+        assert!(!is_expected_reconnect_error(&error, false));
+    }
+
+    #[test]
+    fn surfaces_non_websocket_sync_errors() {
+        let error = anyhow!("decode drift");
+
+        assert!(!is_expected_reconnect_error(&error, true));
     }
 }
