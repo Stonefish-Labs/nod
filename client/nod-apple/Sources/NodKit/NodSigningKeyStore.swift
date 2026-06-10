@@ -184,12 +184,6 @@ private struct CryptoKitSecureEnclaveSigningPrivateKey: NodSecureEnclaveSigningP
     }
 }
 
-private extension String {
-    var nilIfEmpty: String? {
-        isEmpty ? nil : self
-    }
-}
-
 private extension Data {
     init(base64URLEncoded value: String) throws {
         var base64 = value.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
