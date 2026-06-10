@@ -3,17 +3,11 @@ import Foundation
 import NodClientFFI
 
 public enum NodSigningError: Error, LocalizedError {
-    case missingDeviceIdentity
-    case missingRequestDigest
     case missingSigningKey
     case secureEnclaveUnavailable
 
     public var errorDescription: String? {
         switch self {
-        case .missingDeviceIdentity:
-            return "This device is missing its Nod identity."
-        case .missingRequestDigest:
-            return "This request cannot be signed because it is missing a server digest."
         case .missingSigningKey:
             return "This device is missing its decision signing key."
         case .secureEnclaveUnavailable:
@@ -51,6 +45,13 @@ public final class NodSigningKeyStore {
         self.signingKeys = signingKeys
     }
 
+    /// Keychain account namespace for a server profile's decision-signing key.
+    /// The single source for this literal — NodStore and the Secure Enclave
+    /// signer both key off it.
+    public static func account(for profileId: String) -> String {
+        "decisionSigningKey.\(profileId)"
+    }
+
     public func signingKey(account: String) throws -> NodDeviceSigningKey {
         let stored = try loadOrCreate(account: account)
         let privateKey = try restorePrivateKey(from: stored)
@@ -58,42 +59,6 @@ public final class NodSigningKeyStore {
             keyId: stored.keyId,
             algorithm: Self.algorithm,
             publicKey: privateKey.publicKeyX963Representation.base64URLEncodedString()
-        )
-    }
-
-    public func sign(_ request: NodDecisionSigningRequest) throws -> NodDecisionSignature {
-        guard let requestDigest = request.request.requestDigest else {
-            throw NodSigningError.missingRequestDigest
-        }
-        guard let userId = request.userId, let deviceId = request.deviceId else {
-            throw NodSigningError.missingDeviceIdentity
-        }
-        let stored = try load(account: request.account)
-        let privateKey = try restorePrivateKey(from: stored)
-        let nonce = UUID().uuidString.lowercased()
-        let signedAt = Self.iso8601Milliseconds(Date())
-        let normalizedText = request.text?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty
-        let payload = Self.decisionSigningPayload(
-            request: request.request,
-            option: request.option,
-            text: normalizedText,
-            userId: userId,
-            deviceId: deviceId,
-            keyId: stored.keyId,
-            nonce: nonce,
-            signedAt: signedAt,
-            requestDigest: requestDigest
-        )
-        let signature = try privateKey.signatureDER(for: Data(payload.utf8)).base64URLEncodedString()
-        return NodDecisionSignature(
-            keyId: stored.keyId,
-            algorithm: Self.algorithm,
-            nonce: nonce,
-            signedAt: signedAt,
-            requestDigest: requestDigest,
-            signature: signature
         )
     }
 
@@ -161,41 +126,6 @@ public final class NodSigningKeyStore {
         return try signingKeys.restore(dataRepresentation: keyData)
     }
 
-    private static func decisionSigningPayload(
-        request: NodRequest,
-        option: NodRequestOption,
-        text: String?,
-        userId: String,
-        deviceId: String,
-        keyId: String,
-        nonce: String,
-        signedAt: String,
-        requestDigest: String
-    ) -> String {
-        // The canonical signing string is constructed by nod-proto (Rust) via
-        // UniFFI, so the Apple client and the server cannot drift on exactly what
-        // gets signed. The Secure Enclave below still performs the signature.
-        NodClientFFI.decisionSigningPayload(
-            requestId: request.id,
-            requestDigest: requestDigest,
-            optionId: option.id,
-            optionKind: option.kind.rawValue,
-            userId: userId,
-            deviceId: deviceId,
-            keyId: keyId,
-            nonce: nonce,
-            signedAt: signedAt,
-            text: text
-        )
-    }
-
-    private static func iso8601Milliseconds(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-        return formatter.string(from: date)
-    }
 }
 
 protocol NodKeychainStoring: AnyObject {

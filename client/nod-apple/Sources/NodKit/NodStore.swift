@@ -499,7 +499,7 @@ public final class NodStore: ObservableObject {
       // Load-or-create the Secure Enclave signing key for this profile. The
       // runtime's signer callback keys off the same account, so this mints the
       // exact key the runtime will use to sign decisions.
-      let signingKey = try signingKeys.signingKey(account: Self.signingKeyAccount(for: profileId))
+      let signingKey = try signingKeys.signingKey(account: NodSigningKeyStore.account(for: profileId))
       let attestationRequest = NodAppAttestationRequest(
         code: normalizedEnrollmentCode,
         deviceName: deviceName,
@@ -595,10 +595,6 @@ public final class NodStore: ObservableObject {
   }
 
   // MARK: - Keychain namespaces
-
-  static func signingKeyAccount(for serverId: String) -> String {
-    "decisionSigningKey.\(serverId)"
-  }
 
   static func appAttestKeyAccount(for serverId: String) -> String {
     "appAttestKey.\(serverId)"

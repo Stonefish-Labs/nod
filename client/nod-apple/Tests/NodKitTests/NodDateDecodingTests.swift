@@ -28,24 +28,6 @@ final class NodDateDecodingTests: XCTestCase {
     XCTAssertEqual(unknown, .custom)
   }
 
-  func testNotificationDeliveryDecodesFromSyncHello() throws {
-    let data = """
-      {
-        "kind": "hello",
-        "at": "2026-05-31T12:00:00.000Z",
-        "payload": {
-          "device_id": "device-1",
-          "notification_delivery": { "mode": "websocket" }
-        }
-      }
-      """.data(using: .utf8)!
-
-    let envelope = try JSONDecoder.nod.decode(NodSyncEnvelope.self, from: data)
-
-    XCTAssertEqual(envelope.kind, "hello")
-    XCTAssertEqual(envelope.notificationDelivery?.mode, .websocket)
-  }
-
   func testLocalNotificationPresentationFollowsDeliveryMode() {
     XCTAssertFalse(
       NodNotificationPolicy.shouldPresentLocalNotification(

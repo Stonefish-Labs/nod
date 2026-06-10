@@ -4,8 +4,7 @@ import Foundation
 /// emits ISO-8601 timestamps with optional fractional seconds, so decoding the
 /// `ClientState`/wire payloads needs the lenient date strategy below. These used
 /// to live in `NodAPI.swift`; after the cutover onto the shared Rust runtime the
-/// HTTP client is gone but the coders are still used by `NodRuntimeState`,
-/// `NodSyncEnvelope`, and the tests.
+/// HTTP client is gone but the coders are still used by `NodRuntimeState` and the tests.
 extension JSONDecoder {
   static var nod: JSONDecoder {
     let decoder = JSONDecoder()

@@ -39,42 +39,6 @@ final class NodSigningKeyStoreTests: XCTestCase {
     XCTAssertNotNil(try storedJSON(from: keychain.value(for: account))["unexpected"])
   }
 
-  func testSigningUsesStoredSecureEnclaveKey() throws {
-    let account = "decisionSigningKey.secure"
-    let key = TestSecureEnclavePrivateKey(
-      dataRepresentation: Data("secure-key-3".utf8),
-      publicKeyX963Representation: Data("public-key-3".utf8),
-      signature: Data("der-signature".utf8)
-    )
-    let keychain = TestKeychainStore()
-    keychain.values[account] = try keychainValue(
-      for: NodStoredSigningKey(
-        keyId: "secure-key-id",
-        secureEnclaveKey: base64URL(key.dataRepresentation)
-      )
-    )
-    let provider = TestSecureEnclaveSigningKeyProvider(restoredKeys: [key.dataRepresentation: key])
-    let store = NodSigningKeyStore(keychain: keychain, signingKeys: provider)
-
-    let signature = try store.sign(NodDecisionSigningRequest(
-      request: makeRequest(),
-      option: NodRequestOption(id: "approve", label: "Approve", kind: .approve),
-      text: " approved ",
-      userId: "user-1",
-      deviceId: "device-1",
-      account: account
-    ))
-
-    XCTAssertEqual(signature.keyId, "secure-key-id")
-    XCTAssertEqual(signature.algorithm, NodSigningKeyStore.algorithm)
-    XCTAssertEqual(signature.requestDigest, "digest-1")
-    XCTAssertEqual(signature.signature, base64URL(Data("der-signature".utf8)))
-    XCTAssertEqual(provider.restoredDataRepresentations, [key.dataRepresentation])
-
-    let payload = try XCTUnwrap(String(data: try XCTUnwrap(key.signedData.first), encoding: .utf8))
-    XCTAssertTrue(payload.contains("request_digest:digest-1"))
-    XCTAssertTrue(payload.contains("key_id:secure-key-id"))
-  }
 }
 
 private final class TestKeychainStore: NodKeychainStoring {
@@ -142,41 +106,6 @@ private final class TestSecureEnclavePrivateKey: NodSecureEnclaveSigningPrivateK
     signedData.append(data)
     return signature
   }
-}
-
-private func makeRequest() throws -> NodRequest {
-  let data = """
-    {
-      "id": "request-1",
-      "request_id": "request-1",
-      "channel_id": "channel-1",
-      "recipients": [],
-      "decision_resolution": "shared",
-      "title": "Deploy?",
-      "summary": "Production deploy",
-      "body_markdown": "Approve deploy",
-      "fields": [],
-      "links": [],
-      "image_url": null,
-      "notification": {
-        "redact": false,
-        "title": null,
-        "body": null
-      },
-      "dedupe_key": null,
-      "expires_at": null,
-      "status": "pending",
-      "created_at": "2026-05-31T12:00:00.000Z",
-      "updated_at": "2026-05-31T12:00:00.000Z",
-      "resolved_at": null,
-      "decision": null,
-      "decisions": [],
-      "callback_url": null,
-      "request_digest": "digest-1",
-      "options": []
-    }
-    """.data(using: .utf8)!
-  return try JSONDecoder.nod.decode(NodRequest.self, from: data)
 }
 
 private func keychainValue<Value: Encodable>(for value: Value) throws -> String {

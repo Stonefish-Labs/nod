@@ -46,9 +46,8 @@ public final class SecureEnclaveDeviceSigner: NodDeviceSigner, @unchecked Sendab
     }
   }
 
-  /// Keychain account namespace for a server profile's decision-signing key.
   private func account(for profileId: String) -> String {
-    "decisionSigningKey.\(profileId)"
+    NodSigningKeyStore.account(for: profileId)
   }
 
   /// The Rust side declares a `SignerCallbackError`; any Swift/Keychain/Secure
