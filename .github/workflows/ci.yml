@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Linux runs the workspace minus nod-desktop: the Tauri crate drags in the
+  # webkit2gtk/gtk/appindicator apt stack for no extra coverage — the macOS
+  # job compiles and tests it natively.
+  rust-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System deps (keyring needs libdbus)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --exclude nod-desktop --all-targets -- -D warnings
+      - run: cargo test --workspace --exclude nod-desktop --locked
+
+  # Full workspace (including the Tauri crate) plus the desktop frontend.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/nod-desktop/package-lock.json
+      - name: Desktop frontend
+        working-directory: client/nod-desktop
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
+  # The Swift suite needs the UniFFI xcframework, which is git-ignored and
+  # rebuilt from Rust source — only worth the runner time when the Apple
+  # client or its Rust inputs changed.
+  swift:
+    runs-on: macos-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Apple-affecting changes
+        id: changes
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BASE" "$GITHUB_SHA" | grep -qE '^(client/nod-apple/|client/nod-client-core/|nod-proto/|nod-client-ffi/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.changes.outputs.run == 'true'
+      - uses: Swatinem/rust-cache@v2
+        if: steps.changes.outputs.run == 'true'
+      - name: Build UniFFI xcframework
+        if: steps.changes.outputs.run == 'true'
+        run: client/nod-apple/scripts/build-nod-client-ffi.sh
+      - name: Swift tests
+        if: steps.changes.outputs.run == 'true'
+        working-directory: client/nod-apple
+        run: swift test

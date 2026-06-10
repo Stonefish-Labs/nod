@@ -1,0 +1,165 @@
+name: Release
+
+# Tag pushes (v*) build every non-Apple artifact and attach them to a DRAFT
+# release. workflow_dispatch runs the same builds and stops at workflow
+# artifacts — use it to validate the pipeline or grab a pre-release MSI.
+#
+# Deliberately NOT built here:
+# - The macOS app: Developer ID signing + notarization run locally
+#   (client/nod-apple/scripts/release-macos); the DMG is uploaded to the same
+#   draft release by hand, and its checksum appended to SHA256SUMS.
+# - Windows/Linux signing: v1 ships unsigned; the SmartScreen flow and
+#   checksum verification are documented in the release notes.
+# - Linux desktop bundles: deferred until there's a Linux test environment.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  server-tui:
+    name: server+tui (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System deps (keyring needs libdbus)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} -p nod-server -p nod-tui
+      - name: Package
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          [ "${GITHUB_REF_TYPE}" = "tag" ] || VERSION="dev-${GITHUB_SHA::7}"
+          mkdir -p dist
+          for bin in nod-server nod-tui; do
+            if [ "${{ runner.os }}" = "Windows" ]; then
+              7z a "dist/${bin}-${VERSION}-${{ matrix.target }}.zip" "./target/${{ matrix.target }}/release/${bin}.exe" > /dev/null
+            else
+              tar -C "target/${{ matrix.target }}/release" -czf "dist/${bin}-${VERSION}-${{ matrix.target }}.tar.gz" "${bin}"
+            fi
+          done
+          ls -l dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-tui-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  windows-msi:
+    name: desktop MSI (unsigned)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-msi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/nod-desktop/package-lock.json
+      - name: Build MSI
+        working-directory: client/nod-desktop
+        run: |
+          npm ci
+          npm run tauri build -- --bundles msi
+      - name: Collect MSI
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Workspace members emit bundles under the workspace target dir.
+          find target client/nod-desktop/src-tauri/target -path '*bundle/msi/*.msi' -exec cp {} dist/ \; 2>/dev/null || true
+          ls -l dist/
+          [ -n "$(ls dist/)" ]
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: dist/*.msi
+          if-no-files-found: error
+
+  docker:
+    name: server image (ghcr.io)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.ref_type == 'tag'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/nod-server/Dockerfile
+          push: ${{ github.ref_type == 'tag' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/nod-server:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/nod-server:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: draft release
+    if: github.ref_type == 'tag'
+    needs: [server-tui, windows-msi, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS
+      - name: Release body
+        id: body
+        run: |
+          NOTES="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$NOTES" ]; then
+            echo "path=$NOTES" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release notes missing at $NOTES — drafting with a placeholder." >&2
+            echo "Release notes pending." > /tmp/placeholder.md
+            echo "path=/tmp/placeholder.md" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Nod ${{ github.ref_name }}
+          body_path: ${{ steps.body.outputs.path }}
+          files: dist/*
