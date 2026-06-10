@@ -3285,7 +3285,7 @@ dependencies = [
 
 [[package]]
 name = "nod-apns-relay"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3309,7 +3309,7 @@ dependencies = [
 
 [[package]]
 name = "nod-client-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3334,7 +3334,7 @@ dependencies = [
 
 [[package]]
 name = "nod-client-ffi"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "nod-client-core",
@@ -3347,7 +3347,7 @@ dependencies = [
 
 [[package]]
 name = "nod-desktop"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3367,7 +3367,7 @@ dependencies = [
 
 [[package]]
 name = "nod-proto"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -3383,7 +3383,7 @@ dependencies = [
 
 [[package]]
 name = "nod-server"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "appattest",
@@ -3419,7 +3419,7 @@ dependencies = [
 
 [[package]]
 name = "nod-tui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
