@@ -368,7 +368,7 @@ mod tests {
             code: " ABCD1234 ".to_string(),
             device_name: " iPhone ".to_string(),
             platform: DevicePlatform::Ios,
-            native_app_id: Some(" com.batteryshark.Nod ".to_string()),
+            native_app_id: Some(" com.batteryshark.Boop ".to_string()),
             push_provider: Some(" apple_apns ".to_string()),
             push_token: Some(" provider-token ".to_string()),
             signing_key: Some(DeviceSigningKeyRequest {

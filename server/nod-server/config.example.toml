@@ -15,5 +15,5 @@ ca_cert_path = ""
 [device_attestation.apple_app_attest]
 mode = "report_only"
 team_id = "Y734633UDM"
-bundle_ids = ["com.batteryshark.Nod", "com.batteryshark.NodMac"]
+bundle_ids = ["com.batteryshark.Boop"]
 environment = "production"

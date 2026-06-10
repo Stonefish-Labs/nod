@@ -105,8 +105,8 @@ container-mounted secrets directory.
 When migrating from a sibling `boop-server` checkout, `scripts/nod-compose
 --with-apns-relay` also imports existing Boop APNs team/key settings from
 `../../../boop-server/secrets/secrets.env` and copies the APNs `.p8` key into
-Nod's ignored `secrets/` directory. The relay still uses Nod's APNs topic,
-`com.batteryshark.Nod`, not Boop's bundle id.
+Nod's ignored `secrets/` directory. The relay uses the local Apple app topic,
+`com.batteryshark.Boop`.
 
 If there is no Boop checkout to import from, copy your Apple APNs `.p8` key into
 `secrets/` and fill these values in `secrets/relay.env`:
@@ -115,7 +115,7 @@ If there is no Boop checkout to import from, copy your Apple APNs `.p8` key into
 NOD_APNS_RELAY_TEAM_ID=...
 NOD_APNS_RELAY_KEY_ID=...
 NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/AuthKey_....p8
-NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Nod
+NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Boop
 NOD_APNS_RELAY_ENVIRONMENT=production
 ```
 
@@ -176,7 +176,7 @@ topic, and a provider token. Push registrations without a native app id are
 rejected.
 
 Device-facing APIs report notification delivery as either `push` or `websocket`.
-The `push` mode means the server has a configured APNs relay route. The
+The `push` mode means the server has a configured APNs route. The
 `websocket` mode means Apple clients should present `created` sync events as
 local notifications while connected. On iOS, WebSocket/local delivery is
 foreground-only; background and lock-screen delivery still require APNs.
@@ -189,7 +189,7 @@ used on this hop:
 
 ```bash
 NOD_APNS_RELAY_URL=https://relay.example.com:8768
-NOD_APNS_RELAY_NATIVE_APP_ID=com.yourname.Nod
+NOD_APNS_RELAY_NATIVE_APP_ID=com.yourname.Boop
 NOD_APNS_RELAY_CLIENT_CERT_PATH=/secrets/relay-client.crt
 NOD_APNS_RELAY_CLIENT_KEY_PATH=/secrets/relay-client.key
 NOD_APNS_RELAY_CA_CERT_PATH=/secrets/relay-ca.crt
@@ -208,7 +208,7 @@ NOD_APNS_RELAY_SERVER_KEY_PATH=/secrets/relay-server.key
 NOD_APNS_RELAY_CLIENT_CA_CERT_PATH=/secrets/relay-client-ca.crt
 NOD_APNS_RELAY_TEAM_ID=...
 NOD_APNS_RELAY_KEY_ID=...
-NOD_APNS_RELAY_BUNDLE_ID=com.yourname.Nod
+NOD_APNS_RELAY_BUNDLE_ID=com.yourname.Boop
 NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/AuthKey_....p8
 NOD_APNS_RELAY_ENVIRONMENT=production
 cargo run

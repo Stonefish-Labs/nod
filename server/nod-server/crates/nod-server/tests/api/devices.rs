@@ -139,7 +139,7 @@ async fn malformed_attestation_is_recorded_without_blocking_enrollment() {
     let app = TestApp::new_with_config(|config| {
         config.device_attestation.apple_app_attest.team_id = Some("Y734633UDM".to_string());
         config.device_attestation.apple_app_attest.bundle_ids =
-            vec!["com.batteryshark.Nod".to_string()];
+            vec!["com.batteryshark.Boop".to_string()];
     })
     .await;
 

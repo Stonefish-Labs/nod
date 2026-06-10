@@ -4,7 +4,7 @@ services:
       - nod-apns-relay
     environment:
       NOD_APNS_RELAY_URL: "https://nod-apns-relay:8768"
-      NOD_APNS_RELAY_NATIVE_APP_ID: "${NOD_APNS_RELAY_NATIVE_APP_ID:-com.batteryshark.Nod}"
+      NOD_APNS_RELAY_NATIVE_APP_ID: "${NOD_APNS_RELAY_NATIVE_APP_ID:-com.batteryshark.Boop}"
       NOD_APNS_RELAY_CLIENT_CERT_PATH: "/secrets/relay-client.crt"
       NOD_APNS_RELAY_CLIENT_KEY_PATH: "/secrets/relay-client.key"
       NOD_APNS_RELAY_CA_CERT_PATH: "/secrets/relay-ca.crt"

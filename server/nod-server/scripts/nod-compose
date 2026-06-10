@@ -7,6 +7,7 @@ BOOP_SECRETS_DIR="${BOOP_SECRETS_DIR:-$ROOT/../../../boop-server/secrets}"
 BOOP_SECRETS_ENV="${BOOP_SECRETS_ENV:-$BOOP_SECRETS_DIR/secrets.env}"
 NOD_SECRETS_ENV="${NOD_SECRETS_ENV:-$ROOT/secrets/secrets.env}"
 NOD_RELAY_SECRETS_ENV="${NOD_RELAY_SECRETS_ENV:-$ROOT/secrets/relay.env}"
+LOCAL_APPLE_NATIVE_APP_ID="${NOD_LOCAL_APPLE_NATIVE_APP_ID:-com.batteryshark.Boop}"
 export NOD_SECRETS_ENV
 export NOD_RELAY_SECRETS_ENV
 
@@ -133,15 +134,24 @@ env_file_value() {
 }
 
 ensure_app_attest_defaults() {
+  local bundle_ids
+
   ensure_env_default "$NOD_SECRETS_ENV" \
     "NOD_APPLE_APP_ATTEST_MODE" \
     "report_only"
   ensure_env_default "$NOD_SECRETS_ENV" \
     "NOD_APPLE_APP_ATTEST_TEAM_ID" \
     "Y734633UDM"
-  ensure_env_default "$NOD_SECRETS_ENV" \
-    "NOD_APPLE_APP_ATTEST_BUNDLE_IDS" \
-    "com.batteryshark.Nod,com.batteryshark.NodMac"
+
+  bundle_ids="$(env_file_value "$NOD_SECRETS_ENV" NOD_APPLE_APP_ATTEST_BUNDLE_IDS)"
+  case "$bundle_ids" in
+    "" )
+      append_env_line "$NOD_SECRETS_ENV" "NOD_APPLE_APP_ATTEST_BUNDLE_IDS=$LOCAL_APPLE_NATIVE_APP_ID"
+      ;;
+    com.batteryshark.Nod|com.batteryshark.Nod,com.batteryshark.NodMac )
+      ensure_env_value "$NOD_SECRETS_ENV" "NOD_APPLE_APP_ATTEST_BUNDLE_IDS" "$LOCAL_APPLE_NATIVE_APP_ID"
+      ;;
+  esac
 
   case "$(env_file_value "$NOD_SECRETS_ENV" NOD_APPLE_APP_ATTEST_ENVIRONMENT)" in
     "" )
@@ -164,7 +174,7 @@ ensure_relay_env() {
 # NOD_APNS_RELAY_KEY_ID=...
 # NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/AuthKey_....p8
 
-NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Nod
+NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Boop
 NOD_APNS_RELAY_ENVIRONMENT=production
 EOF
     printf 'Created APNs relay env template in %s\n' "$NOD_RELAY_SECRETS_ENV" >&2
@@ -173,7 +183,7 @@ EOF
   chmod 600 "$NOD_RELAY_SECRETS_ENV" 2>/dev/null || true
 
   if ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID"; then
-    append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID=com.batteryshark.Nod"
+    append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID=$LOCAL_APPLE_NATIVE_APP_ID"
   fi
   if ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_ENVIRONMENT"; then
     append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_ENVIRONMENT=production"
@@ -279,6 +289,88 @@ warn_missing_relay_env() {
   fi
 }
 
+direct_env_set_default() {
+  local name="$1"
+  local value="$2"
+
+  if [[ -n "$value" ]] && ! env_file_has_value "$NOD_SECRETS_ENV" "$name"; then
+    append_env_line "$NOD_SECRETS_ENV" "$name=$value"
+    return 0
+  fi
+  return 1
+}
+
+ensure_direct_env() {
+  local relay_private_key_path
+
+  ensure_env_value "$NOD_SECRETS_ENV" \
+    "NOD_APNS_DIRECT_BUNDLE_ID" \
+    "$LOCAL_APPLE_NATIVE_APP_ID"
+  ensure_env_value "$NOD_SECRETS_ENV" \
+    "NOD_APNS_DIRECT_ENVIRONMENT" \
+    "production"
+
+  direct_env_set_default \
+    NOD_APNS_DIRECT_TEAM_ID \
+    "$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_TEAM_ID)" || true
+  direct_env_set_default \
+    NOD_APNS_DIRECT_KEY_ID \
+    "$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_KEY_ID)" || true
+  direct_env_set_default \
+    NOD_APNS_DIRECT_TEAM_ID \
+    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_TEAM_ID)" || true
+  direct_env_set_default \
+    NOD_APNS_DIRECT_KEY_ID \
+    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_KEY_ID)" || true
+
+  relay_private_key_path="$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_PRIVATE_KEY_PATH)"
+  if [[ -n "$relay_private_key_path" ]]; then
+    direct_env_set_default \
+      NOD_APNS_DIRECT_PRIVATE_KEY_PATH \
+      "$relay_private_key_path" || true
+  fi
+
+  if ! env_file_has_value "$NOD_SECRETS_ENV" NOD_APNS_DIRECT_PRIVATE_KEY_PATH; then
+    local source_key_path
+    local key_basename
+    local target_key_path
+
+    source_key_path="$(boop_secret_source_path "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_PRIVATE_KEY_PATH)")"
+    if [[ -n "$source_key_path" ]]; then
+      key_basename="$(basename "$source_key_path")"
+      target_key_path="$RELAY_SECRETS_DIR/$key_basename"
+      mkdir -p "$RELAY_SECRETS_DIR"
+      chmod 711 "$RELAY_SECRETS_DIR" 2>/dev/null || true
+      if [[ "$source_key_path" != "$target_key_path" && ! -e "$target_key_path" ]]; then
+        cp "$source_key_path" "$target_key_path"
+      fi
+      chmod 600 "$target_key_path" 2>/dev/null || true
+      append_env_line "$NOD_SECRETS_ENV" "NOD_APNS_DIRECT_PRIVATE_KEY_PATH=/secrets/$key_basename"
+    fi
+  fi
+}
+
+warn_missing_direct_env() {
+  local missing=()
+  local name
+
+  for name in \
+    NOD_APNS_DIRECT_TEAM_ID \
+    NOD_APNS_DIRECT_KEY_ID \
+    NOD_APNS_DIRECT_PRIVATE_KEY_PATH
+  do
+    if [[ -z "${!name:-}" ]] && ! env_file_has_value "$NOD_SECRETS_ENV" "$name"; then
+      missing+=("$name")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf 'Warning: in-process APNs credentials are missing from %s: %s\n' \
+      "$NOD_SECRETS_ENV" "${missing[*]}" >&2
+    printf 'The server will fall back to WebSocket delivery until those values are set.\n' >&2
+  fi
+}
+
 derive_relay_native_app_id() {
   local bundle_id
 
@@ -288,7 +380,7 @@ derive_relay_native_app_id() {
   fi
 
   bundle_id="$(env_file_value "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_BUNDLE_ID")"
-  NOD_APNS_RELAY_NATIVE_APP_ID="${bundle_id:-com.batteryshark.Nod}"
+  NOD_APNS_RELAY_NATIVE_APP_ID="${bundle_id:-$LOCAL_APPLE_NATIVE_APP_ID}"
   export NOD_APNS_RELAY_NATIVE_APP_ID
 }
 
@@ -296,6 +388,7 @@ ensure_admin_token
 ensure_app_attest_defaults
 
 with_apns_relay=false
+with_apns_direct=false
 dev=false
 compose_args=()
 
@@ -303,6 +396,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-apns-relay)
       with_apns_relay=true
+      shift
+      ;;
+    --with-apns-direct)
+      with_apns_direct=true
       shift
       ;;
     --dev)
@@ -326,6 +423,16 @@ set -- "${compose_args[@]}"
 compose_files=(-f "$ROOT/docker-compose.yml")
 if [[ "$dev" == true ]]; then
   compose_files+=(-f "$ROOT/docker-compose.dev.yml")
+fi
+if [[ "$with_apns_relay" == true && "$with_apns_direct" == true ]]; then
+  printf 'Use either --with-apns-relay or --with-apns-direct, not both.\n' >&2
+  exit 1
+fi
+if [[ "$with_apns_direct" == true ]]; then
+  ensure_relay_env
+  import_boop_apns_env
+  ensure_direct_env
+  warn_missing_direct_env
 fi
 if [[ "$with_apns_relay" == true ]]; then
   ensure_relay_env

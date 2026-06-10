@@ -43,7 +43,7 @@ Enroll a device with a decision signing key:
   "code": "ABCDEFGH",
   "device_name": "iPhone",
   "platform": "ios",
-  "native_app_id": "com.batteryshark.Nod",
+  "native_app_id": "com.batteryshark.Boop",
   "push_provider": "apple_apns",
   "push_token": "provider-token",
   "signing_key": {
@@ -72,7 +72,7 @@ Configure Apple App Attest explicitly:
 [device_attestation.apple_app_attest]
 mode = "report_only"
 team_id = "Y734633UDM"
-bundle_ids = ["com.batteryshark.Nod", "com.batteryshark.NodMac"]
+bundle_ids = ["com.batteryshark.Boop"]
 environment = "production"
 ```
 
@@ -82,7 +82,7 @@ be verified against `production`.
 
 `native_app_id` is required whenever `push_provider` and `push_token` are
 present. For Apple APNs it must be the bundle id/APNs topic, such as
-`com.batteryshark.Nod`.
+`com.batteryshark.Boop`.
 
 Device-facing responses from `/api/v1/enroll`, `/api/v1/users/me`, and the
 WebSocket `hello` envelope include required notification delivery metadata:
@@ -96,9 +96,9 @@ WebSocket `hello` envelope include required notification delivery metadata:
 ```
 
 `mode` is either `push` or `websocket`. `push` means the server has an effective
-APNs relay route. `websocket` means clients should present `created` WebSocket
-sync events as local notifications while connected. APNs relay routing is
-transparent to device clients.
+APNs route. `websocket` means clients should present `created` WebSocket sync
+events as local notifications while connected. APNs routing is transparent to
+device clients.
 
 ## Requests
 
