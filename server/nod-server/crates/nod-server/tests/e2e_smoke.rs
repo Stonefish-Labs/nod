@@ -260,6 +260,11 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         .as_str()
         .expect("request digest")
         .to_string();
+    assert_eq!(
+        created["request"]["recipients"],
+        json!([user_id, watcher_user_id]),
+        "issuer create response should carry the canonical full-recipient snapshot"
+    );
 
     // The `created` envelope reaches the device, and the socket's per-user
     // projection agrees with the HTTP device view of the same request.
@@ -283,13 +288,57 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         .find(|request| request["id"] == request_id.as_str())
         .unwrap_or_else(|| panic!("request {request_id} missing from device list: {listed}"))
         .clone();
+    let fetched_before_decision = api(
+        &http,
+        base_url,
+        Method::GET,
+        &format!("/api/v1/requests/{request_id}"),
+        &device_token,
+        None,
+    )
+    .await;
     assert_eq!(
         ws_created["payload"]["request"], listed_request,
         "sync projection diverges from the HTTP device view"
     );
+    assert_eq!(
+        fetched_before_decision["request"], listed_request,
+        "HTTP get projection diverges from the HTTP list view"
+    );
+    assert_eq!(
+        ws_created["payload"]["request"]["request_digest"], request_digest,
+        "primary socket projection should carry the create-response digest"
+    );
     let watcher_created = next_ws_envelope(&mut watcher_ws, |envelope| {
         envelope["kind"] == "created" && envelope["payload"]["request"]["id"] == request_id.as_str()
     })
+    .await;
+    let watcher_listed = api(
+        &http,
+        base_url,
+        Method::GET,
+        "/api/v1/requests",
+        &watcher_token,
+        None,
+    )
+    .await;
+    let watcher_listed_request = watcher_listed["requests"]
+        .as_array()
+        .expect("watcher requests array")
+        .iter()
+        .find(|request| request["id"] == request_id.as_str())
+        .unwrap_or_else(|| {
+            panic!("request {request_id} missing from watcher list: {watcher_listed}")
+        })
+        .clone();
+    let watcher_fetched_before_decision = api(
+        &http,
+        base_url,
+        Method::GET,
+        &format!("/api/v1/requests/{request_id}"),
+        &watcher_token,
+        None,
+    )
     .await;
     assert_eq!(
         watcher_created["payload"]["request"]["recipients"],
@@ -297,10 +346,26 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         "watcher's socket projection should show only the watcher"
     );
     assert_eq!(
-        watcher_created["payload"]["request"]["request_digest"],
-        ws_created["payload"]["request"]["request_digest"],
-        "both recipients must see the same canonical digest"
+        watcher_created["payload"]["request"], watcher_listed_request,
+        "watcher sync projection diverges from the HTTP device view"
     );
+    assert_eq!(
+        watcher_fetched_before_decision["request"], watcher_listed_request,
+        "watcher HTTP get projection diverges from the HTTP list view"
+    );
+    for request_view in [
+        &listed_request,
+        &fetched_before_decision["request"],
+        &ws_created["payload"]["request"],
+        &watcher_listed_request,
+        &watcher_fetched_before_decision["request"],
+        &watcher_created["payload"]["request"],
+    ] {
+        assert_eq!(
+            request_view["request_digest"], request_digest,
+            "all per-user projections must carry the canonical create-response digest"
+        );
+    }
 
     // Sign and submit the decision with the enrolled key.
     let nonce = uuid::Uuid::new_v4().to_string();
