@@ -102,6 +102,51 @@ export function optionRequiresText(option: RequestOption): boolean {
   return option.requires_text || option.kind.endsWith("_with_text");
 }
 
+export interface DecisionAction {
+  /** Submitted when the notes field is empty. */
+  option: RequestOption;
+  /** Submitted instead when notes are filled in, so the issuer sees the with-text option. */
+  withTextOption?: RequestOption;
+}
+
+const WITH_TEXT_PARTNERS: Record<string, string> = {
+  approve: "approve_with_text",
+  approve_with_text: "approve",
+  reject: "reject_with_text",
+  reject_with_text: "reject",
+};
+
+// Issuers commonly publish approve + approve_with_text (and the reject pair)
+// as separate options. The detail pane shows one button per decision and
+// routes the click through the with-text variant when notes are filled.
+export function decisionActions(request: NodRequest): DecisionAction[] {
+  const options = submittableOptions(request);
+  const consumed = new Set<string>();
+  const actions: DecisionAction[] = [];
+  for (const option of options) {
+    if (consumed.has(option.id)) {
+      continue;
+    }
+    consumed.add(option.id);
+    const partnerKind = WITH_TEXT_PARTNERS[option.kind];
+    const partner = partnerKind
+      ? options.find(
+          (candidate) => candidate.kind === partnerKind && !consumed.has(candidate.id),
+        )
+      : undefined;
+    if (!partner) {
+      actions.push({ option });
+      continue;
+    }
+    consumed.add(partner.id);
+    const [plain, withText] = option.kind.endsWith("_with_text")
+      ? [partner, option]
+      : [option, partner];
+    actions.push({ option: plain, withTextOption: withText });
+  }
+  return actions;
+}
+
 export function requestPreview(request: NodRequest): string {
   return request.summary || request.body_markdown;
 }

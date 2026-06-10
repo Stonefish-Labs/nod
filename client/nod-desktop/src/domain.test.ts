@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  decisionActions,
   replaceRequest,
   submittableOptions,
   optionRequiresText,
@@ -249,5 +250,58 @@ describe("replaceRequest", () => {
 
     expect(next).toHaveLength(1);
     expect(next[0]).toBe(baseRequest);
+  });
+});
+
+describe("decisionActions", () => {
+  const approveWithText: RequestOption = {
+    ...baseOption,
+    id: "approve_notes",
+    label: "Approve with notes",
+    kind: "approve_with_text",
+  };
+  const reject: RequestOption = {
+    ...baseOption,
+    id: "reject",
+    label: "Reject",
+    kind: "reject",
+    destructive: true,
+  };
+
+  it("merges an approve pair into one action keyed on the plain option", () => {
+    const actions = decisionActions({
+      ...baseRequest,
+      options: [baseOption, approveWithText, reject],
+    });
+
+    expect(actions).toHaveLength(2);
+    expect(actions[0].option.id).toBe("approve");
+    expect(actions[0].withTextOption?.id).toBe("approve_notes");
+    expect(actions[1].option.id).toBe("reject");
+    expect(actions[1].withTextOption).toBeUndefined();
+  });
+
+  it("merges regardless of option order", () => {
+    const actions = decisionActions({
+      ...baseRequest,
+      options: [approveWithText, baseOption],
+    });
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0].option.id).toBe("approve");
+    expect(actions[0].withTextOption?.id).toBe("approve_notes");
+  });
+
+  it("keeps unpaired with-text and custom options standalone", () => {
+    const custom: RequestOption = { ...baseOption, id: "later", kind: "custom" };
+    const actions = decisionActions({
+      ...baseRequest,
+      options: [approveWithText, custom],
+    });
+
+    expect(actions).toHaveLength(2);
+    expect(actions[0].option.id).toBe("approve_notes");
+    expect(actions[0].withTextOption).toBeUndefined();
+    expect(actions[1].option.id).toBe("later");
   });
 });

@@ -52,11 +52,14 @@ async fn desktop_side_effect_error(
     message: &NodClientMessage,
 ) -> Option<NodClientMessage> {
     match message {
-        NodClientMessage::NotificationCandidate { request } => notifier
-            .show(request)
-            .await
-            .err()
-            .map(|error| transient_desktop_error("show desktop notification", error)),
+        NodClientMessage::NotificationCandidate { request } => {
+            request_attention(app);
+            notifier
+                .show(request)
+                .await
+                .err()
+                .map(|error| transient_desktop_error("show desktop notification", error))
+        }
         NodClientMessage::NotificationRemoved { request_id } => notifier
             .remove(request_id)
             .await
@@ -75,12 +78,34 @@ fn update_badge(app: &AppHandle, state: &ClientState) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window("main") else {
         return Ok(());
     };
-    let pending = total_pending_count(state);
+    set_pending_badge(&window, total_pending_count(state))
+}
+
+// set_badge_count is unsupported on Windows; the count is rasterized onto a
+// taskbar overlay icon instead.
+#[cfg(target_os = "windows")]
+fn set_pending_badge(window: &tauri::WebviewWindow, pending: usize) -> tauri::Result<()> {
+    window.set_overlay_icon((pending > 0).then(|| crate::badge::pending_overlay(pending)))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_pending_badge(window: &tauri::WebviewWindow, pending: usize) -> tauri::Result<()> {
     window.set_badge_count(if pending == 0 {
         None
     } else {
         Some(pending as i64)
     })
+}
+
+// Flash the taskbar button (bounce the Dock on macOS dev builds) when a
+// request arrives while the window is in the background.
+fn request_attention(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    if !window.is_focused().unwrap_or(false) {
+        let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+    }
 }
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]

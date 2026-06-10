@@ -9,6 +9,26 @@ use windows::{
 
 use crate::notifier::{windows_toast::windows_toast_xml, NotificationActivation};
 
+const TOAST_APP_ID: &str = "com.stonefishlabs.nod.desktop";
+
+/// Windows only displays toasts for a registered AppUserModelID. Installers
+/// register one via a Start-menu shortcut; a bare unzipped exe has to use the
+/// per-user registry registration instead, refreshed on every launch.
+pub(crate) fn register_toast_app_id(app: &tauri::App) -> anyhow::Result<()> {
+    use tauri::Manager;
+
+    let data_dir = app.path().app_local_data_dir()?;
+    std::fs::create_dir_all(&data_dir)?;
+    let icon_path = data_dir.join("toast-icon.png");
+    std::fs::write(&icon_path, include_bytes!("../../../icons/128x128.png"))?;
+
+    let (key, _) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+        .create_subkey(format!(r"Software\Classes\AppUserModelId\{TOAST_APP_ID}"))?;
+    key.set_value("DisplayName", &"Nod")?;
+    key.set_value("IconUri", &icon_path.to_string_lossy().to_string())?;
+    Ok(())
+}
+
 pub(crate) async fn show_notification(
     request: &Request,
     activations: mpsc::Sender<NotificationActivation>,
@@ -39,7 +59,8 @@ pub(crate) async fn show_notification(
         Ok(())
     });
     toast.Activated(&handler)?;
-    let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from("Nod"))?;
+    let notifier =
+        ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(TOAST_APP_ID))?;
     notifier.Show(&toast)?;
     Ok(())
 }

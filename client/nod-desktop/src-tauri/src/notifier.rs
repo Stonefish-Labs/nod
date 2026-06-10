@@ -8,6 +8,8 @@ use nod_client_core::models::Request;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use tokio::sync::mpsc;
 
+#[cfg(target_os = "windows")]
+pub(crate) use self::platform::register_toast_app_id;
 use self::platform::{remove_notification, show_notification};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 import { Check, ExternalLink, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { submittableOptions, optionRequiresText } from "../domain";
-import type { RequestOption, NodRequest } from "../types";
+import { decisionActions, optionRequiresText, type DecisionAction } from "../domain";
+import type { NodRequest, RequestOption } from "../types";
 
 interface RequestDetailProps {
   request?: NodRequest;
@@ -26,14 +26,18 @@ export function RequestDetail({
     return <section className="detail empty">Select a Request</section>;
   }
 
-  const options = submittableOptions(request);
-  const someOptionTakesNotes = options.some(optionRequiresText);
+  const actions = decisionActions(request);
+  const someOptionTakesNotes = actions.some(
+    (action) => action.withTextOption !== undefined || optionRequiresText(action.option),
+  );
   const trimmedNotes = notes.trim();
 
-  function submit(option: RequestOption): void {
+  function submit(action: DecisionAction): void {
     if (!request) {
       return;
     }
+    const option =
+      trimmedNotes !== "" && action.withTextOption ? action.withTextOption : action.option;
     void onOption(request, option, trimmedNotes === "" ? undefined : trimmedNotes);
   }
 
@@ -65,18 +69,22 @@ export function RequestDetail({
       {request.status === "pending" ? (
         <div className="options">
           <div className="optionButtons">
-            {options.map((option) => (
-              <button
-                type="button"
-                key={option.id}
-                className={option.destructive ? "danger" : ""}
-                disabled={optionRequiresText(option) && trimmedNotes === ""}
-                onClick={() => submit(option)}
-              >
-                {option.destructive ? <X size={16} /> : <Check size={16} />}
-                {option.label}
-              </button>
-            ))}
+            {actions.map((action) => {
+              const destructive =
+                action.option.destructive || action.withTextOption?.destructive === true;
+              return (
+                <button
+                  type="button"
+                  key={action.option.id}
+                  className={destructive ? "danger" : ""}
+                  disabled={optionRequiresText(action.option) && trimmedNotes === ""}
+                  onClick={() => submit(action)}
+                >
+                  {destructive ? <X size={16} /> : <Check size={16} />}
+                  {action.option.label}
+                </button>
+              );
+            })}
           </div>
           {someOptionTakesNotes ? (
             <label className="optionNotes">

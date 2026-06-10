@@ -85,6 +85,40 @@ describe("RequestDetail notes", () => {
     );
   });
 
+  it("collapses approve + approve_with_text into one button that routes by notes", () => {
+    const onOption = vi.fn().mockResolvedValue(undefined);
+    render(
+      <RequestDetail
+        request={pendingRequest([approve, approveWithNotes, reject])}
+        onOption={onOption}
+        onOpenUrl={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Approve with notes" })).toBeNull();
+
+    // Without notes the plain option goes out.
+    const approveButton = screen.getByRole("button", { name: "Approve" });
+    fireEvent.click(approveButton);
+    expect(onOption).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: "approve" }),
+      undefined,
+    );
+
+    // With notes the same button submits the with-text variant.
+    fireEvent.change(
+      screen.getByPlaceholderText("Sent with whichever decision you pick"),
+      { target: { value: "ship it" } },
+    );
+    fireEvent.click(approveButton);
+    expect(onOption).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: "approve_notes" }),
+      "ship it",
+    );
+  });
+
   it("requires notes before a with-text option can be submitted", () => {
     const onOption = vi.fn().mockResolvedValue(undefined);
     render(

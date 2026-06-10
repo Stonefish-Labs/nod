@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "windows", test))]
+mod badge;
 mod commands;
 mod desktop_state;
 mod external_url;
@@ -62,6 +64,10 @@ fn setup_desktop(app: &mut App) -> Result<(), Box<dyn Error>> {
     install_tray(app)?;
 
     let app_handle = app.handle().clone();
+    #[cfg(target_os = "windows")]
+    if let Err(error) = notifier::register_toast_app_id(app) {
+        emit_transient_error(&app_handle, "register toast app id", error);
+    }
     let (message_tx, message_rx) = mpsc::channel::<NodClientMessage>(RUNTIME_MESSAGE_BUFFER);
     let runtime = tauri::async_runtime::block_on(NodClientRuntime::new(message_tx))?;
     let runtime = Arc::new(Mutex::new(runtime));
