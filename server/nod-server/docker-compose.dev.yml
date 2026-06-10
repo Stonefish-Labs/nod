@@ -9,9 +9,11 @@ services:
     environment:
       CARGO_TARGET_DIR: /workspace/target
       RUST_LOG: "${RUST_LOG:-nod_server=info,tower_http=info}"
+      # Live-edit the admin panel: served from the bind mount on every request
+      # instead of the copy embedded in the binary at build time.
+      NOD_ADMIN_HTML_PATH: /workspace/server/nod-server/assets/admin.html
     volumes:
       - ../..:/workspace
-      - ./assets:/workspace/assets:ro
       - nod-cargo-registry:/usr/local/cargo/registry
       - nod-cargo-git:/usr/local/cargo/git
       - nod-target:/workspace/target

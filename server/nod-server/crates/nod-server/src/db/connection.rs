@@ -2,7 +2,7 @@ use std::{path::Path, str::FromStr};
 
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
-    Row, SqlitePool,
+    SqlitePool,
 };
 use url::Url;
 
@@ -29,23 +29,6 @@ async fn create_greenfield_schema(pool: &SqlitePool) -> anyhow::Result<()> {
     sqlx::raw_sql(include_str!("schema.sql"))
         .execute(pool)
         .await?;
-    ensure_column(
-        pool,
-        "channels",
-        "emoji",
-        "ALTER TABLE channels ADD COLUMN emoji TEXT NOT NULL DEFAULT '🔔'",
-    )
-    .await?;
-    sqlx::query("UPDATE channels SET emoji = COALESCE(NULLIF(TRIM(emoji), ''), '🔔')")
-        .execute(pool)
-        .await?;
-    ensure_column(
-        pool,
-        "requests",
-        "notification_json",
-        "ALTER TABLE requests ADD COLUMN notification_json TEXT NOT NULL DEFAULT '{}'",
-    )
-    .await?;
     seed_defaults(pool).await?;
     Ok(())
 }
@@ -78,27 +61,6 @@ async fn seed_defaults(pool: &SqlitePool) -> anyhow::Result<()> {
     .execute(pool)
     .await?;
     Ok(())
-}
-
-async fn ensure_column(
-    pool: &SqlitePool,
-    table: &str,
-    column: &str,
-    statement: &str,
-) -> anyhow::Result<()> {
-    if !column_exists(pool, table, column).await? {
-        sqlx::query(statement).execute(pool).await?;
-    }
-    Ok(())
-}
-
-async fn column_exists(pool: &SqlitePool, table: &str, column: &str) -> anyhow::Result<bool> {
-    let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
-        .fetch_all(pool)
-        .await?;
-    Ok(rows
-        .iter()
-        .any(|row| row.get::<String, _>("name") == column))
 }
 
 fn ensure_sqlite_parent(database_url: &str) -> anyhow::Result<()> {

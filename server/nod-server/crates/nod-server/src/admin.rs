@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 use axum::{
     extract::State,
     http::header,
@@ -9,6 +7,12 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{auth, error::ApiError, state::AppState};
+
+/// Baked into the binary so a downloaded release runs with no asset files on disk.
+const ADMIN_HTML: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../assets/admin.html"
+));
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AdminSessionRequest {
@@ -27,17 +31,21 @@ impl AdminSessionResponse {
 }
 
 pub(crate) async fn admin_page() -> Result<Html<String>, ApiError> {
-    let path = admin_html_path();
-    let html = tokio::fs::read_to_string(&path).await.map_err(|err| {
-        tracing::error!(
-            path = %path.display(),
-            error = %err,
-            "failed to read admin HTML asset"
-        );
-        ApiError::Internal("admin HTML asset unavailable".to_string())
-    })?;
+    // NOD_ADMIN_HTML_PATH is read per request so admin-panel edits show on
+    // refresh during development without rebuilding the embedded copy.
+    if let Ok(path) = std::env::var("NOD_ADMIN_HTML_PATH") {
+        let html = tokio::fs::read_to_string(&path).await.map_err(|err| {
+            tracing::error!(
+                path = %path,
+                error = %err,
+                "failed to read NOD_ADMIN_HTML_PATH override"
+            );
+            ApiError::Internal("admin HTML override unavailable".to_string())
+        })?;
+        return Ok(Html(html));
+    }
 
-    Ok(Html(html))
+    Ok(Html(ADMIN_HTML.to_string()))
 }
 
 pub(crate) async fn create_admin_session(
@@ -62,13 +70,4 @@ pub(crate) async fn delete_admin_session() -> Response {
         Json(AdminSessionResponse::ok()),
     )
         .into_response()
-}
-
-fn admin_html_path() -> PathBuf {
-    let cwd_path = Path::new("assets/admin.html");
-    if cwd_path.exists() {
-        return cwd_path.to_path_buf();
-    }
-
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/admin.html")
 }

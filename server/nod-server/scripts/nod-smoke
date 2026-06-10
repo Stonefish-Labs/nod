@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# End-to-end smoke of a Nod server: enroll → request → WebSocket sync →
+# signed decision, asserting the socket projection matches the HTTP views.
+#
+#   scripts/nod-smoke                      # spin up an in-process server and smoke it
+#   scripts/nod-smoke URL ADMIN_TOKEN      # smoke a running instance (local or deployed)
+#
+# The deployed form creates uniquely-suffixed `smoke-` resources and deletes
+# them on success; a failed run leaves them behind for inspection.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+if [[ $# -eq 0 ]]; then
+  exec cargo test --manifest-path "$ROOT/Cargo.toml" -p nod-server --test e2e_smoke smoke_in_process_server
+elif [[ $# -eq 2 ]]; then
+  NOD_SMOKE_URL="$1" NOD_SMOKE_ADMIN_TOKEN="$2" \
+    exec cargo test --manifest-path "$ROOT/Cargo.toml" -p nod-server --test e2e_smoke smoke_deployed_instance -- --ignored
+else
+  echo "usage: $(basename "$0") [URL ADMIN_TOKEN]" >&2
+  exit 64
+fi

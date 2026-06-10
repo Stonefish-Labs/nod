@@ -36,6 +36,14 @@ curl -s http://127.0.0.1:8767/health
 
 Admin panel: `http://127.0.0.1:8767/admin`. Logging in with `NOD_ADMIN_TOKEN` sets a 12-hour signed HttpOnly cookie. Bearer admin-token auth still works for scripts.
 
+The admin page is embedded in the binary. When iterating on it, point
+`NOD_ADMIN_HTML_PATH` at the source file and edits show on refresh without a
+rebuild (the dev Compose file does this for you):
+
+```bash
+NOD_ADMIN_HTML_PATH=assets/admin.html cargo run -p nod-server
+```
+
 ## Configuration
 
 APNs support is relay-only. The server reads non-secret settings from
@@ -232,6 +240,18 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 ```
+
+`scripts/nod-smoke` runs the end-to-end check (enroll → request → WebSocket
+sync → signed decision). With no arguments it spins up an in-process server;
+point it at a running instance to verify a deployment:
+
+```bash
+scripts/nod-smoke
+scripts/nod-smoke https://nod.example "$NOD_ADMIN_TOKEN"
+```
+
+The deployed form creates uniquely-suffixed `smoke-` resources and deletes
+them on success.
 
 ## License
 
