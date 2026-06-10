@@ -14,7 +14,9 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 
-for tool in clang-cl lld-link cargo-xwin; do
+# Linking uses rustup's bundled rust-lld; only clang-cl (brew llvm) and
+# cargo-xwin are needed beyond a normal Rust setup.
+for tool in clang-cl cargo-xwin; do
   command -v "$tool" >/dev/null || {
     echo "error: $tool missing — brew install llvm && cargo install cargo-xwin" >&2
     exit 1
