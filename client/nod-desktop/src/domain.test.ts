@@ -247,6 +247,7 @@ describe("replaceRequest", () => {
 
     const next = replaceRequest([baseRequest], stranger);
 
-    expect(next).toEqual([baseRequest]);
+    expect(next).toHaveLength(1);
+    expect(next[0]).toBe(baseRequest);
   });
 });

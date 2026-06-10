@@ -20,8 +20,8 @@ npm run tauri dev
 npm run tauri build
 ```
 
-Release MSIs are produced by the GitHub release workflow with
-`npm run tauri build -- --bundles msi`.
+Release MSIs are produced by the GitHub release workflow (T-007 on the board)
+with `npm run tauri build -- --bundles msi`.
 
 ## Test
 

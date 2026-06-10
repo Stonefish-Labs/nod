@@ -17,6 +17,7 @@ export type DevicePlatform =
   | "unknown";
 
 export type NotificationDeliveryMode = "push" | "websocket";
+export type DecisionResolution = "shared" | "per_user";
 export type RequestStatus = "pending" | "resolved" | "expired" | "cancelled";
 export type OptionKind =
   | "approve"
@@ -142,7 +143,7 @@ export interface NodRequest {
   request_id: string;
   channel_id: string;
   recipients: string[];
-  decision_resolution: "shared" | "per_user";
+  decision_resolution: DecisionResolution;
   title: string;
   summary: string;
   body_markdown: string;

@@ -28,8 +28,6 @@ const RENAMES = {
 
 // Rust types models.ts deliberately has no counterpart for, with reasons.
 const OMITTED_TYPES = {
-  // Trivial two-value enum inlined as a union on NodRequest.decision_resolution.
-  DecisionResolution: "inlined union on NodRequest",
   // The frontend never *submits* signatures — signing happens in the Rust
   // backend (nod-client-core); the frontend only reads DecisionSignatureRecord.
   DecisionSignature: "signing lives in the Rust backend",
@@ -41,6 +39,8 @@ const OMITTED_FIELDS = {};
 
 function parseInterfaces(source) {
   const interfaces = new Map();
+  // [^}]* truncates at the first `}`, so inline object field types would cut
+  // the body short — neither file uses them; keep it that way.
   const re = /export interface (\w+) \{([^}]*)\}/g;
   for (const match of source.matchAll(re)) {
     const fields = new Set(
@@ -95,6 +95,20 @@ for (const [genName, genFields] of genInterfaces) {
     if (!genFields.has(field)) {
       problems.push(`interface ${modelName}: field "${field}" exists in models.ts but not in Rust`);
     }
+  }
+}
+
+// Types that exist only in models.ts are drift too (stale after a Rust
+// rename/removal). Renamed targets and models-only unions backing a generated
+// enum are accounted for.
+const expectedModelTypes = new Set(
+  [...genInterfaces.keys(), ...genEnums.keys()]
+    .filter((name) => !(name in OMITTED_TYPES))
+    .map((name) => RENAMES[name] ?? name),
+);
+for (const name of [...modelInterfaces.keys(), ...modelEnums.keys()]) {
+  if (!expectedModelTypes.has(name)) {
+    problems.push(`type ${name}: exists in models.ts but has no Rust counterpart`);
   }
 }
 
