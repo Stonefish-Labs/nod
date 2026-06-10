@@ -46,8 +46,7 @@ public final class NodAppAttestationStore: NodAppAttestationProviding {
 
     #if canImport(DeviceCheck)
     if #available(iOS 14.0, macOS 11.0, watchOS 9.0, *) {
-      let service = DCAppAttestService.shared
-      let keyId = try await loadOrCreateKey(account: request.account, service: service)
+      let keyId = try await loadOrCreateKey(account: request.account)
       let clientDataHash = NodEnrollmentAttestation.clientDataHash(
         code: request.code,
         deviceName: request.deviceName,
@@ -57,7 +56,8 @@ public final class NodAppAttestationStore: NodAppAttestationProviding {
         signingKey: request.signingKey,
         appAttestKeyId: keyId
       )
-      let attestationObject = try await service.attestKey(keyId, clientDataHash: clientDataHash)
+      let attestationObject = try await DCAppAttestService.shared.attestKey(
+        keyId, clientDataHash: clientDataHash)
       return NodDeviceAttestation(
         provider: Self.provider,
         keyId: keyId,
@@ -73,12 +73,14 @@ public final class NodAppAttestationStore: NodAppAttestationProviding {
   }
 
   #if canImport(DeviceCheck)
+  // DCAppAttestService is not Sendable, so it must not cross an await as a
+  // parameter — each use site grabs `.shared` itself.
   @available(iOS 14.0, macOS 11.0, watchOS 9.0, *)
-  private func loadOrCreateKey(account: String, service: DCAppAttestService) async throws -> String {
+  private func loadOrCreateKey(account: String) async throws -> String {
     if let existing = try keychain.load(account: account) {
       return existing
     }
-    let keyId = try await service.generateKey()
+    let keyId = try await DCAppAttestService.shared.generateKey()
     try keychain.save(keyId, account: account)
     return keyId
   }
