@@ -173,8 +173,36 @@ WebSocket, submits a signed decision, and removes everything it created.
 
 ## Advanced: push notifications for iPhone/iPad
 
-Everything above works without Apple Push — the macOS app, Windows app, and
-TUI all receive requests over the sync WebSocket. APNs only matters for
-iOS background push, and it needs an Apple Developer key. See
+Everything above works without Apple Push. The macOS app, Windows app, and TUI
+receive requests over the sync WebSocket, and the iOS app can refresh and
+receive WebSocket updates while it is running. Background and lock-screen iOS
+delivery still require APNs; there is no native iOS push path that bypasses
+Apple's push service.
+
+There are two honest iOS shapes:
+
+| Shape | What you run | Tradeoff |
+| --- | --- | --- |
+| Official Nod iOS app + project-operated push relay | Your own Nod server, with iOS background push routed through the project's APNs relay | Easiest for users, but not fully self-hosted because push delivery depends on the project relay |
+| Fully self-hosted iOS | Your Nod server plus your own Apple Developer Program account, bundle id/App ID with push enabled, APNs auth key or certificate, and a production TestFlight/App Store build distributed under your Apple team | More setup, but the APNs credentials and app distribution are yours |
+
+For the fully self-hosted route, configure the matching
+`NOD_APNS_DIRECT_*` settings or the mTLS relay-backed `NOD_APNS_RELAY_*`
+settings. See
 [APNs configuration](../server/nod-server/README.md#push-providers) for the
-direct and relay setups.
+direct and relay options.
+
+## Privacy model in v1
+
+Nod v1.0.0 is a self-hostable ownership release: it gives you the server,
+clients, and release artifacts needed to own the decision loop today. It is
+not yet a privacy-preserving hosted-service design. The server operator can
+see request content, options, recipients, decisions, timestamps, delivery
+state, callbacks, and logs.
+
+Future private-push-relay and content-private-server modes could make limited
+centralization safer for families, companies, and friend groups that do not
+want the operator reading request contents. In those modes, a relay would send
+generic or opaque notifications, and request bodies/options could be encrypted
+for recipient devices while the server still sees routing metadata such as
+recipients, channels, timestamps, and delivery state.

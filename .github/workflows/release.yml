@@ -2,7 +2,7 @@ name: Release
 
 # Tag pushes (v*) build every non-Apple artifact and attach them to a DRAFT
 # release. workflow_dispatch runs the same builds and stops at workflow
-# artifacts — use it to validate the pipeline or grab a pre-release MSI.
+# artifacts — use it to validate the pipeline or grab a pre-release exe zip.
 #
 # Deliberately NOT built here:
 # - The macOS app: Developer ID signing + notarization run locally
