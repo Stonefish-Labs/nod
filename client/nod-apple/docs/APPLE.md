@@ -87,6 +87,40 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
   xcodebuild -project client/nod-apple/Nod.xcodeproj -scheme NodIOS -configuration Debug -destination generic/platform=iOS -allowProvisioningUpdates build
 ```
 
+## Release builds (Developer ID + notarization)
+
+The publishable macOS artifact is a Developer ID-signed, notarized, stapled
+DMG produced by `scripts/release-macos`. Dev builds from
+`scripts/build-macos-app` (Apple Development or ad-hoc signed) are testing
+artifacts only — Gatekeeper blocks them on other machines.
+
+One-time setup:
+
+1. Create a **Developer ID Application** certificate: Xcode → Settings →
+   Accounts → Manage Certificates → "+" → Developer ID Application (or via
+   developer.apple.com → Certificates). Confirm with
+   `security find-identity -v -p codesigning | grep "Developer ID"`.
+2. Store notary credentials once, using an
+   [app-specific password](https://support.apple.com/102654):
+
+   ```bash
+   xcrun notarytool store-credentials nod-notary \
+     --apple-id you@example.com --team-id TEAMID
+   ```
+
+Then each release is one command:
+
+```bash
+scripts/release-macos 1.0.0
+```
+
+It rebuilds the FFI + app, signs inside-out with the hardened runtime,
+notarizes and staples both the app and the DMG, verifies with `spctl`, and
+writes `build/release/Nod-<version>.dmg` plus its SHA-256. The app is signed
+without entitlements (same as the verified dev build): the App Attest
+entitlement is restricted and would require provisioning-profile machinery,
+and macOS enrollment treats attestation as best-effort.
+
 ## TestFlight
 
 Apple requires an App Store Connect app record before uploaded builds can
