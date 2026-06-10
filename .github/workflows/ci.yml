@@ -22,8 +22,10 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Generate mTLS test fixtures (git-ignored key material)
-        run: server/nod-apns-relay/tests/fixtures/mtls/generate
+      - name: Generate TLS test fixtures (git-ignored key material)
+        run: |
+          server/nod-apns-relay/tests/fixtures/mtls/generate
+          server/nod-server/crates/nod-server/tests/fixtures/relay-tls/generate
       - run: cargo fmt --check
       - run: cargo clippy --workspace --exclude nod-desktop --all-targets -- -D warnings
       - run: cargo test --workspace --exclude nod-desktop --locked
@@ -35,8 +37,10 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Generate mTLS test fixtures (git-ignored key material)
-        run: server/nod-apns-relay/tests/fixtures/mtls/generate
+      - name: Generate TLS test fixtures (git-ignored key material)
+        run: |
+          server/nod-apns-relay/tests/fixtures/mtls/generate
+          server/nod-server/crates/nod-server/tests/fixtures/relay-tls/generate
       - run: cargo test --workspace --locked
       - uses: actions/setup-node@v4
         with:

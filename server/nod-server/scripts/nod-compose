@@ -3,8 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELAY_SECRETS_DIR="${NOD_RELAY_SECRETS_DIR:-$ROOT/secrets}"
-BOOP_SECRETS_DIR="${BOOP_SECRETS_DIR:-$ROOT/../../../boop-server/secrets}"
-BOOP_SECRETS_ENV="${BOOP_SECRETS_ENV:-$BOOP_SECRETS_DIR/secrets.env}"
 NOD_SECRETS_ENV="${NOD_SECRETS_ENV:-$ROOT/secrets/secrets.env}"
 NOD_RELAY_SECRETS_ENV="${NOD_RELAY_SECRETS_ENV:-$ROOT/secrets/relay.env}"
 LOCAL_APPLE_NATIVE_APP_ID="${NOD_LOCAL_APPLE_NATIVE_APP_ID:-com.batteryshark.Boop}"
@@ -201,73 +199,6 @@ relay_env_set_default() {
   return 1
 }
 
-boop_secret_source_path() {
-  local configured_path="$1"
-  local basename
-
-  if [[ -z "$configured_path" ]]; then
-    return
-  fi
-
-  basename="$(basename "$configured_path")"
-  if [[ -f "$BOOP_SECRETS_DIR/$basename" ]]; then
-    printf '%s\n' "$BOOP_SECRETS_DIR/$basename"
-  elif [[ -f "$configured_path" ]]; then
-    printf '%s\n' "$configured_path"
-  fi
-}
-
-import_boop_apns_env() {
-  local imported=false
-  local source_key_path
-  local key_basename
-  local target_key_path
-
-  if [[ ! -f "$BOOP_SECRETS_ENV" ]]; then
-    return
-  fi
-
-  if relay_env_set_default \
-    NOD_APNS_RELAY_TEAM_ID \
-    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_TEAM_ID)"; then
-    imported=true
-  fi
-  if relay_env_set_default \
-    NOD_APNS_RELAY_KEY_ID \
-    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_KEY_ID)"; then
-    imported=true
-  fi
-  if relay_env_set_default \
-    NOD_APNS_RELAY_ENVIRONMENT \
-    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_ENVIRONMENT)"; then
-    imported=true
-  fi
-
-  if ! env_file_has_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_PRIVATE_KEY_PATH; then
-    source_key_path="$(boop_secret_source_path "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_PRIVATE_KEY_PATH)")"
-    if [[ -n "$source_key_path" ]]; then
-      key_basename="$(basename "$source_key_path")"
-      target_key_path="$RELAY_SECRETS_DIR/$key_basename"
-      mkdir -p "$RELAY_SECRETS_DIR"
-      chmod 711 "$RELAY_SECRETS_DIR" 2>/dev/null || true
-      if [[ "$source_key_path" != "$target_key_path" && ! -e "$target_key_path" ]]; then
-        cp "$source_key_path" "$target_key_path"
-      fi
-      chown "${NOD_RELAY_SERVICE_UID:-10001}:${NOD_RELAY_SERVICE_GID:-10001}" \
-        "$target_key_path" 2>/dev/null || true
-      chmod 600 "$target_key_path" 2>/dev/null || true
-      append_env_line "$NOD_RELAY_SECRETS_ENV" "NOD_APNS_RELAY_PRIVATE_KEY_PATH=/secrets/$key_basename"
-      imported=true
-    fi
-  fi
-
-  if [[ "$imported" == true ]]; then
-    printf 'Imported APNs relay credentials from %s\n' "$BOOP_SECRETS_ENV" >&2
-    printf 'Using Nod APNs topic %s for the relay.\n' \
-      "$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_BUNDLE_ID)" >&2
-  fi
-}
-
 warn_missing_relay_env() {
   local missing=()
   local name
@@ -316,13 +247,6 @@ ensure_direct_env() {
   direct_env_set_default \
     NOD_APNS_DIRECT_KEY_ID \
     "$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_KEY_ID)" || true
-  direct_env_set_default \
-    NOD_APNS_DIRECT_TEAM_ID \
-    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_TEAM_ID)" || true
-  direct_env_set_default \
-    NOD_APNS_DIRECT_KEY_ID \
-    "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_KEY_ID)" || true
-
   relay_private_key_path="$(env_file_value "$NOD_RELAY_SECRETS_ENV" NOD_APNS_RELAY_PRIVATE_KEY_PATH)"
   if [[ -n "$relay_private_key_path" ]]; then
     direct_env_set_default \
@@ -330,24 +254,6 @@ ensure_direct_env() {
       "$relay_private_key_path" || true
   fi
 
-  if ! env_file_has_value "$NOD_SECRETS_ENV" NOD_APNS_DIRECT_PRIVATE_KEY_PATH; then
-    local source_key_path
-    local key_basename
-    local target_key_path
-
-    source_key_path="$(boop_secret_source_path "$(env_file_value "$BOOP_SECRETS_ENV" BOOP_APNS_PRIVATE_KEY_PATH)")"
-    if [[ -n "$source_key_path" ]]; then
-      key_basename="$(basename "$source_key_path")"
-      target_key_path="$RELAY_SECRETS_DIR/$key_basename"
-      mkdir -p "$RELAY_SECRETS_DIR"
-      chmod 711 "$RELAY_SECRETS_DIR" 2>/dev/null || true
-      if [[ "$source_key_path" != "$target_key_path" && ! -e "$target_key_path" ]]; then
-        cp "$source_key_path" "$target_key_path"
-      fi
-      chmod 600 "$target_key_path" 2>/dev/null || true
-      append_env_line "$NOD_SECRETS_ENV" "NOD_APNS_DIRECT_PRIVATE_KEY_PATH=/secrets/$key_basename"
-    fi
-  fi
 }
 
 warn_missing_direct_env() {
@@ -430,13 +336,11 @@ if [[ "$with_apns_relay" == true && "$with_apns_direct" == true ]]; then
 fi
 if [[ "$with_apns_direct" == true ]]; then
   ensure_relay_env
-  import_boop_apns_env
   ensure_direct_env
   warn_missing_direct_env
 fi
 if [[ "$with_apns_relay" == true ]]; then
   ensure_relay_env
-  import_boop_apns_env
   "$ROOT/scripts/nod-relay-init"
   warn_missing_relay_env
   derive_relay_native_app_id

@@ -11,11 +11,11 @@ Download the server archive for your machine from the
 
 | Machine | Archive |
 | --- | --- |
-| Mac (Apple Silicon) | `nod-server-<version>-aarch64-apple-darwin.tar.gz` |
-| Mac (Intel) | `nod-server-<version>-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `nod-server-<version>-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux (ARM64) | `nod-server-<version>-aarch64-unknown-linux-gnu.tar.gz` |
-| Windows | `nod-server-<version>-x86_64-pc-windows-msvc.zip` |
+| Mac (Apple Silicon) | `nod-server-v1.0.0-aarch64-apple-darwin.tar.gz` |
+| Mac (Intel) | `nod-server-v1.0.0-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `nod-server-v1.0.0-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux (ARM64) | `nod-server-v1.0.0-aarch64-unknown-linux-gnu.tar.gz` |
+| Windows | `nod-server-v1.0.0-x86_64-pc-windows-msvc.zip` |
 
 ### macOS / Linux
 
@@ -37,7 +37,7 @@ Gatekeeper. Clear it with `xattr -d com.apple.quarantine /path/to/nod-server`
 Expand-Archive nod-server-*-x86_64-pc-windows-msvc.zip -DestinationPath $HOME\nod
 cd $HOME\nod
 $env:NOD_ADMIN_TOKEN = -join ((1..48) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
-$env:NOD_ADMIN_TOKEN | Out-File admin-token.txt
+$env:NOD_ADMIN_TOKEN | Out-File -Encoding ascii admin-token.txt
 .\nod-server.exe
 ```
 
@@ -49,8 +49,8 @@ release's `SHA256SUMS` file.
 ### First five minutes
 
 1. Open `http://localhost:8767/admin` and log in with your admin token.
-2. Create a channel for whatever should be asking you things, and mint an
-   **enrollment code** for your user.
+2. Mint an **enrollment code** for your user (a `default` channel and an
+   `owner` user are seeded for you; add per-tool channels as you grow).
 3. Open a Nod client (macOS app, Windows app, iOS via TestFlight, or
    `nod-tui` in a terminal), point it at `http://localhost:8767`, and enter
    the code.

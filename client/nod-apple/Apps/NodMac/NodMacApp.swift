@@ -104,7 +104,8 @@ struct NodMacApp: App {
 }
 
 private enum NodMenuBarIcon {
-    static let image: NSImage = {
+    // NSImage is not Sendable; the only consumer is the main-actor view body.
+    @MainActor static let image: NSImage = {
         let image = NSImage(size: NSSize(width: 18, height: 18))
         image.lockFocus()
 
