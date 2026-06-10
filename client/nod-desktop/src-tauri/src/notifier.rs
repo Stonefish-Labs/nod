@@ -8,7 +8,7 @@ use nod_client_core::models::Request;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use tokio::sync::mpsc;
 
-use self::platform::{remove_notification, set_badge_or_tray_count, show_notification};
+use self::platform::{remove_notification, show_notification};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg(any(target_os = "linux", target_os = "windows", test))]
@@ -53,10 +53,6 @@ impl DesktopNotifier {
 
     pub(crate) async fn remove(&self, request_id: &str) -> anyhow::Result<()> {
         remove_notification(request_id).await
-    }
-
-    pub(crate) async fn set_badge_or_tray_count(&self, count: usize) -> anyhow::Result<()> {
-        set_badge_or_tray_count(count).await
     }
 }
 

@@ -7,7 +7,7 @@ use nod_client_core::NodClientMessage;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use nod_client_core::{NodClientRuntime, SelectRequestParams, SubmitOptionParams};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::mpsc;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use tokio::sync::Mutex;
@@ -25,7 +25,7 @@ pub(crate) async fn forward_runtime_messages(
 ) {
     while let Some(message) = messages.recv().await {
         // Desktop side-effect failures should surface to the UI without swallowing the runtime message.
-        if let Some(error_message) = desktop_side_effect_error(&notifier, &message).await {
+        if let Some(error_message) = desktop_side_effect_error(&app, &notifier, &message).await {
             emit_runtime_event(&app, RUNTIME_MESSAGE_EVENT_NAME, &error_message);
         }
         emit_runtime_event(&app, RUNTIME_MESSAGE_EVENT_NAME, &message);
@@ -47,6 +47,7 @@ pub(crate) async fn handle_notification_activations(
 }
 
 async fn desktop_side_effect_error(
+    app: &AppHandle,
     notifier: &DesktopNotifier,
     message: &NodClientMessage,
 ) -> Option<NodClientMessage> {
@@ -61,13 +62,25 @@ async fn desktop_side_effect_error(
             .await
             .err()
             .map(|error| transient_desktop_error("remove desktop notification", error)),
-        NodClientMessage::State(state) => notifier
-            .set_badge_or_tray_count(total_pending_count(state))
-            .await
+        NodClientMessage::State(state) => update_badge(app, state)
             .err()
             .map(|error| transient_desktop_error("update desktop badge", error)),
         _ => None,
     }
+}
+
+// Pending count on the app's own surface: taskbar overlay badge on Windows,
+// Dock badge on macOS dev builds. Zero clears the badge.
+fn update_badge(app: &AppHandle, state: &ClientState) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let pending = total_pending_count(state);
+    window.set_badge_count(if pending == 0 {
+        None
+    } else {
+        Some(pending as i64)
+    })
 }
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]

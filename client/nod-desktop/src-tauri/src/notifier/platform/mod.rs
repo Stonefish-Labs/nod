@@ -11,7 +11,3 @@ pub(super) use linux::{remove_notification, show_notification};
 pub(super) use unsupported::{remove_notification, show_notification};
 #[cfg(target_os = "windows")]
 pub(super) use windows::{remove_notification, show_notification};
-
-pub(super) async fn set_badge_or_tray_count(_count: usize) -> anyhow::Result<()> {
-    Ok(())
-}
