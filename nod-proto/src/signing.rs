@@ -95,6 +95,11 @@ pub fn decision_signing_payload(input: DecisionSigningInput<'_>) -> String {
 /// The digest over the immutable request snapshot (not delivery state or later
 /// decisions). This is what a client's signature binds to, and what the client
 /// can independently recompute to confirm it is approving the request it saw.
+///
+/// The snapshot includes the full recipient list, while per-user views filter
+/// recipients down to the viewing user — so for multi-recipient requests the
+/// digest a device view carries is server-attested (stamped from the full
+/// snapshot before projection) rather than recomputable from the view alone.
 pub fn request_digest(request: &Request) -> Result<String, SigningError> {
     let options = request
         .options

@@ -53,9 +53,12 @@ pub fn verify_decision_signature(
         ));
     }
 
-    let wire: nod_proto::Request = request.into();
-    let request_digest = nod_proto::request_digest(&wire)
-        .map_err(|_| ApiError::Internal("could not compute request digest".to_string()))?;
+    // to_wire honors a stamped canonical digest, so even a per-user projection
+    // reaching this path would verify against the full-snapshot digest.
+    let request_digest = request
+        .to_wire()
+        .request_digest
+        .ok_or_else(|| ApiError::Internal("could not compute request digest".to_string()))?;
     if provided.request_digest != request_digest {
         return Err(ApiError::BadRequest(
             "decision signature request_digest does not match the request snapshot".to_string(),

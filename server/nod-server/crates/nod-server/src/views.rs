@@ -29,8 +29,12 @@ impl RequestDecisionView {
             decision_resolution: request.decision_resolution.clone(),
             recipients: request.recipients.clone(),
             pending_recipients: pending_recipients(request),
-            // to_wire carries the stamped canonical digest for projections.
-            request_digest: request.to_wire().request_digest,
+            // Stamped canonical digest for projections; computed from the
+            // snapshot only when this is an unprojected request.
+            request_digest: request
+                .canonical_digest
+                .clone()
+                .or_else(|| nod_proto::request_digest(&request.into()).ok()),
             timed_out: None,
         }
     }
