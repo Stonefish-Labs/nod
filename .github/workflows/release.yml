@@ -125,6 +125,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
+        env:
+          # The build-record artifact this uploads breaks the release job's
+          # download-everything step (corrupt zip); we don't need it.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           file: server/nod-server/Dockerfile
