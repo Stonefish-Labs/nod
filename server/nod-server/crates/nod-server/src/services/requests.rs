@@ -59,6 +59,9 @@ pub(crate) async fn record_decision(
     option_id: &str,
     decision: SubmitDecisionRequest,
 ) -> Result<DecisionRequest, ApiError> {
+    // The canonical request drives audit, fanout, and callbacks: a shared
+    // resolution must reach every recipient (sync::request targets
+    // request.recipients), so nothing here may see a per-user projection.
     let request = db::record_decision(
         &state.pool,
         db::DecisionSubmission {
@@ -78,7 +81,8 @@ pub(crate) async fn record_decision(
     };
     let _ = state.sync.send(envelope);
     dispatch_callback(state, &request).await;
-    Ok(request)
+    // The actor's response is their own projection, same as any device read.
+    db::request_for_user(&state.pool, request_id, &device.user_id).await
 }
 
 pub(crate) async fn request_for_principal(

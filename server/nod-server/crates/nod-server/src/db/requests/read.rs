@@ -139,6 +139,11 @@ pub async fn request_for_user(
     user_id: &str,
 ) -> Result<DecisionRequest, ApiError> {
     let mut request = get_request(pool, request_id).await?;
+    // Stamp the digest before any per-user filtering: signatures bind to the
+    // full immutable snapshot, and the sync socket delivers that canonical
+    // digest, so the HTTP projection must agree rather than recompute one
+    // over filtered recipients.
+    request.canonical_digest = request.to_wire().request_digest;
     if request.decision_resolution == DecisionResolution::PerUser {
         // Device projections expose only the current user's decision state.
         if let Some(user_decision) = request

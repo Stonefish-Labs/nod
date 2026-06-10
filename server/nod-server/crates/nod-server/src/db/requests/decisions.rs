@@ -3,7 +3,7 @@ use sqlx::SqlitePool;
 
 use super::{
     maintenance::expire_request,
-    read::{get_request, request_for_user, request_visible_to_user},
+    read::{get_request, request_visible_to_user},
 };
 use crate::{
     db::{now_string, validation::implicit_dismiss_option},
@@ -145,7 +145,7 @@ pub async fn record_decision(
                 .await?;
         }
 
-        return request_for_user(pool, request_id, user_id).await;
+        return get_request(pool, request_id).await;
     }
 
     let decision_json = serde_json::to_string(&decision)?;
@@ -173,11 +173,7 @@ pub async fn record_decision(
         ));
     }
 
-    if let Some(user_id) = actor_user_id {
-        request_for_user(pool, request_id, user_id).await
-    } else {
-        get_request(pool, request_id).await
-    }
+    get_request(pool, request_id).await
 }
 
 async fn verified_decision_signature(

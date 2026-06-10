@@ -106,5 +106,6 @@ pub(super) async fn row_to_request(
         user_decisions,
         callback_url: row.get("callback_url"),
         options,
+        canonical_digest: None,
     })
 }

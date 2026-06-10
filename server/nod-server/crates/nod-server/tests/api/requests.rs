@@ -857,3 +857,157 @@ async fn dedupe_returns_existing_pending_request() {
     assert_eq!(first["request_id"], second["request_id"]);
     assert_eq!(second["deduped"], true);
 }
+
+#[tokio::test]
+async fn multi_recipient_device_view_carries_canonical_digest_and_verifies() {
+    let app = TestApp::new().await;
+    app.create_user("paul", "Paul").await;
+    app.create_user("maya", "Maya").await;
+
+    // Paul's device registers a P-256 signing key.
+    let rng = SystemRandom::new();
+    let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &rng).unwrap();
+    let key_pair =
+        EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, pkcs8.as_ref(), &rng).unwrap();
+    let key_id = "paul-signing-key";
+    let public_key = URL_SAFE_NO_PAD.encode(key_pair.public_key().as_ref());
+    let (status, enrollment) = app
+        .request(
+            Method::POST,
+            "/api/v1/admin/users/paul/enrollment-codes",
+            Some("admin-test-token"),
+            Some(json!({ "expires_in_seconds": 600 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{enrollment}");
+    let code = enrollment["code"].as_str().unwrap();
+    let (status, enrolled) = app
+        .request(
+            Method::POST,
+            "/api/v1/enroll",
+            None,
+            Some(json!({
+                "code": code,
+                "device_name": "Paul's Phone",
+                "platform": "ios",
+                "signing_key": {
+                    "key_id": key_id,
+                    "algorithm": "p256_ecdsa_sha256",
+                    "public_key": public_key
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{enrolled}");
+    let device_id = enrolled["device_id"].as_str().unwrap();
+    let paul_token = enrolled["token"].as_str().unwrap();
+    let (_maya_device_id, maya_token) = app
+        .enroll_device_for_user("Maya's Phone", "ios", Some("maya"))
+        .await;
+    let issuer_token = app.issuer_token().await;
+
+    // Shared-resolution request addressed to both recipients.
+    let (status, created) = app
+        .request(
+            Method::POST,
+            "/api/v1/requests",
+            Some(&issuer_token),
+            Some(json!({
+                "channel_id": "default",
+                "recipients": ["paul", "maya"],
+                "title": "Approve together",
+                "summary": "Either of you can approve",
+                "options": [{ "id": "approve", "label": "Approve", "kind": "approve" }]
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    let request_id = created["request_id"].as_str().unwrap();
+    let canonical_digest = created["request"]["request_digest"].as_str().unwrap();
+
+    // Every device projection carries the canonical full-snapshot digest,
+    // never one recomputed over recipients filtered to the viewing user.
+    for token in [paul_token, &maya_token] {
+        let (status, listed) = app
+            .request(Method::GET, "/api/v1/requests", Some(token), None)
+            .await;
+        assert_eq!(status, StatusCode::OK, "{listed}");
+        assert_eq!(listed["requests"][0]["request_digest"], canonical_digest);
+        let (status, single) = app
+            .request(
+                Method::GET,
+                &format!("/api/v1/requests/{request_id}"),
+                Some(token),
+                None,
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{single}");
+        assert_eq!(single["request"]["request_digest"], canonical_digest);
+    }
+
+    // A signature built from the digest the device view showed must verify.
+    let (_, single) = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/requests/{request_id}"),
+            Some(paul_token),
+            None,
+        )
+        .await;
+    let device_view_digest = single["request"]["request_digest"].as_str().unwrap();
+    let nonce = "paul-nonce-1";
+    let signed_at = "2026-06-10T12:00:00.000Z";
+    let text = "looks good";
+    let payload = decision_payload(DecisionPayload {
+        request_id,
+        request_digest: device_view_digest,
+        option_id: "approve",
+        option_kind: "approve",
+        user_id: "paul",
+        device_id,
+        key_id,
+        nonce,
+        signed_at,
+        text,
+    });
+    let signature = URL_SAFE_NO_PAD.encode(key_pair.sign(&rng, payload.as_bytes()).unwrap());
+    let (status, resolved) = app
+        .request(
+            Method::POST,
+            &format!("/api/v1/requests/{request_id}/options/approve"),
+            Some(paul_token),
+            Some(json!({
+                "text": text,
+                "signature": {
+                    "key_id": key_id,
+                    "algorithm": "p256_ecdsa_sha256",
+                    "nonce": nonce,
+                    "signed_at": signed_at,
+                    "request_digest": device_view_digest,
+                    "signature": signature
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{resolved}");
+    assert_eq!(
+        resolved["request"]["decision"]["signature"]["verified"],
+        true
+    );
+    // The actor's response is their own projection of the shared resolution.
+    assert_eq!(resolved["request"]["recipients"], json!(["paul"]));
+    assert_eq!(resolved["request"]["request_digest"], canonical_digest);
+
+    // The other recipient sees the shared resolution with the same digest.
+    let (status, maya_view) = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/requests/{request_id}"),
+            Some(&maya_token),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{maya_view}");
+    assert_eq!(maya_view["request"]["status"], "resolved");
+    assert_eq!(maya_view["request"]["request_digest"], canonical_digest);
+}

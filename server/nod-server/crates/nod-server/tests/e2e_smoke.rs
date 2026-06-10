@@ -65,6 +65,7 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         .unwrap()
         .as_millis();
     let user_id = format!("smoke-user-{suffix}");
+    let watcher_user_id = format!("smoke-watcher-{suffix}");
     let channel_id = format!("smoke-{suffix}");
 
     wait_for_health(&http, base_url).await;
@@ -77,6 +78,17 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         "/api/v1/admin/users",
         admin_token,
         Some(json!({ "id": user_id, "name": "Smoke Test User" })),
+    )
+    .await;
+    // A second recipient pins shared-resolution fanout: when the first user
+    // decides, the watcher's socket must still hear about it.
+    api(
+        &http,
+        base_url,
+        Method::POST,
+        "/api/v1/admin/users",
+        admin_token,
+        Some(json!({ "id": watcher_user_id, "name": "Smoke Watcher" })),
     )
     .await;
     api(
@@ -129,8 +141,14 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         .expect("enroll request");
     assert_eq!(enrolled.status(), StatusCode::OK, "enroll failed");
     let enrolled: Value = enrolled.json().await.expect("enroll body");
-    let device_id = enrolled["device_id"].as_str().expect("device id").to_string();
-    let device_token = enrolled["token"].as_str().expect("device token").to_string();
+    let device_id = enrolled["device_id"]
+        .as_str()
+        .expect("device id")
+        .to_string();
+    let device_token = enrolled["token"]
+        .as_str()
+        .expect("device token")
+        .to_string();
 
     // Subscribe the device's user to the smoke channel.
     api(
@@ -143,19 +161,78 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
     )
     .await;
 
-    // Sync socket: the server greets with `hello` for this device.
+    // Enroll and subscribe the watcher's device (no signing key — it only
+    // observes the sync stream).
+    let watcher_enrollment = api(
+        &http,
+        base_url,
+        Method::POST,
+        &format!("/api/v1/admin/users/{watcher_user_id}/enrollment-codes"),
+        admin_token,
+        Some(json!({ "expires_in_seconds": 600 })),
+    )
+    .await;
+    let watcher_code = watcher_enrollment["code"].as_str().expect("watcher code");
+    let watcher_enrolled = http
+        .post(format!("{base_url}/api/v1/enroll"))
+        .json(&json!({
+            "code": watcher_code,
+            "device_name": "Smoke Watcher Device",
+            "platform": "linux"
+        }))
+        .send()
+        .await
+        .expect("watcher enroll request");
+    assert_eq!(
+        watcher_enrolled.status(),
+        StatusCode::OK,
+        "watcher enroll failed"
+    );
+    let watcher_enrolled: Value = watcher_enrolled.json().await.expect("watcher enroll body");
+    let watcher_device_id = watcher_enrolled["device_id"]
+        .as_str()
+        .expect("watcher device id")
+        .to_string();
+    let watcher_token = watcher_enrolled["token"]
+        .as_str()
+        .expect("watcher device token")
+        .to_string();
+    api(
+        &http,
+        base_url,
+        Method::PUT,
+        &format!("/api/v1/devices/me/subscriptions/{channel_id}"),
+        &watcher_token,
+        Some(json!({ "subscribed": true })),
+    )
+    .await;
+
+    // Sync sockets: the server greets each device with `hello`.
     let ws_base = if let Some(rest) = base_url.strip_prefix("https://") {
         format!("wss://{rest}")
     } else {
-        format!("ws://{}", base_url.strip_prefix("http://").unwrap_or(base_url))
+        format!(
+            "ws://{}",
+            base_url.strip_prefix("http://").unwrap_or(base_url)
+        )
     };
-    let (mut ws, _) = tokio_tungstenite::connect_async(format!(
-        "{ws_base}/api/v1/sync?token={device_token}"
-    ))
-    .await
-    .expect("sync websocket connect");
+    let (mut ws, _) =
+        tokio_tungstenite::connect_async(format!("{ws_base}/api/v1/sync?token={device_token}"))
+            .await
+            .expect("sync websocket connect");
     let hello = next_ws_envelope(&mut ws, |envelope| envelope["kind"] == "hello").await;
     assert_eq!(hello["payload"]["device_id"], device_id.as_str(), "{hello}");
+    let (mut watcher_ws, _) =
+        tokio_tungstenite::connect_async(format!("{ws_base}/api/v1/sync?token={watcher_token}"))
+            .await
+            .expect("watcher sync websocket connect");
+    let watcher_hello =
+        next_ws_envelope(&mut watcher_ws, |envelope| envelope["kind"] == "hello").await;
+    assert_eq!(
+        watcher_hello["payload"]["device_id"],
+        watcher_device_id.as_str(),
+        "{watcher_hello}"
+    );
 
     // Issuer creates a request in the smoke channel.
     let created = api(
@@ -175,7 +252,10 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         })),
     )
     .await;
-    let request_id = created["request_id"].as_str().expect("request id").to_string();
+    let request_id = created["request_id"]
+        .as_str()
+        .expect("request id")
+        .to_string();
     let request_digest = created["request"]["request_digest"]
         .as_str()
         .expect("request digest")
@@ -206,6 +286,20 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
     assert_eq!(
         ws_created["payload"]["request"], listed_request,
         "sync projection diverges from the HTTP device view"
+    );
+    let watcher_created = next_ws_envelope(&mut watcher_ws, |envelope| {
+        envelope["kind"] == "created" && envelope["payload"]["request"]["id"] == request_id.as_str()
+    })
+    .await;
+    assert_eq!(
+        watcher_created["payload"]["request"]["recipients"],
+        json!([watcher_user_id]),
+        "watcher's socket projection should show only the watcher"
+    );
+    assert_eq!(
+        watcher_created["payload"]["request"]["request_digest"],
+        ws_created["payload"]["request"]["request_digest"],
+        "both recipients must see the same canonical digest"
     );
 
     // Sign and submit the decision with the enrolled key.
@@ -269,6 +363,14 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
         ws_resolved["payload"]["request"], fetched["request"],
         "resolved sync projection diverges from the HTTP device view"
     );
+    // The non-acting recipient hears about the shared resolution too — a
+    // resolution fanned out from a per-user projection would miss them.
+    let watcher_resolved = next_ws_envelope(&mut watcher_ws, |envelope| {
+        envelope["kind"] == "resolved"
+            && envelope["payload"]["request"]["id"] == request_id.as_str()
+    })
+    .await;
+    assert_eq!(watcher_resolved["payload"]["request"]["status"], "resolved");
 
     // The issuer can read back the signed, verified decision.
     let decision = api(
@@ -286,7 +388,9 @@ async fn run_smoke(base_url: &str, admin_token: &str) {
     let issuer_token_id = issuer["id"].as_str().expect("issuer token id");
     for path in [
         format!("/api/v1/admin/devices/{device_id}"),
+        format!("/api/v1/admin/devices/{watcher_device_id}"),
         format!("/api/v1/admin/users/{user_id}"),
+        format!("/api/v1/admin/users/{watcher_user_id}"),
         format!("/api/v1/admin/channels/{channel_id}"),
         format!("/api/v1/admin/issuer-tokens/{issuer_token_id}"),
     ] {
@@ -357,8 +461,7 @@ async fn next_ws_envelope(ws: &mut WsStream, matches: impl Fn(&Value) -> bool) -
         let Message::Text(text) = message else {
             continue;
         };
-        let envelope: Value =
-            serde_json::from_str(&text).expect("sync envelope is not valid JSON");
+        let envelope: Value = serde_json::from_str(&text).expect("sync envelope is not valid JSON");
         if matches(&envelope) {
             return envelope;
         }

@@ -353,6 +353,7 @@ mod tests {
             user_decisions: vec![],
             callback_url: None,
             options: vec![],
+            canonical_digest: None,
         }
     }
 

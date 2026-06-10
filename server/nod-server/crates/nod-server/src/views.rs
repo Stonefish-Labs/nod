@@ -21,7 +21,6 @@ pub(crate) struct RequestDecisionView {
 
 impl RequestDecisionView {
     pub(crate) fn from_request(request: &DecisionRequest) -> Self {
-        let wire: nod_proto::Request = request.into();
         Self {
             request_id: request.id.clone(),
             status: request.status.clone(),
@@ -30,7 +29,8 @@ impl RequestDecisionView {
             decision_resolution: request.decision_resolution.clone(),
             recipients: request.recipients.clone(),
             pending_recipients: pending_recipients(request),
-            request_digest: nod_proto::request_digest(&wire).ok(),
+            // to_wire carries the stamped canonical digest for projections.
+            request_digest: request.to_wire().request_digest,
             timed_out: None,
         }
     }
@@ -126,6 +126,7 @@ mod tests {
             user_decisions: Vec::new(),
             callback_url: None,
             options: Vec::new(),
+            canonical_digest: None,
         };
 
         let callback = serde_json::to_value(CallbackPayload::from_request(&request)).unwrap();
