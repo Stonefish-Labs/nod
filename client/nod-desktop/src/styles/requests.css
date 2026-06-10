@@ -187,19 +187,27 @@ dd {
   padding: 8px 12px;
 }
 
-.optionRow {
-  align-items: center;
+.optionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.optionNotes {
   display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
 }
 
-.optionRow input {
-  min-height: 38px;
-}
-
-.optionRow button:only-child {
-  grid-column: 2;
+.optionNotes textarea {
+  background: #fffdf8;
+  border: 1px solid #d9d1c4;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 400;
+  padding: 8px 10px;
+  resize: vertical;
 }
 
 .danger,

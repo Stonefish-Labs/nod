@@ -1,5 +1,5 @@
 import { Check, ExternalLink, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { submittableOptions, optionRequiresText } from "../domain";
 import type { RequestOption, NodRequest } from "../types";
 
@@ -14,10 +14,27 @@ export function RequestDetail({
   onOption,
   onOpenUrl,
 }: RequestDetailProps): JSX.Element {
-  const [textByOption, setTextByOption] = useState<Record<string, string>>({});
+  // One notes field for the whole decision: whichever option is clicked
+  // (approve or reject) carries the notes with it.
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    setNotes("");
+  }, [request?.id]);
 
   if (!request) {
     return <section className="detail empty">Select a Request</section>;
+  }
+
+  const options = submittableOptions(request);
+  const someOptionTakesNotes = options.some(optionRequiresText);
+  const trimmedNotes = notes.trim();
+
+  function submit(option: RequestOption): void {
+    if (!request) {
+      return;
+    }
+    void onOption(request, option, trimmedNotes === "" ? undefined : trimmedNotes);
   }
 
   return (
@@ -47,30 +64,31 @@ export function RequestDetail({
       </div>
       {request.status === "pending" ? (
         <div className="options">
-          {submittableOptions(request).map((option) => (
-            <div className="optionRow" key={option.id}>
-              {optionRequiresText(option) ? (
-                <input
-                  value={textByOption[option.id] ?? ""}
-                  onChange={(change) =>
-                    setTextByOption((current) => ({
-                      ...current,
-                      [option.id]: change.currentTarget.value,
-                    }))
-                  }
-                  placeholder={option.text_placeholder ?? option.label}
-                />
-              ) : null}
+          <div className="optionButtons">
+            {options.map((option) => (
               <button
                 type="button"
+                key={option.id}
                 className={option.destructive ? "danger" : ""}
-                onClick={() => void onOption(request, option, textByOption[option.id])}
+                disabled={optionRequiresText(option) && trimmedNotes === ""}
+                onClick={() => submit(option)}
               >
                 {option.destructive ? <X size={16} /> : <Check size={16} />}
                 {option.label}
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
+          {someOptionTakesNotes ? (
+            <label className="optionNotes">
+              Notes
+              <textarea
+                value={notes}
+                onChange={(change) => setNotes(change.currentTarget.value)}
+                placeholder="Sent with whichever decision you pick"
+                rows={3}
+              />
+            </label>
+          ) : null}
         </div>
       ) : null}
     </section>
