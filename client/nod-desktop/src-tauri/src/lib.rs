@@ -13,8 +13,11 @@ use tauri::{App, AppHandle, Manager};
 use tokio::sync::{mpsc, Mutex};
 
 use crate::{
-    desktop_state::DesktopState, notifier::DesktopNotifier,
-    runtime_messages::forward_runtime_messages, tray::install_tray, window::focus_main_window,
+    desktop_state::DesktopState,
+    notifier::DesktopNotifier,
+    runtime_messages::{emit_transient_error, forward_runtime_messages},
+    tray::install_tray,
+    window::focus_main_window,
 };
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::{notifier::NotificationActivation, runtime_messages::handle_notification_activations};
@@ -72,9 +75,19 @@ fn setup_desktop(app: &mut App) -> Result<(), Box<dyn Error>> {
         message_rx,
     ));
     tauri::async_runtime::spawn(async move {
-        let runtime = runtime.lock().await;
+        let mut runtime = runtime.lock().await;
         runtime.emit_ready().await;
         runtime.emit_state().await;
+        // Already-registered devices reconnect on launch, matching the TUI's
+        // startup commands; without this the app only syncs over HTTP.
+        if runtime.state().await.is_registered {
+            if let Err(error) = runtime.refresh().await {
+                emit_transient_error(&app_handle, "refresh on launch", error);
+            }
+            if let Err(error) = runtime.connect_sync().await {
+                emit_transient_error(&app_handle, "connect sync", error);
+            }
+        }
     });
 
     Ok(())

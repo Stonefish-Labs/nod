@@ -116,6 +116,14 @@ async fn handle_activation(
     }
 }
 
+pub(crate) fn emit_transient_error(app: &AppHandle, context: &str, error: impl Display) {
+    emit_runtime_event(
+        app,
+        RUNTIME_MESSAGE_EVENT_NAME,
+        &transient_desktop_error(context, error),
+    );
+}
+
 fn emit_runtime_event<T>(app: &AppHandle, request: &str, payload: &T)
 where
     T: Serialize + Clone,

@@ -18,7 +18,12 @@ pub(crate) async fn enroll(
     state: State<'_, DesktopState>,
     params: EnrollParams,
 ) -> Result<ClientState, String> {
-    command_result(state.runtime.lock().await.enroll(params).await)
+    let mut runtime = state.runtime.lock().await;
+    let enrolled = command_result(runtime.enroll(params).await)?;
+    // Enrollment returns a state snapshot; starting sync here matches the
+    // startup path that already-registered devices use.
+    command_result(runtime.connect_sync().await)?;
+    Ok(enrolled)
 }
 
 #[tauri::command]
