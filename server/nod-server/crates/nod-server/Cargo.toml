@@ -4,11 +4,21 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# Release binaries statically build OpenSSL (appattest's crypto backend) so a
+# downloaded nod-server runs without a system libssl — required on Windows and
+# for macOS cross-builds, and it frees the Linux binaries from distro libssl
+# version skew. Dev and Docker builds link the system library for speed.
+vendored-openssl = ["openssl/vendored"]
+
 [dependencies]
 anyhow = "1.0"
 # The crate gates Apple's development AAGUID behind this feature; our verifier
 # still enforces the configured development/production environment explicitly.
 appattest = { version = "0.1", features = ["testing"] }
+# Not used directly: pinned so the vendored-openssl feature can reach the
+# openssl crate appattest depends on.
+openssl = { version = "0.10", default-features = false }
 async-trait = "0.1"
 axum = { version = "0.8", features = ["macros", "ws"] }
 base64 = "0.22"
