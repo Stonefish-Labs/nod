@@ -98,7 +98,7 @@ def query(items)
 end
 
 env = load_env
-bundle_id = ENV["NOD_IOS_BUNDLE_ID"] || "com.batteryshark.Nod"
+bundle_id = ENV["NOD_IOS_BUNDLE_ID"] || "com.batteryshark.Boop"
 issuer_id = env_value(env, "APP_STORE_CONNECT_API_ISSUER_ID", "ASC_API_ISSUER_ID")
 key_path = repo_relative_path(env_value(env, "APP_STORE_CONNECT_API_KEY_PATH", "ASC_API_KEY_PATH"))
 key_id = env_value(env, "APP_STORE_CONNECT_API_KEY_ID", "ASC_API_KEY_ID")

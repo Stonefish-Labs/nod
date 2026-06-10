@@ -35,7 +35,7 @@ open client/nod-apple/Nod.xcodeproj
 
 The iOS target is configured with:
 
-- Bundle ID: `com.batteryshark.Nod`
+- Bundle ID: `com.batteryshark.Boop`
 - Automatic signing
 - `aps-environment = development` for Debug and `production` for Release/TestFlight
 - `UIBackgroundModes = remote-notification`
@@ -83,7 +83,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 ## TestFlight
 
 Apple requires an App Store Connect app record before uploaded builds can
-appear in TestFlight. Create the app with bundle ID `com.batteryshark.Nod`,
+appear in TestFlight. Create the app with bundle ID `com.batteryshark.Boop`,
 then use a team App Store Connect API key to archive and upload from the
 command line. A team key is preferred because the script allows Xcode to create
 or update signing assets when automatic signing needs them.
@@ -123,7 +123,7 @@ The script also accepts these optional overrides:
 export NOD_MARKETING_VERSION="1.0"
 export NOD_BUILD_NUMBER="202605271715"
 export NOD_APPLE_TEAM_ID="Y734633UDM"
-export NOD_IOS_BUNDLE_ID="com.batteryshark.Nod"
+export NOD_IOS_BUNDLE_ID="com.batteryshark.Boop"
 ```
 
 TestFlight builds use production APNs tokens, so the Nod server that receives
@@ -131,7 +131,7 @@ paired TestFlight devices should use the production Apple APNs provider:
 
 ```bash
 NOD_APPLE_APNS_ENVIRONMENT=production
-NOD_APPLE_APNS_BUNDLE_ID=com.batteryshark.Nod
+NOD_APPLE_APNS_BUNDLE_ID=com.batteryshark.Boop
 ```
 
 When the Nod server reports `notification_delivery.mode = "websocket"`, the iOS

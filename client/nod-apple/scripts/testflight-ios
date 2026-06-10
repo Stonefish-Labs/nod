@@ -20,7 +20,7 @@ Aliases are also accepted:
 Optional environment:
   APP_STORE_CONNECT_API_PRIVATE_KEY  Raw .p8 contents, used if no key path is set
   NOD_APPLE_TEAM_ID                 Defaults to Y734633UDM
-  NOD_IOS_BUNDLE_ID                 Defaults to com.batteryshark.Nod
+  NOD_IOS_BUNDLE_ID                 Defaults to com.batteryshark.Boop
   NOD_MARKETING_VERSION             Defaults to 1.0
   NOD_BUILD_NUMBER                  Defaults to UTC yyyymmddHHMM
   NOD_TESTFLIGHT_INTERNAL_ONLY      Defaults to true
@@ -93,7 +93,7 @@ CONFIGURATION="Release"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 
 TEAM_ID="${NOD_APPLE_TEAM_ID:-Y734633UDM}"
-BUNDLE_ID="${NOD_IOS_BUNDLE_ID:-com.batteryshark.Nod}"
+BUNDLE_ID="${NOD_IOS_BUNDLE_ID:-com.batteryshark.Boop}"
 MARKETING_VERSION="${NOD_MARKETING_VERSION:-1.0}"
 BUILD_NUMBER="${NOD_BUILD_NUMBER:-$(date -u +%Y%m%d%H%M)}"
 WORK_DIR="${NOD_TESTFLIGHT_WORK_DIR:-/private/tmp/nod-testflight}"
@@ -207,14 +207,26 @@ if [[ "$archive_only" == true ]]; then
 fi
 
 echo "Uploading archive to App Store Connect for TestFlight"
-xcodebuild \
-  -exportArchive \
-  -archivePath "$ARCHIVE_PATH" \
-  -exportPath "$EXPORT_PATH" \
-  -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$API_KEY_PATH" \
-  -authenticationKeyID "$API_KEY_ID" \
-  -authenticationKeyIssuerID "$API_ISSUER_ID"
+if ! xcodebuild \
+    -exportArchive \
+    -archivePath "$ARCHIVE_PATH" \
+    -exportPath "$EXPORT_PATH" \
+    -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
+    -allowProvisioningUpdates \
+    -authenticationKeyPath "$API_KEY_PATH" \
+    -authenticationKeyID "$API_KEY_ID" \
+    -authenticationKeyIssuerID "$API_ISSUER_ID"; then
+  latest_distribution_log="$(ls -td "${TMPDIR:-/tmp}"/NodIOS_*.xcdistributionlogs 2>/dev/null | head -n 1 || true)"
+  if [[ -n "$latest_distribution_log" ]]; then
+    missing_app_line="$(grep -R "DistributionAppRecordProviderError.missingApp" "$latest_distribution_log" 2>/dev/null | head -n 1 || true)"
+    if [[ -n "$missing_app_line" ]]; then
+      echo "" >&2
+      echo "App Store Connect could not find an app record for bundle ID: $BUNDLE_ID" >&2
+      echo "Create the app in App Store Connect, or set NOD_IOS_BUNDLE_ID to the bundle ID of the existing app." >&2
+    fi
+    echo "Distribution logs: $latest_distribution_log" >&2
+  fi
+  exit 1
+fi
 
 echo "Upload submitted. Apple will process the build before it appears in TestFlight."
