@@ -218,6 +218,9 @@ impl AppState {
         }
     }
 
+    // A single returned request merges into the cached state by id — replaced
+    // in place when known, inserted at the top when new — so a submit/decision
+    // result updates the list without waiting for the next full state snapshot.
     fn apply_request(&mut self, request: Request) {
         if let Some(existing) = self
             .client_state
@@ -231,6 +234,8 @@ impl AppState {
         }
     }
 
+    // Same merge-by-id as apply_request; unknown devices append (the list is
+    // re-sorted by the next full ListDevices result, not here).
     fn apply_device(&mut self, device: UserDevice) {
         if let Some(existing) = self
             .devices

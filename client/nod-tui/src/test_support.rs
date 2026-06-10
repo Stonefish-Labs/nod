@@ -1,10 +1,19 @@
 use std::collections::BTreeMap;
 
+use anyhow::anyhow;
+use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
-use nod_client_core::models::{
-    ClientState, DecisionResolution, DevicePlatform, NotificationDeliveryMode, Request,
-    RequestStatus, ServerProfile, UserDevice,
+use nod_client_core::{
+    models::{
+        ClientState, DecisionResolution, DevicePlatform, NotificationDeliveryMode, Request,
+        RequestStatus, ServerProfile, UserDevice,
+    },
+    ChannelParams, EnrollParams, NotificationPreferenceParams, RenameDeviceParams,
+    RevokeDeviceParams, SelectRequestParams, SelectServerParams, SetSubscriptionParams,
+    SubmitOptionParams,
 };
+
+use crate::runtime_bridge::RuntimePort;
 
 pub fn client_state() -> ClientState {
     ClientState {
@@ -68,6 +77,114 @@ pub fn request_with_status(id: &str, channel_id: &str, status: RequestStatus) ->
         callback_url: None,
         options: Vec::new(),
         request_digest: Some("digest".to_string()),
+    }
+}
+
+/// In-memory [`RuntimePort`] for tests: records the methods called and serves
+/// a configurable state/request instead of touching the network.
+#[derive(Debug)]
+pub struct FakeRuntime {
+    pub calls: Vec<&'static str>,
+    pub fail_submit: bool,
+    /// Returned by every state-yielding method (enroll, refresh, selects, …).
+    pub state: ClientState,
+    /// Returned by `submit_option` when `fail_submit` is false.
+    pub submit_result: Request,
+}
+
+impl Default for FakeRuntime {
+    fn default() -> Self {
+        Self {
+            calls: Vec::new(),
+            fail_submit: false,
+            state: client_state(),
+            submit_result: request("deploy", "default"),
+        }
+    }
+}
+
+#[async_trait]
+impl RuntimePort for FakeRuntime {
+    async fn enroll(&mut self, _params: EnrollParams) -> anyhow::Result<ClientState> {
+        self.calls.push("enroll");
+        Ok(self.state.clone())
+    }
+
+    async fn refresh(&mut self) -> anyhow::Result<ClientState> {
+        self.calls.push("refresh");
+        Ok(self.state.clone())
+    }
+
+    async fn connect_sync(&mut self) -> anyhow::Result<()> {
+        self.calls.push("connect_sync");
+        Ok(())
+    }
+
+    async fn select_server(&mut self, _params: SelectServerParams) -> anyhow::Result<ClientState> {
+        self.calls.push("select_server");
+        Ok(self.state.clone())
+    }
+
+    async fn forget_server(&mut self, _params: SelectServerParams) -> anyhow::Result<ClientState> {
+        self.calls.push("forget_server");
+        Ok(self.state.clone())
+    }
+
+    async fn select_channel(&mut self, _params: ChannelParams) -> anyhow::Result<ClientState> {
+        self.calls.push("select_channel");
+        Ok(self.state.clone())
+    }
+
+    async fn select_request(
+        &mut self,
+        _params: SelectRequestParams,
+    ) -> anyhow::Result<ClientState> {
+        self.calls.push("select_request");
+        Ok(self.state.clone())
+    }
+
+    async fn submit_option(&mut self, _params: SubmitOptionParams) -> anyhow::Result<Request> {
+        self.calls.push("submit_option");
+        if self.fail_submit {
+            return Err(anyhow!("stale request"));
+        }
+        Ok(self.submit_result.clone())
+    }
+
+    async fn clear_channel(&mut self, _params: ChannelParams) -> anyhow::Result<ClientState> {
+        self.calls.push("clear_channel");
+        Ok(self.state.clone())
+    }
+
+    async fn set_subscription(
+        &mut self,
+        _params: SetSubscriptionParams,
+    ) -> anyhow::Result<ClientState> {
+        self.calls.push("set_subscription");
+        Ok(self.state.clone())
+    }
+
+    async fn set_notification_preference(
+        &mut self,
+        _params: NotificationPreferenceParams,
+    ) -> anyhow::Result<ClientState> {
+        self.calls.push("set_notification_preference");
+        Ok(self.state.clone())
+    }
+
+    async fn list_devices(&mut self) -> anyhow::Result<Vec<UserDevice>> {
+        self.calls.push("list_devices");
+        Ok(vec![user_device("phone")])
+    }
+
+    async fn rename_device(&mut self, _params: RenameDeviceParams) -> anyhow::Result<UserDevice> {
+        self.calls.push("rename_device");
+        Ok(user_device("renamed"))
+    }
+
+    async fn revoke_device(&mut self, _params: RevokeDeviceParams) -> anyhow::Result<ClientState> {
+        self.calls.push("revoke_device");
+        Ok(self.state.clone())
     }
 }
 

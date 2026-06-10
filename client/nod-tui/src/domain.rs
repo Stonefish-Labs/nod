@@ -70,8 +70,25 @@ pub fn option_for_kind<'a>(request: &'a Request, kind: OptionKind) -> Option<Opt
         .options
         .iter()
         .find(|option| option.kind == kind)
+        // The detail pane hints the same key for an option's with-text
+        // variant, so the key must reach it too (the text editor opens via
+        // requires_text). Exact kind wins when a request offers both.
+        .or_else(|| {
+            request
+                .options
+                .iter()
+                .find(|option| Some(&option.kind) == with_text_variant(&kind).as_ref())
+        })
         .map(OptionChoice::from_option)
         .or_else(|| default_dismiss_option(request, &kind))
+}
+
+fn with_text_variant(kind: &OptionKind) -> Option<OptionKind> {
+    match kind {
+        OptionKind::Approve => Some(OptionKind::ApproveWithText),
+        OptionKind::Reject => Some(OptionKind::RejectWithText),
+        _ => None,
+    }
 }
 
 pub fn first_text_option(request: &Request) -> Option<OptionChoice<'_>> {
@@ -130,6 +147,28 @@ mod tests {
     use super::*;
     use crate::test_support::{client_state, request_with_status};
     use nod_client_core::models::RequestStatus;
+
+    #[test]
+    fn option_key_reaches_the_with_text_variant() {
+        use nod_client_core::models::{OptionKind, RequestOption};
+
+        let mut request = request_with_status("deploy", "default", RequestStatus::Pending);
+        request.options.push(RequestOption {
+            id: "approve".to_string(),
+            label: "Approve".to_string(),
+            kind: OptionKind::ApproveWithText,
+            style: "primary".to_string(),
+            requires_text: true,
+            text_placeholder: None,
+            destructive: false,
+            foreground: false,
+        });
+
+        let choice = option_for_kind(&request, OptionKind::Approve)
+            .expect("the approve key should reach the approve_with_text option");
+        assert_eq!(choice.id, "approve");
+        assert!(choice.requires_text);
+    }
 
     #[test]
     fn ordered_requests_keep_pending_before_handled() {

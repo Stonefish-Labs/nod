@@ -2,6 +2,8 @@ mod alerts;
 mod app;
 mod domain;
 mod runtime_bridge;
+#[cfg(test)]
+mod smoke_test;
 mod terminal;
 #[cfg(test)]
 mod test_support;
@@ -84,6 +86,10 @@ async fn run_message_loop(
         };
         let commands = app.handle_key(key);
         for command in commands {
+            // One runtime command at a time: while one is in flight, the rest
+            // of this keypress's commands are dropped (not queued) — queuing
+            // them would replay stale intent against whatever state the
+            // in-flight command produces.
             if in_flight_commands > 0 {
                 app.set_error("Another command is still running.".to_string());
                 break;

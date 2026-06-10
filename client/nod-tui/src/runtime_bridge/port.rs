@@ -7,6 +7,11 @@ use nod_client_core::{
     SubmitOptionParams,
 };
 
+/// The TUI's only seam to `nod-client-core`. Everything the UI can ask of the
+/// runtime — enrollment, sync, selection, decisions, device management — goes
+/// through this trait; no client or crypto logic lives in the TUI itself.
+/// Production binds it to `NodClientRuntime` (see `adapter.rs`); tests bind
+/// the in-memory `FakeRuntime` from `test_support`.
 #[async_trait]
 pub(crate) trait RuntimePort {
     async fn enroll(&mut self, params: EnrollParams) -> Result<ClientState>;
