@@ -1,26 +1,42 @@
 .enrollment {
   align-items: center;
-  background:
-    linear-gradient(rgba(16, 24, 23, 0.68), rgba(16, 24, 23, 0.62)),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='620' viewBox='0 0 900 620'%3E%3Crect width='900' height='620' fill='%2321312f'/%3E%3Cpath d='M0 426c98-58 210-72 337-42 142 34 268 16 377-54 63-40 125-58 186-54v344H0z' fill='%234d8d7a'/%3E%3Cpath d='M0 478c119-33 217-27 293 20 98 60 218 72 360 36 90-23 172-22 247 2v84H0z' fill='%23d7f86f' fill-opacity='.78'/%3E%3Ccircle cx='716' cy='136' r='66' fill='%23f6cf65'/%3E%3C/svg%3E");
-  background-size: cover;
+  background: #f4f2ed;
   display: flex;
+  justify-content: center;
   min-height: 100vh;
   padding: 24px;
 }
 
 .enrollmentPanel {
+  background: #fffdf8;
+  border: 1px solid #e1d8c9;
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(23, 32, 27, 0.1);
   color: #17201b;
   display: grid;
   gap: 14px;
   max-width: 420px;
+  padding: 32px;
   width: 100%;
 }
 
-.enrollmentPanel h1 {
-  color: #fff8e8;
-  font-size: 56px;
-  margin: 0 0 10px;
+.enrollmentHeader {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.enrollmentHeader img {
+  border-radius: 12px;
+  height: 52px;
+  width: 52px;
+}
+
+.enrollmentHeader h1 {
+  color: #17201b;
+  font-size: 40px;
+  margin: 0;
 }
 
 .formError {

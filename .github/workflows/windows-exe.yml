@@ -1,0 +1,49 @@
+name: Windows EXE (iteration)
+
+# Fast loop for testing the desktop app in a Windows VM: builds the bare
+# Nod.exe (no MSI/installer packaging) and uploads it as a workflow artifact.
+# WebView2 ships with Windows 10/11, so the exe runs as-is.
+#
+#   gh workflow run windows-exe.yml --ref main
+#   gh run download <run-id> -n windows-exe
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Shares the MSI job's cache so iteration builds stay warm.
+          key: windows-msi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/nod-desktop/package-lock.json
+      - name: Build exe (no bundle)
+        working-directory: client/nod-desktop
+        run: |
+          npm ci
+          npm run tauri build -- --no-bundle
+      - name: Collect exe
+        shell: bash
+        run: |
+          mkdir -p dist
+          find target client/nod-desktop/src-tauri/target -maxdepth 3 \
+            \( -name "Nod.exe" -o -name "nod-desktop.exe" \) -path "*release*" \
+            -exec cp {} dist/ \; 2>/dev/null || true
+          ls -l dist/
+          [ -n "$(ls dist/)" ]
+      - uses: actions/upload-artifact@v5
+        with:
+          name: windows-exe
+          path: dist/*.exe
+          if-no-files-found: error

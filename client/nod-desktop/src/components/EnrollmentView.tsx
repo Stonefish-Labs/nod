@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { FormEvent, useState } from "react";
+import nodIcon from "../assets/nod-icon.png";
 import { NOTIFICATION_SOUND_OPTIONS } from "../app/state";
 import { canSubmitEnrollment } from "../domain";
 import type { EnrollParams } from "../types";
@@ -35,7 +36,10 @@ export function EnrollmentView({
   return (
     <main className="enrollment">
       <form className="enrollmentPanel" onSubmit={submit}>
-        <h1>Nod</h1>
+        <div className="enrollmentHeader">
+          <img src={nodIcon} alt="" />
+          <h1>Nod</h1>
+        </div>
         <label>
           Server
           <input
