@@ -109,4 +109,4 @@ Open the app, tap **Add Server**, paste the server URL (e.g. `https://your-tailn
 
 ## License
 
-MIT
+[AGPL-3.0](../../LICENSE)

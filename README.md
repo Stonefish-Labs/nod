@@ -14,6 +14,34 @@ The goal is to make "route this through a decision-maker before doing it" a
 first-class protocol rather than a pile of one-off push notifications, chat
 messages, and scripts.
 
+## Quickstart
+
+The server is one self-contained binary — it runs on a laptop. Grab it from
+the [latest release](https://github.com/batteryshark/nod/releases/latest):
+
+```bash
+tar -xzf nod-server-*.tar.gz
+NOD_ADMIN_TOKEN=$(openssl rand -hex 24) ./nod-server
+```
+
+Open `http://localhost:8767/admin`, log in with the token, mint an enrollment
+code, and connect a client. Full per-OS instructions (including Windows,
+Docker, run-at-login, and remote access over Tailscale) are in
+[docs/deploy.md](docs/deploy.md).
+
+## Clients
+
+| Client | Platforms | Install |
+| --- | --- | --- |
+| Native app (`client/nod-apple`) | macOS | Notarized DMG on the release page |
+| Native app (`client/nod-apple`) | iPhone / iPad | TestFlight |
+| Desktop app (`client/nod-desktop`) | Windows | MSI on the release page (unsigned — see SmartScreen note in [docs/deploy.md](docs/deploy.md)) |
+| Terminal UI (`client/nod-tui`) | macOS / Linux / Windows | Binary on the release page |
+
+Every client enrolls the same way: server URL + enrollment code. Decisions are
+signed on-device — Secure Enclave on Apple hardware, software P-256 keys
+elsewhere.
+
 ## Why Not Just Use Chat?
 
 Messaging services are built for conversation. Nod is built for decisions.
@@ -143,20 +171,21 @@ are connected.
 Each project directory has its own README with build, test, and deployment
 details.
 
-## Quick Checks
+## Development
+
+One Cargo workspace covers the server, relay, and every Rust client:
 
 ```bash
-cd server/nod-server
-cargo test
+cargo test --workspace
 ```
 
-```bash
-cd server/nod-apns-relay
-cargo test
-```
+The relay's TLS tests need local fixtures once:
+`server/nod-apns-relay/tests/fixtures/mtls/generate`. The full pre-release
+gate (Swift, desktop frontend, drift check, end-to-end smoke) lives in
+[docs/release-checklist.md](docs/release-checklist.md), and
+`server/nod-server/scripts/nod-smoke` exercises a running server end to end.
 
-```bash
-cd client
-cargo test --manifest-path ./nod-client-core/Cargo.toml
-cargo test --manifest-path ./nod-tui/Cargo.toml
-```
+## License
+
+[AGPL-3.0](LICENSE). Self-host it freely; if you run a modified Nod as a
+service for others, share your changes.

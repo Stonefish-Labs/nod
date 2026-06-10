@@ -23,6 +23,10 @@ This service lives under `server/nod-server` in the Nod monorepo. The native App
 
 Designed to run behind a private tunnel (Tailscale Serve, etc.) — never expose it directly to the public internet.
 
+Deploying on a laptop or a small box? Start with the prebuilt-binary guide in
+[docs/deploy.md](../../docs/deploy.md) — this README is the deep-dive on
+configuration, Docker, and APNs.
+
 ## Run locally
 
 ```bash
@@ -46,10 +50,10 @@ NOD_ADMIN_HTML_PATH=server/nod-server/assets/admin.html cargo run -p nod-server
 
 ## Configuration
 
-APNs support is relay-only. The server reads non-secret settings from
-built-in defaults, then an optional `NOD_CONFIG` TOML file, then environment
-overrides. Keep the TOML safe to commit: `admin_token` and APNs relay client
-certificates should be injected as environment values or mounted files.
+The server reads non-secret settings from built-in defaults, then an optional
+`NOD_CONFIG` TOML file, then environment overrides. Keep the TOML safe to
+commit: `admin_token`, APNs keys, and relay client certificates should be
+injected as environment values or mounted files.
 
 Use `config.example.toml` for non-secret options and `secrets.example.env` as the
 shape for secret injection. Injected values also support common file mounts:
@@ -110,14 +114,8 @@ This creates `secrets/relay.env` if needed and generates local mTLS files under
 `secrets/`. The local relay CA private key is kept in `.relay-ca/`, outside the
 container-mounted secrets directory.
 
-When migrating from a sibling `boop-server` checkout, `scripts/nod-compose
---with-apns-relay` also imports existing Boop APNs team/key settings from
-`../../../boop-server/secrets/secrets.env` and copies the APNs `.p8` key into
-Nod's ignored `secrets/` directory. The relay uses the local Apple app topic,
-`com.batteryshark.Boop`.
-
-If there is no Boop checkout to import from, copy your Apple APNs `.p8` key into
-`secrets/` and fill these values in `secrets/relay.env`:
+Copy your Apple APNs `.p8` key into `secrets/` and fill these values in
+`secrets/relay.env`:
 
 ```bash
 NOD_APNS_RELAY_TEAM_ID=...
@@ -165,16 +163,7 @@ scripts/nod-dev logs -f nod
 tailscale serve --bg --set-path /nod 8767
 ```
 
-Then point the Apple clients at `https://<your-tailnet-host>/nod`.
-
-When replacing an existing Boop deployment, keep the old public path and point
-it at Nod instead:
-
-```bash
-tailscale serve --bg --set-path /boop 8767
-```
-
-Then point Nod clients and issuers at `https://<your-tailnet-host>/boop`.
+Then point clients and issuers at `https://<your-tailnet-host>/nod`.
 
 ## Push Providers
 
@@ -189,11 +178,23 @@ The `push` mode means the server has a configured APNs route. The
 local notifications while connected. On iOS, WebSocket/local delivery is
 foreground-only; background and lock-screen delivery still require APNs.
 
+There are two mutually exclusive APNs routes, selected by which config block
+is present:
+
+- **In-process direct** (`notifications.apns_direct` / `NOD_APNS_DIRECT_*`):
+  the server talks to Apple itself using a `.p8` key on the same box —
+  `NOD_APNS_DIRECT_BUNDLE_ID`, `NOD_APNS_DIRECT_TEAM_ID`,
+  `NOD_APNS_DIRECT_KEY_ID`, `NOD_APNS_DIRECT_PRIVATE_KEY_PATH`. Right fit for
+  a single-operator, single-machine deployment.
+- **Remote relay** (`notifications.apns_relay` / `NOD_APNS_RELAY_*`): pushes
+  go through the standalone mTLS relay below, keeping Apple credentials out
+  of the main server. Configuring both routes is an error.
+
 ## APNs Relay
 
-A self-hosted Nod server sends remote notifications through the standalone
-APNs relay. The server and relay communicate over mTLS; bearer tokens are not
-used on this hop:
+For credential isolation, a Nod server can send remote notifications through
+the standalone APNs relay instead of the in-process route. The server and
+relay communicate over mTLS; bearer tokens are not used on this hop:
 
 ```bash
 NOD_APNS_RELAY_URL=https://relay.example.com:8768
@@ -256,4 +257,4 @@ revoked `smoke-` row remains per run).
 
 ## License
 
-MIT
+[AGPL-3.0](../../LICENSE)
