@@ -36,7 +36,7 @@ def main():
     parser.add_argument("body", nargs="?", help="request body; stdin is used when omitted")
     parser.add_argument("--url", default=first_env("NOD_URL", "NOD_BASE_URL"))
     parser.add_argument("--token", default=first_env("NOD_ISSUER_TOKEN", "NOD_TOKEN"))
-    parser.add_argument("--source", default=first_env("NOD_SOURCE_ID") or "default")
+    parser.add_argument("--channel", default=first_env("NOD_CHANNEL_ID") or "default")
     parser.add_argument("--summary", default="")
     parser.add_argument("--redact-apns", action="store_true", help="send generic APNs alert text")
     parser.add_argument("--apns-title", default="", help="custom APNs alert title")
@@ -54,7 +54,7 @@ def main():
     if body is None and not sys.stdin.isatty():
         body = sys.stdin.read().strip()
 
-    payload = {"source_id": args.source, "title": args.title}
+    payload = {"channel_id": args.channel, "title": args.title}
     if args.summary:
         payload["summary"] = args.summary
     if body:
