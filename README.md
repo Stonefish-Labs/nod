@@ -42,6 +42,10 @@ Every client enrolls the same way: server URL + enrollment code. Decisions are
 signed on-device — Secure Enclave on Apple hardware, software P-256 keys
 elsewhere.
 
+| macOS | Windows | Terminal |
+| --- | --- | --- |
+| ![Nod on macOS: handled requests for a channel](assets/macos-desktop.png) | ![Nod on Windows: pending approval with notes](assets/windows-desktop.png) | ![Nod TUI: servers, channels, and request detail](assets/tui-desktop.png) |
+
 ## Why Not Just Use Chat?
 
 Messaging services are built for conversation. Nod is built for decisions.

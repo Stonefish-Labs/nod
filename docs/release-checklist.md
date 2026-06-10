@@ -95,3 +95,12 @@ server/nod-server/scripts/nod-smoke
    answers (T-007)
 9. Walk docs/deploy.md Path A (T-009) using the published release on a clean
    account
+
+Executed 2026-06-10 for v1.0.0: main CI run `27299050991` and release run
+`27299305901` passed; `v1.0.0` was published with the signed/notarized DMG,
+Windows ZIP, server/TUI archives, GHCR image, and final `SHA256SUMS`. All
+public asset URLs returned HTTP 200, full `shasum -a 256 -c SHA256SUMS`
+passed, the GHCR container booted with `--platform linux/amd64` and `/health`
+answered, and Path A passed against the published Apple Silicon server
+archive. The in-app Browser surface was unavailable, so link verification used
+public release URLs plus full downloads/checksums.
