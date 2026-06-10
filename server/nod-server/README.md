@@ -38,10 +38,10 @@ Admin panel: `http://127.0.0.1:8767/admin`. Logging in with `NOD_ADMIN_TOKEN` se
 
 The admin page is embedded in the binary. When iterating on it, point
 `NOD_ADMIN_HTML_PATH` at the source file and edits show on refresh without a
-rebuild (the dev Compose file does this for you):
+rebuild (the dev Compose file does this for you). From the repo root:
 
 ```bash
-NOD_ADMIN_HTML_PATH=assets/admin.html cargo run -p nod-server
+NOD_ADMIN_HTML_PATH=server/nod-server/assets/admin.html cargo run -p nod-server
 ```
 
 ## Configuration
@@ -250,8 +250,9 @@ scripts/nod-smoke
 scripts/nod-smoke https://nod.example "$NOD_ADMIN_TOKEN"
 ```
 
-The deployed form creates uniquely-suffixed `smoke-` resources and deletes
-them on success.
+The deployed form creates uniquely-suffixed `smoke-` resources and removes
+them on success (the issuer token is revoked rather than deleted, so one
+revoked `smoke-` row remains per run).
 
 ## License
 

@@ -32,8 +32,13 @@ impl AdminSessionResponse {
 
 pub(crate) async fn admin_page() -> Result<Html<String>, ApiError> {
     // NOD_ADMIN_HTML_PATH is read per request so admin-panel edits show on
-    // refresh during development without rebuilding the embedded copy.
-    if let Ok(path) = std::env::var("NOD_ADMIN_HTML_PATH") {
+    // refresh during development without rebuilding the embedded copy. A set
+    // path that fails to read is a loud 500, not a silent fall back to the
+    // embedded copy — serving stale content would defeat the live-edit knob.
+    if let Some(path) = std::env::var("NOD_ADMIN_HTML_PATH")
+        .ok()
+        .filter(|path| !path.is_empty())
+    {
         let html = tokio::fs::read_to_string(&path).await.map_err(|err| {
             tracing::error!(
                 path = %path,
