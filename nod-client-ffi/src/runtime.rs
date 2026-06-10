@@ -88,12 +88,10 @@ pub trait NodDeviceSigner: Send + Sync {
     /// public identity to register with the server.
     fn provision(&self, profile_id: String) -> Result<NodDeviceKey, SignerCallbackError>;
     /// The existing SE key for a profile, or `None` if there is none.
-    fn signing_key(&self, profile_id: String)
-        -> Result<Option<NodDeviceKey>, SignerCallbackError>;
+    fn signing_key(&self, profile_id: String) -> Result<Option<NodDeviceKey>, SignerCallbackError>;
     /// Sign the canonical decision payload bytes with the profile's SE key;
     /// return a base64url DER ECDSA signature.
-    fn sign(&self, profile_id: String, payload: Vec<u8>)
-        -> Result<String, SignerCallbackError>;
+    fn sign(&self, profile_id: String, payload: Vec<u8>) -> Result<String, SignerCallbackError>;
     /// Drop the SE key when a server is forgotten.
     fn remove(&self, profile_id: String) -> Result<(), SignerCallbackError>;
 }
@@ -322,7 +320,10 @@ mod tests {
         let response = client
             .request(r#"{"id":"r1","method":"state","params":{}}"#.to_string())
             .await;
-        assert!(response.contains("\"ok\":true"), "state rpc failed: {response}");
+        assert!(
+            response.contains("\"ok\":true"),
+            "state rpc failed: {response}"
+        );
         assert!(response.contains("\"id\":\"r1\""));
 
         let bad = client.request("not json".to_string()).await;

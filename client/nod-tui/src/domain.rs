@@ -1,5 +1,5 @@
 use nod_client_core::models::{
-    ClientState, OptionKind, Request, RequestOption, RequestStatus, Channel,
+    Channel, ClientState, OptionKind, Request, RequestOption, RequestStatus,
 };
 
 pub fn total_pending_count(state: &ClientState) -> usize {

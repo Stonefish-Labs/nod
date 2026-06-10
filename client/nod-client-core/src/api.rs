@@ -6,8 +6,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
 use crate::models::{
-    CurrentUserResponse, DecisionSignature, DevicePlatform, DeviceSigningKey, EnrollDeviceResponse,
-    Request, RequestResponse, RequestsResponse, Channel, ChannelsResponse, UserDevice,
+    Channel, ChannelsResponse, CurrentUserResponse, DecisionSignature, DevicePlatform,
+    DeviceSigningKey, EnrollDeviceResponse, Request, RequestResponse, RequestsResponse, UserDevice,
     UserDeviceResponse, UserDevicesResponse,
 };
 

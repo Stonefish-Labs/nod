@@ -131,7 +131,6 @@ impl Store {
     pub fn path(&self) -> &Path {
         &self.path
     }
-
 }
 
 #[derive(Debug, Clone)]
@@ -246,4 +245,3 @@ fn signing_key_account(server_id: &str) -> String {
 fn default_notification_sound() -> String {
     "default".to_string()
 }
-

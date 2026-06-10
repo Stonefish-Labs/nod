@@ -13,9 +13,9 @@ use crate::{
 };
 
 use super::{
-    session::DecisionSignatureInput, EnrollParams, NodClientMessage, NodClientRuntime,
-    RegisterPushTokenParams, RenameDeviceParams, RevokeDeviceParams, SelectRequestParams,
-    SetSubscriptionParams, ChannelParams, SignerBackend, SubmitOptionParams,
+    session::DecisionSignatureInput, ChannelParams, EnrollParams, NodClientMessage,
+    NodClientRuntime, RegisterPushTokenParams, RenameDeviceParams, RevokeDeviceParams,
+    SelectRequestParams, SetSubscriptionParams, SignerBackend, SubmitOptionParams,
 };
 
 const REFRESH_EVENT_LIMIT: usize = 500;
@@ -26,8 +26,7 @@ impl NodClientRuntime {
         let profile_id = profile_id_for(&normalized_url);
         // Provision the device key from the active backend: a software key the
         // store will persist, or a Secure Enclave key the host already holds.
-        let (device_signing_key, software_key) =
-            self.provision_device_signing_key(&profile_id)?;
+        let (device_signing_key, software_key) = self.provision_device_signing_key(&profile_id)?;
         let api = crate::api::NodApi::new(&normalized_url, None)?;
         let response = api
             .enroll(EnrollDeviceRequest {

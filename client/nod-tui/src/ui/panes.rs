@@ -1,4 +1,4 @@
-use nod_client_core::models::{Request, RequestStatus, Channel};
+use nod_client_core::models::{Channel, Request, RequestStatus};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -80,7 +80,8 @@ fn render_servers(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
 }
 
 fn render_channels(frame: &mut Frame<'_>, area: Rect, app: &AppState) {
-    let selected_id = domain::selected_channel(app.client_state()).map(|channel| channel.id.as_str());
+    let selected_id =
+        domain::selected_channel(app.client_state()).map(|channel| channel.id.as_str());
     let items: Vec<ListItem<'_>> = domain::subscribed_channels(app.client_state())
         .iter()
         .map(|channel| channel_item(channel, selected_id, app))

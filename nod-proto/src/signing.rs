@@ -208,7 +208,12 @@ pub fn validate_public_key(public_key_b64: &str) -> Result<(), SigningError> {
 }
 
 fn encode_public_key(signing_key: &SigningKey) -> String {
-    URL_SAFE_NO_PAD.encode(signing_key.verifying_key().to_encoded_point(false).as_bytes())
+    URL_SAFE_NO_PAD.encode(
+        signing_key
+            .verifying_key()
+            .to_encoded_point(false)
+            .as_bytes(),
+    )
 }
 
 fn decode_signing_key(private_key_b64: &str) -> Result<SigningKey, SigningError> {

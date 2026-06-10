@@ -26,7 +26,6 @@ impl StoredSigningKey {
             private_key: keypair.private_key,
         }
     }
-
 }
 
 /// A device's decision-signing primitive. The software path
@@ -310,8 +309,9 @@ mod tests {
                 text: None,
                 user_id: "user-1",
                 device_id: "device-1",
-            })
-            .expect_err("missing digest should fail signing");
+            },
+        )
+        .expect_err("missing digest should fail signing");
 
         assert!(error.to_string().contains("request digest is missing"));
     }
@@ -328,8 +328,9 @@ mod tests {
                 text: None,
                 user_id: "user-1",
                 device_id: "device-1",
-            })
-            .expect_err("unknown option should fail signing");
+            },
+        )
+        .expect_err("unknown option should fail signing");
 
         assert!(error.to_string().contains("option reject is not available"));
     }
@@ -347,12 +348,11 @@ mod tests {
                 text: None,
                 user_id: "user-1",
                 device_id: "device-1",
-            })
-            .expect_err("a stale digest must fail signing");
+            },
+        )
+        .expect_err("a stale digest must fail signing");
 
-        assert!(error
-            .to_string()
-            .contains("does not match request content"));
+        assert!(error.to_string().contains("does not match request content"));
     }
 
     #[test]
@@ -435,7 +435,11 @@ mod tests {
 
         assert_eq!(signature.key_id, signer.key_id());
         assert_eq!(signature.algorithm, DECISION_SIGNING_ALGORITHM);
-        let payload = signed_payload.lock().unwrap().clone().expect("backend was asked to sign");
+        let payload = signed_payload
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("backend was asked to sign");
         nod_proto::verify_payload(&public_key, &payload, &signature.signature)
             .expect("the foreign signature must verify against the backend public key");
     }

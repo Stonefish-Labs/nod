@@ -1,7 +1,7 @@
 use nod_client_core::{
     models::{ClientState, Request, UserDevice},
-    EnrollParams, NotificationPreferenceParams, RenameDeviceParams, RevokeDeviceParams,
-    SelectRequestParams, SelectServerParams, SetSubscriptionParams, ChannelParams,
+    ChannelParams, EnrollParams, NotificationPreferenceParams, RenameDeviceParams,
+    RevokeDeviceParams, SelectRequestParams, SelectServerParams, SetSubscriptionParams,
     SubmitOptionParams,
 };
 

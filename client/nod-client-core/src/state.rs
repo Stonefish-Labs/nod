@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::models::{
-    ClientState, NotificationDeliveryMode, Request, RequestStatus, ServerProfile, Channel,
+    Channel, ClientState, NotificationDeliveryMode, Request, RequestStatus, ServerProfile,
     SyncEnvelope, User, UserDevice,
 };
 
@@ -238,7 +238,11 @@ impl StateReducer {
 
         pending_requests
             .iter()
-            .filter(|request| !self.known_pending_request_channels.contains_key(&request.id))
+            .filter(|request| {
+                !self
+                    .known_pending_request_channels
+                    .contains_key(&request.id)
+            })
             .cloned()
             .collect()
     }
@@ -264,7 +268,10 @@ impl StateReducer {
     }
 
     fn mark_pending(&mut self, request: &Request) {
-        increment_pending_count(&mut self.state.pending_counts_by_channel, &request.channel_id);
+        increment_pending_count(
+            &mut self.state.pending_counts_by_channel,
+            &request.channel_id,
+        );
         self.known_pending_request_channels
             .insert(request.id.clone(), request.channel_id.clone());
     }
@@ -276,8 +283,14 @@ impl StateReducer {
 
     fn update_pending_channel(&mut self, previous_channel_id: &str, request: &Request) {
         if previous_channel_id != request.channel_id {
-            decrement_pending_count(&mut self.state.pending_counts_by_channel, previous_channel_id);
-            increment_pending_count(&mut self.state.pending_counts_by_channel, &request.channel_id);
+            decrement_pending_count(
+                &mut self.state.pending_counts_by_channel,
+                previous_channel_id,
+            );
+            increment_pending_count(
+                &mut self.state.pending_counts_by_channel,
+                &request.channel_id,
+            );
         }
         self.known_pending_request_channels
             .insert(request.id.clone(), request.channel_id.clone());
@@ -456,7 +469,10 @@ mod tests {
             vec![request("a", "visible", RequestStatus::Pending)],
         );
 
-        assert_eq!(reducer.state.selected_channel_id.as_deref(), Some("visible"));
+        assert_eq!(
+            reducer.state.selected_channel_id.as_deref(),
+            Some("visible")
+        );
         assert_eq!(reducer.state.requests[0].channel_id, "visible");
     }
 
@@ -506,7 +522,10 @@ mod tests {
         reducer.apply_request_update(moved);
 
         assert_eq!(reducer.state.pending_counts_by_channel.get("alpha"), None);
-        assert_eq!(reducer.state.pending_counts_by_channel.get("beta"), Some(&1));
+        assert_eq!(
+            reducer.state.pending_counts_by_channel.get("beta"),
+            Some(&1)
+        );
     }
 
     #[test]

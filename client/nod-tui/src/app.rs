@@ -11,7 +11,7 @@ use std::time::Instant;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use nod_client_core::{
     models::{ClientState, OptionKind, Request, UserDevice},
-    NodClientMessage, RevokeDeviceParams, SelectRequestParams, SelectServerParams, ChannelParams,
+    ChannelParams, NodClientMessage, RevokeDeviceParams, SelectRequestParams, SelectServerParams,
     SubmitOptionParams,
 };
 
@@ -440,7 +440,8 @@ impl AppState {
 
     fn move_channel(&self, delta: isize) -> Vec<RuntimeCommand> {
         let channels = domain::subscribed_channels(&self.client_state);
-        let current = domain::selected_channel(&self.client_state).map(|channel| channel.id.as_str());
+        let current =
+            domain::selected_channel(&self.client_state).map(|channel| channel.id.as_str());
         let Some(next_id) = selected_id_after(
             channels.iter().map(|channel| channel.id.as_str()),
             current,

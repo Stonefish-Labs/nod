@@ -20,9 +20,9 @@ use crate::{
 };
 
 pub use rpc::{
-    EnrollParams, NotificationPreferenceParams, RegisterPushTokenParams, RenameDeviceParams,
-    RevokeDeviceParams, RpcRequest, RpcResponse, SelectRequestParams, SelectServerParams,
-    SetSubscriptionParams, ChannelParams, SubmitOptionParams,
+    ChannelParams, EnrollParams, NotificationPreferenceParams, RegisterPushTokenParams,
+    RenameDeviceParams, RevokeDeviceParams, RpcRequest, RpcResponse, SelectRequestParams,
+    SelectServerParams, SetSubscriptionParams, SubmitOptionParams,
 };
 
 const DEFAULT_NOTIFICATION_SOUND: &str = "default";
