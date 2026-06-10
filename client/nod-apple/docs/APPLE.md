@@ -62,6 +62,13 @@ That script refreshes:
 build/DerivedData/Build/Products/Release/Nod.app
 ```
 
+It also stamps the macOS bundle with a timestamped build number, so the app's
+About/build info reads like `1.0 (202606101430)`. Override it when needed:
+
+```bash
+NOD_MAC_MARKETING_VERSION=1.0 NOD_MAC_BUILD_NUMBER=202606101430 ./scripts/build-macos-app
+```
+
 Do not use `swift build --product NodMac` when you need the app bundle; it
 only builds the SwiftPM executable at `.build/.../NodMac`.
 

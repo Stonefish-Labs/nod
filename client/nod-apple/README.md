@@ -60,6 +60,13 @@ This refreshes the app you can open here:
 build/DerivedData/Build/Products/Release/Nod.app
 ```
 
+The script stamps the macOS bundle as `1.0 (UTC yyyymmddHHMM)` by default. To
+pin a visible build number:
+
+```bash
+NOD_MAC_BUILD_NUMBER=202606101430 ./scripts/build-macos-app
+```
+
 Use this script instead of `swift build --product NodMac` when you need the
 runnable `.app`. The SwiftPM command only builds `.build/.../NodMac`.
 
