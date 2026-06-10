@@ -5,9 +5,8 @@
 //! The server and every Rust client depend on it directly; Swift and TypeScript
 //! types are generated from it (typeshare) and the signing crypto is shared into
 //! the Apple clients via UniFFI, so there is exactly one implementation of the
-//! security-critical path. See `ARCHITECTURE_NOTES.md`.
-//!
-//! Types and crypto are migrated here incrementally — see the session task list.
+//! security-critical path. See `ARCHITECTURE_NOTES.md` (repo root) §2 for the
+//! decision record.
 
 /// The only decision-signing algorithm Nod supports: ECDSA over P-256 with
 /// SHA-256 and ASN.1/DER signatures. Lives here because the wire DTOs default to

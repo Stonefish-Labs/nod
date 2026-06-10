@@ -8,7 +8,7 @@ repository.workspace = true
 # Wire types + the canonical decision-signing crypto (request_digest,
 # decision_signing_payload, and P-256 sign/verify). Pure-Rust p256 is chosen
 # over ring so this crate cross-compiles cleanly into the Apple clients via
-# UniFFI. See the session task list and ARCHITECTURE_NOTES.md.
+# UniFFI. See ARCHITECTURE_NOTES.md (repo root) §2.
 [dependencies]
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }

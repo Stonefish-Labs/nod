@@ -1,22 +1,24 @@
-//! UniFFI surface for the Nod client — the incremental home for moving NodKit's
-//! logic (API client, store, sync, state machine, models) into shared Rust.
+//! The ONE UniFFI surface for the Nod client — how the Apple apps reach all
+//! shared Rust.
 //!
-//! Today the Apple apps (`NodKit`) re-implement the client that `nod-client-core`
-//! already owns (and that the TUI + Tauri desktop already use). This crate wraps
-//! `nod-client-core` for Swift via UniFFI so there is ONE client implementation,
-//! with Swift kept only for the genuinely-native adapters: Secure Enclave
-//! signing, App Attest, UserNotifications + APNs token, and SwiftUI.
+//! The Apple apps run on `nod-client-core` (the same client the TUI + Tauri
+//! desktop use); NodKit's formerly duplicated Swift client was deleted. Swift
+//! keeps only the genuinely-native adapters: Secure Enclave signing, App Attest,
+//! UserNotifications + APNs token, and SwiftUI.
 //! See `.project/decisions.md` ("Apple apps move onto nod-client-core").
 //!
-//! Shared logic exposed so far:
-//!   - the decision-signing contract (`request_digest`, `decision_signing_payload`,
-//!     `verify_payload`, `validate_public_key`) — the security-critical bytes the
-//!     Secure Enclave signs, with ONE Rust implementation and no parallel Swift
-//!     reimplementation to drift;
-//!   - server-address normalization — the canonical versions of NodKit's
-//!     hand-written `NodServerAddress`.
-//! Next: the async `NodClientRuntime` + foreign-trait callbacks for the native
-//! capabilities.
+//! Two surfaces, split by file:
+//!   - this file — the stateless decision-signing contract from `nod-proto`
+//!     (`request_digest`, `decision_signing_payload`, `verify_payload`,
+//!     `validate_public_key`) plus server-address normalization. ONE Rust
+//!     implementation of the security-critical bytes; no parallel Swift
+//!     reimplementation to drift.
+//!   - `runtime.rs` — the stateful async `NodClient` runtime (JSON-RPC in,
+//!     `NodClientMessage` events out, `NodDeviceSigner` Secure Enclave callback).
+//!
+//! This must stay the ONLY UniFFI crate: two UniFFI xcframeworks collide on
+//! `module.modulemap` in the `.xcodeproj` app build (that is why the former
+//! `nod-proto-ffi` was merged in here). Extend this crate; never add a second.
 
 uniffi::setup_scaffolding!();
 

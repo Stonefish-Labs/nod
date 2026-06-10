@@ -1,12 +1,17 @@
 # Apple Client Setup
 
-The channel in `clients/apple` is intentionally SwiftUI-native. It contains:
+The package in `client/nod-apple` is intentionally SwiftUI-native UI over the
+shared Rust client. The client logic (HTTP API, websocket sync, state, decision
+orchestration) lives in `nod-client-core` and is driven through the
+`NodClientFFI` UniFFI runtime; Swift implements only the native adapters. It
+contains:
 
-- `NodKit`: shared API models, keychain token storage, HTTP client, websocket sync client, and notification option registration.
-- `Apps/NodMac`: macOS menu bar/window app channel.
-- `Apps/NodIOS`: iOS app channel.
+- `NodKit`: the runtime bridge (`NodRuntimeClient`/`NodRuntimeState`), the SwiftUI-facing `NodStore` facade, and the native adapters — Secure Enclave decision signing, App Attest, UserNotifications/APNs registration, markdown rendering.
+- `Sources/NodClientFFI` + `Frameworks/`: the generated UniFFI wrapper and `nod_client_ffiFFI.xcframework` (git-ignored; rebuild with `scripts/build-nod-client-ffi.sh` whenever the Rust side changes).
+- `Apps/NodMac`: macOS menu bar/window app shell.
+- `Apps/NodIOS`: iOS app shell.
 - `Nod.xcodeproj`: Xcode app targets for iOS and macOS, linked to the local `NodKit` package.
-- A SwiftPM `NodMac` executable target that compiles the macOS app channel for quick local checks.
+- A SwiftPM `NodMac` executable target that compiles the macOS app for quick local checks.
 
 ## Xcode
 
@@ -25,7 +30,7 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 Open the generated Xcode project:
 
 ```bash
-open clients/apple/Nod.xcodeproj
+open client/nod-apple/Nod.xcodeproj
 ```
 
 The iOS target is configured with:
@@ -65,14 +70,14 @@ Compile-check the shared client and macOS app channel without changing global Xc
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
   CLANG_MODULE_CACHE_PATH=/private/tmp/nod-clang-cache \
-  swift build --package-path clients/apple --scratch-path /private/tmp/nod-swiftpm --product NodMac
+  swift build --package-path client/nod-apple --scratch-path /private/tmp/nod-swiftpm --product NodMac
 ```
 
 Compile-check the iOS Xcode app target without changing global Xcode selection:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-  xcodebuild -project clients/apple/Nod.xcodeproj -scheme NodIOS -configuration Debug -destination generic/platform=iOS -allowProvisioningUpdates build
+  xcodebuild -project client/nod-apple/Nod.xcodeproj -scheme NodIOS -configuration Debug -destination generic/platform=iOS -allowProvisioningUpdates build
 ```
 
 ## TestFlight

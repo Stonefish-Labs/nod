@@ -10,33 +10,43 @@ One Swift package holds the shared `NodKit` library and both app shells. ~95% of
 
 ## Layout
 
+The apps are a thin native shell over the shared Rust client
+([nod-client-core](../nod-client-core)), reached through the single UniFFI
+runtime ([nod-client-ffi](../../nod-client-ffi)). Swift keeps only what must be
+native: Secure Enclave signing, App Attest, UserNotifications/APNs, and SwiftUI.
+
 ```
 Package.swift           NodKit library + SwiftPM NodMac executable (fast iteration)
-Sources/NodKit/         API client, store, keychain, models, notifications, sync
-Sources/NodProtoFFI/    Generated UniFFI Swift wrapper over the Rust signing crypto
-Frameworks/             nod_proto_ffiFFI.xcframework (built from source, git-ignored)
+Sources/NodKit/         Runtime bridge (NodRuntimeClient/NodRuntimeState), the
+                        SwiftUI-facing NodStore facade, and the native adapters:
+                        Secure Enclave signer, App Attest, notifications, keychain
+Sources/NodClientFFI/   Generated UniFFI Swift wrapper (git-ignored, built from source)
+Frameworks/             nod_client_ffiFFI.xcframework (built from source, git-ignored)
 Apps/
   NodMac/              macOS @main, entitlements, Info.plist, resources
   NodIOS/              iOS @main, entitlements, Info.plist, resources
   Shared/               SwiftUI views, sounds, asset catalog
 Nod.xcodeproj/         Xcode targets for both apps
-scripts/                Release & compliance scripts
+scripts/                FFI/app build, release & compliance scripts
 ```
 
 ## Build
 
-Decision signing shares one Rust implementation (`nod-proto`) with the server
-via UniFFI — the Apple client never reimplements the canonical signing bytes.
-The generated `nod_proto_ffiFFI.xcframework` and Swift wrapper are built from
-source (not committed), so generate them once before the first build, and again
-whenever nod-proto's signing contract changes:
+The client logic (API, sync, state, decision orchestration) and the canonical
+decision-signing bytes live once in Rust; Swift drives them through the
+`NodClientFFI` module and signs in the Secure Enclave via a callback. The
+`nod_client_ffiFFI.xcframework` and Swift wrapper are built from source (not
+committed), so generate them once before the first build, and again whenever
+`nod-client-core`, `nod-proto`, or `nod-client-ffi` change — the xcframework is
+a prebuilt artifact, so Rust source changes don't reach the running app until
+it's rebuilt:
 
 ```bash
-./scripts/build-nod-proto-ffi.sh
+./scripts/build-nod-client-ffi.sh
 ```
 
 This needs the Rust toolchain (`rustup`); it adds the Apple targets, builds the
-static libraries, and emits the xcframework + `Sources/NodProtoFFI`.
+static libraries, and emits the xcframework + `Sources/NodClientFFI`.
 
 Canonical local macOS app bundle build:
 

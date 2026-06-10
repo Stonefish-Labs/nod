@@ -19,12 +19,17 @@
 //! websocket) an ambient runtime and keeping `tokio::spawn`ed background tasks
 //! (the outbox pump, the sync task) alive on async-compat's global runtime.
 //!
-//! NOTE (security, deliberately scoped): the runtime's decision signing still
-//! uses nod-client-core's software `StoredSigningKey`. The Apple apps must NOT
-//! regress off the Secure Enclave, so this transport is exposed and verified
-//! first; the next step is a `DeviceSigner` port so Swift signs in the Secure
-//! Enclave via a second foreign callback. Until that lands, NodKit keeps its own
-//! enroll/submit path — nothing here ships software signing to Apple.
+//! SECURITY INVARIANT (verified): Apple cannot software-sign through this crate.
+//! `NodClient::new(observer, signer)` *requires* a `NodDeviceSigner` callback and
+//! unconditionally constructs `SignerBackend::Foreign` — there is no constructor
+//! without a signer and no code path here that selects the software backend.
+//! On the core side, the `Foreign` arm never falls back to stored software keys
+//! (no key from the callback ⇒ the decision cannot be signed, not "use a software
+//! key instead"), and enroll persists no private key for foreign backends. The
+//! Swift implementation (`SecureEnclaveDeviceSigner` → `NodSigningKeyStore`)
+//! throws `secureEnclaveUnavailable` rather than degrading when the SE is absent.
+//! Software keys exist only for the TUI/desktop hosts, which construct the
+//! runtime directly in Rust — never through this FFI.
 
 use std::sync::Arc;
 
