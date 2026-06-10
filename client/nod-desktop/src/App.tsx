@@ -41,6 +41,7 @@ export function App(): JSX.Element {
         />
         <section className="columns">
           <RequestList
+            key={client.activeChannel?.id ?? "all"}
             requests={client.state.requests}
             selectedRequestId={client.activeRequest?.id ?? null}
             onSelect={client.commands.selectRequest}
