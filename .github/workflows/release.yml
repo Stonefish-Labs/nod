@@ -105,8 +105,25 @@ jobs:
           VERSION="${GITHUB_REF_NAME}"
           [ "${GITHUB_REF_TYPE}" = "tag" ] || VERSION="dev-${GITHUB_SHA::7}"
           mkdir -p dist stage
-          EXE="$(find target client/nod-desktop/src-tauri/target -maxdepth 3 -path '*release*' \( -name 'Nod.exe' -o -name 'nod-desktop.exe' \) | head -1)"
-          [ -n "$EXE" ]
+          SEARCH_ROOTS=()
+          for root in client/nod-desktop/src-tauri/target client/nod-desktop/target target; do
+            [ -d "$root" ] && SEARCH_ROOTS+=("$root")
+          done
+          if [ "${#SEARCH_ROOTS[@]}" -eq 0 ]; then
+            echo "No target directories found after Tauri build." >&2
+            exit 1
+          fi
+          mapfile -t EXE_CANDIDATES < <(
+            find "${SEARCH_ROOTS[@]}" -type f -path '*/release/*' \
+              \( -iname 'Nod.exe' -o -iname 'nod-desktop.exe' \) | sort
+          )
+          if [ "${#EXE_CANDIDATES[@]}" -eq 0 ]; then
+            echo "No release exe found. Candidate exe files:" >&2
+            find "${SEARCH_ROOTS[@]}" -type f -iname '*.exe' -print | sort >&2
+            exit 1
+          fi
+          EXE="${EXE_CANDIDATES[0]}"
+          echo "Packaging $EXE"
           cp "$EXE" stage/Nod.exe
           7z a "dist/nod-desktop-${VERSION}-x86_64-pc-windows-msvc.zip" ./stage/Nod.exe > /dev/null
           ls -l dist/

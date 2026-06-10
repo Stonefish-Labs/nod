@@ -37,11 +37,25 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          find target client/nod-desktop/src-tauri/target -maxdepth 3 \
-            \( -name "Nod.exe" -o -name "nod-desktop.exe" \) -path "*release*" \
-            -exec cp {} dist/ \; 2>/dev/null || true
+          SEARCH_ROOTS=()
+          for root in client/nod-desktop/src-tauri/target client/nod-desktop/target target; do
+            [ -d "$root" ] && SEARCH_ROOTS+=("$root")
+          done
+          if [ "${#SEARCH_ROOTS[@]}" -eq 0 ]; then
+            echo "No target directories found after Tauri build." >&2
+            exit 1
+          fi
+          mapfile -t EXE_CANDIDATES < <(
+            find "${SEARCH_ROOTS[@]}" -type f -path '*/release/*' \
+              \( -iname "Nod.exe" -o -iname "nod-desktop.exe" \) | sort
+          )
+          if [ "${#EXE_CANDIDATES[@]}" -eq 0 ]; then
+            echo "No release exe found. Candidate exe files:" >&2
+            find "${SEARCH_ROOTS[@]}" -type f -iname "*.exe" -print | sort >&2
+            exit 1
+          fi
+          cp "${EXE_CANDIDATES[0]}" dist/Nod.exe
           ls -l dist/
-          [ -n "$(ls dist/)" ]
       - uses: actions/upload-artifact@v5
         with:
           name: windows-exe
